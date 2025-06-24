@@ -1,0 +1,62 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+
+<head th:replace="~{fragment/fragments :: head}"></head>
+<body>
+
+<header th:replace="~{fragment/fragments :: header}"></header>
+
+<main class="container main">
+
+    <div class="section-title space-between">
+        <h2>Job: <span th:text="${jobName}">Job Name</span></h2>
+        <form class="mb-2" method="get" th:action="@{'/jobs/' + ${jobName}}">
+            <label for="date">Date:</label>
+            <input
+                    type="date"
+                    name="date"
+                    id="date"
+                    th:value="${date}"
+            >
+            <button type="submit">Filter</button>
+        </form>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Job Name</th>
+                <th>Status</th>
+                <th>Create Time</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Exit Code</th>
+                <th>Exit Message</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="exec : ${executions}">
+                <td th:text="${exec.jobExecutionId()}"/>
+                <td th:text="${exec.jobName()}"/>
+                <td th:text="${exec.status()}"/>
+                <td th:text="${#temporals.format(exec.createTime(), 'yyyy-MM-dd HH:mm:ss')}"/>
+                <td th:text="${#temporals.format(exec.startTime(), 'yyyy-MM-dd HH:mm:ss')}"/>
+                <td th:text="${#temporals.format(exec.endTime(), 'yyyy-MM-dd HH:mm:ss')}"/>
+                <td th:text="${exec.exitCode()}"/>
+                <td>
+                    <pre th:text="${exec.exitMessage()} ?: 'No Error'"/>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer th:replace="~{fragment/fragments :: footer}"></footer>
+
+</body>
+</html>

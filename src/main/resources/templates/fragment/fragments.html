@@ -1,0 +1,47 @@
+<!doctype html>
+<html
+        lang="en"
+        xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org/"
+        xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4"
+>
+<head th:fragment="head">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="description" content=""/>
+    <meta name="author" content=""/>
+    <meta http-equiv="refresh" content="10">
+    <!--    <link rel="icon" href="../../../../favicon.ico"/>-->
+
+    <!--/*@thymesVar id="title" type=""*/-->
+    <title th:text="${title}"></title>
+
+    <link th:href="@{/css/normalize.css}" rel="stylesheet"/>
+    <link th:href="@{/css/style.css}" rel="stylesheet"/>
+
+    <script th:src="@{/js/main.js}"></script>
+
+</head>
+<body>
+
+<header th:fragment="header" class="header">
+    <nav class="nav container">
+        <a class="nav-brand" href="/">Azerion</a>
+        <div class="nav-profile">
+            <div sec:authorize-expr="isFullyAuthenticated()">
+                <form th:action="@{/logout}" method="POST">
+                    <b class="userName" sec:authentication="name"></b>
+                    <button class="logout-button" type="submit">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<!-- FOOTER -->
+<footer th:fragment="footer" class="footer">
+    <p>&copy; 2025 Azerion, Inc.
+</footer>
+
+
+</body>
+</html>

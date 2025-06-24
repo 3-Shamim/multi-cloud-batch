@@ -1,0 +1,11 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: 'Multi Cloud Batch'
+    version: @project.version@
+  profiles:
+    active: dev, cloud
+  thymeleaf:
+    cache: false

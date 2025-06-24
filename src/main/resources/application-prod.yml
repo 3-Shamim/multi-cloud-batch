@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://${DB_HOST:localhost}:3306/${DB_NAME:multi_cloud}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    tomcat:
+      test-on-borrow: true
+      validation-query: SELECT 1
+      test-while-idle: true
+      validation-interval: 30000
+    driver-class-name: org.mariadb.jdbc.Driver
+  data:
+    jdbc:
+      dialect: maria
+  jpa:
+    properties:
+      hibernate:
+        column_ordering_strategy: legacy
+        order_inserts: true
+        order_updates: true
+        jdbc:
+          batch_size: 10
+          time_zone: UTC
+          batch_versioned_data: true
+        format_sql: false
+        use_sql_comments: false
+    open-in-view: true
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+      ddl-auto: validate
+    show-sql: false
+  sql:
+    init:
+      mode: never
+
+#======= AWS ========
+aws:
+  access_key: ${AWS_ACCESS_KEY}
+  secret_key: ${AWS_SECRET_KEY}
+
+#======= Huawei ========
+huawei:
+  access_key:
+  secret_key:
+  domain_id:
+  region:

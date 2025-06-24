@@ -1,0 +1,66 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+
+<head th:replace="~{fragment/fragments :: head}"></head>
+<body>
+
+<header th:replace="~{fragment/fragments :: header}"></header>
+
+<main class="container main">
+
+    <h2 class="section-title">List of Jobs</h2>
+
+    <div th:if="${jobName}" class="alert alert-info">
+        <b th:text="${jobName}"/>:
+        <span th:text="${msg}"/>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Last Execution Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="job : ${jobs}">
+                <td th:text="${job.name()}"></td>
+                <td th:text="${job.status()}"></td>
+                <td>
+                    <a th:href="@{'/jobs/start/' + ${job.name()}}"
+                       class="btn btn-start"
+                       th:classappend="${job.isRunning()} ? ' disabled' : ''"
+                    >
+                        Start
+                    </a> |
+                    <a th:href="@{'/jobs/stop/' + ${job.name()}}"
+                       class="btn btn-stop"
+                       th:classappend="${job.isRunning()} ? '' : ' disabled'"
+                    >
+                        Stop
+                    </a> |
+                    <a th:href="@{'/jobs/restart/' + ${job.name()}}"
+                       class="btn btn-restart"
+                       th:classappend="${job.status() == 'FAILED' || job.status() == 'STOPPED'} ? '' : ' disabled'"
+                    >
+                        Restart
+                    </a> |
+                    <a class="btn btn-details"
+                       th:href="@{'/jobs/' + ${job.name()}}">
+                        Details
+                    </a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer th:replace="~{fragment/fragments :: footer}"></footer>
+
+</body>
+</html>
