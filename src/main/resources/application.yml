@@ -6,6 +6,6 @@ spring:
     name: 'Multi Cloud Batch'
     version: @project.version@
   profiles:
-    active: dev, cloud
+    active: dev
   thymeleaf:
     cache: false

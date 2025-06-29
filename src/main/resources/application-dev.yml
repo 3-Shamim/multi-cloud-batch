@@ -1,10 +1,11 @@
 spring:
   batch:
+    job:
+      enabled: false
     jdbc:
       initialize-schema: always
-      table-prefix: 'MC_'
   datasource:
-    url: jdbc:mariadb://${DB_HOST:localhost}:3306/${DB_NAME:multi_cloud}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
+    url: jdbc:mariadb://${DB_HOST:localhost}:3306/${DB_NAME:multi_cloud1333}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root}
     tomcat:
@@ -37,16 +38,4 @@ spring:
     show-sql: true
   sql:
     init:
-      mode: never
-
-#======= AWS ========
-aws:
-  access_key: ${AWS_ACCESS_KEY}
-  secret_key: ${AWS_SECRET_KEY}
-
-#======= Huawei ========
-huawei:
-  access_key:
-  secret_key:
-  domain_id:
-  region:
+      mode: always
