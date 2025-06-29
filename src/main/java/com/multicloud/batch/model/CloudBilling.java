@@ -19,7 +19,16 @@ import java.time.LocalDate;
  */
 
 @Entity
-@Table(name = "cloud_billings")
+@Table(
+        name = "cloud_billings",
+        indexes = {
+                @Index(
+                        name = "cloud_billings_compound_idx",
+                        columnList = "organizationId, cloudProvider, accountId, projectId, serviceName",
+                        unique = true
+                )
+        }
+)
 @Data
 @Builder
 @NoArgsConstructor

@@ -1,15 +1,15 @@
 package com.multicloud.batch.model;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.multicloud.batch.enums.CloudProvider;
+import com.multicloud.batch.enums.LastSyncStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -42,15 +42,33 @@ public class CloudConfig implements Serializable {
     @Column(nullable = false, length = 100)
     private CloudProvider cloudProvider;
 
+    @Size(min = 1, max = 500, message = "Access key must be between {min} to {max}")
+    @Column(length = 500)
     private String accessKey;
+
+    @Size(min = 1, max = 500, message = "Secret key must be between {min} to {max}")
+    @Column(length = 500)
     private String secretKey;
+
+    @Lob
+    @Column(columnDefinition = "LONGBLOB")
+    private byte[] file;
+
+    @Size(min = 1, max = 500, message = "File name must be between {min} to {max}")
+    @Column(length = 500)
+    private String fileName;
 
     @Column(columnDefinition = "boolean default false")
     private boolean disabled;
+
     @Column(columnDefinition = "boolean default false")
     private boolean connected;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime lastSyncTime;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private LastSyncStatus lastSyncStatus;
+
+    @Column(length = 1000, columnDefinition = "TEXT")
+    private String lastSyncMessage;
 
 }

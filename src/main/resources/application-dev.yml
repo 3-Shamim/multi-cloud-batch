@@ -5,7 +5,7 @@ spring:
     jdbc:
       initialize-schema: always
   datasource:
-    url: jdbc:mariadb://${DB_HOST:localhost}:3306/${DB_NAME:multi_cloud1333}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
+    url: jdbc:mariadb://${DB_HOST:localhost}:3306/${DB_NAME:multi_cloud}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root}
     tomcat:

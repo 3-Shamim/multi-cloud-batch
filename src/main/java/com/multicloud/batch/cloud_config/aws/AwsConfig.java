@@ -7,9 +7,8 @@ import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
 
 /**
  * Created by IntelliJ IDEA.
- * User: Md. Shamim
- * Date: 5/28/25
- * Email: mdshamim723@gmail.com
+ * User: Md. Shamim Molla
+ * Email: shamim.molla@vivasoftltd.com
  */
 
 @Configuration

@@ -5,9 +5,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /**
  * Created by IntelliJ IDEA.
- * User: Md. Shamim
- * Date: 5/28/25
- * Email: mdshamim723@gmail.com
+ * User: Md. Shamim Molla
+ * Email: shamim.molla@vivasoftltd.com
  */
 
 public class AwsDynamicCredentialsProvider implements AwsCredentialsProvider {

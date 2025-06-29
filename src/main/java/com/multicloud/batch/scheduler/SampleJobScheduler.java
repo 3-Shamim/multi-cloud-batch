@@ -18,12 +18,12 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
-public class SimpleJobScheduler {
+public class SampleJobScheduler {
 
     private final JobLauncher jobLauncher;
     private final Job sampleJob;
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES) // every minute
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES) // every minute
     public void runJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()
