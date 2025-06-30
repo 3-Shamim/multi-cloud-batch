@@ -65,6 +65,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     .granularity(Granularity.DAILY)
                     .metrics(Metric.UNBLENDED_COST.name())
                     .groupBy(
+                            GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.LINKED_ACCOUNT.name()).build(),
                             GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.SERVICE.name()).build()
 
                     )
@@ -80,13 +81,15 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
                 for (Group group : result.groups()) {
 
-                    String service = group.keys().getFirst();
+                    String accountId = group.keys().getFirst();
+                    String service = group.keys().get(1);
 
                     BigDecimal cost = new BigDecimal(group.metrics().get("UnblendedCost").amount());
 
                     CloudDailyBilling billing = CloudDailyBilling.builder()
                             .organizationId(organizationId)
                             .cloudProvider(CloudProvider.AWS)
+                            .accountId(accountId)
                             .serviceName(service)
                             .date(startDate)
                             .costAmountUsd(cost)

@@ -52,6 +52,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                         DATE(usage_start_time) AS start_date,
                         billing_account_id AS account_id,
                         project.id AS project_id,
+                        project.name AS project_name,
                         service.description AS service_name,
                         SUM(cost) AS cost_amount_usd,
                         ANY_VALUE(currency) AS currency
@@ -60,7 +61,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                     WHERE
                         usage_start_time >= ':start_date' AND usage_start_time < ':end_date'
                     GROUP BY
-                        start_date, account_id, project_id, service_name
+                        start_date, account_id, project_id, project_name, service_name
                 """;
 
         query = query
@@ -92,6 +93,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                         .cloudProvider(CloudProvider.GCP)
                         .accountId(row.get("account_id").isNull() ? null : row.get("account_id").getStringValue())
                         .projectId(row.get("project_id").isNull() ? null : row.get("project_id").getStringValue())
+                        .projectName(row.get("project_name").isNull() ? null : row.get("project_name").getStringValue())
                         .serviceName(row.get("service_name").getStringValue())
                         .date(LocalDate.parse(row.get("start_date").getStringValue()))
                         .costAmountUsd(row.get("cost_amount_usd").isNull() ? null : BigDecimal.valueOf(row.get("cost_amount_usd").getDoubleValue()))

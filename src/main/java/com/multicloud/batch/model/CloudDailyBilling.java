@@ -59,6 +59,9 @@ public class CloudDailyBilling implements Serializable {
     @Column(name = "project_id")
     private String projectId;
 
+    @Column(name = "project_name")
+    private String projectName;
+
     @Column(name = "service_name")
     private String serviceName;
 
