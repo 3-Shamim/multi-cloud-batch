@@ -64,6 +64,9 @@ public class CloudConfig implements Serializable {
     @Column(columnDefinition = "boolean default false")
     private boolean connected;
 
+    @Column(columnDefinition = "boolean default false")
+    private boolean firstSyncCompleted;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
     private LastSyncStatus lastSyncStatus;

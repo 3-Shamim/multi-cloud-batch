@@ -35,11 +35,11 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
 
     @Override
-    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LastSyncStatus lastSyncStatus) {
+    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, boolean firstSync) {
 
         LocalDate start;
 
-        if (lastSyncStatus == null) {
+        if (firstSync) {
             start = YearMonth.now().minusMonths(12).atDay(1);
         } else {
             start = LocalDate.now().minusDays(7);

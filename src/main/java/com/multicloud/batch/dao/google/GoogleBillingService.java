@@ -11,7 +11,7 @@ import org.springframework.data.util.Pair;
 
 public interface GoogleBillingService {
 
-    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LastSyncStatus lastSyncStatus);
+    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, boolean firstSync);
 
     boolean checkGoogleBigQueryConnection(byte[] jsonKey);
 

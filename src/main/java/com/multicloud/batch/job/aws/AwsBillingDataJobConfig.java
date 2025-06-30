@@ -75,7 +75,7 @@ public class AwsBillingDataJobConfig {
     public ItemProcessor<CloudConfig, CloudConfig> awsBillingDataProcessor() {
         return item -> {
 
-            log.info("Processing AWS billing data with creation time: {}", item);
+            log.info("Processing AWS billing data for account: {}", item);
 
             return item;
         };
@@ -90,8 +90,12 @@ public class AwsBillingDataJobConfig {
                 log.info("Writing AWS billing data: {}", item);
 
                 Pair<LastSyncStatus, String> pair = awsBillingService.fetchDailyServiceCostUsage(
-                        item.getOrganizationId(), item.getAccessKey(), item.getSecretKey(), item.getLastSyncStatus()
+                        item.getOrganizationId(), item.getAccessKey(), item.getSecretKey(), !item.isFirstSyncCompleted()
                 );
+
+                if (pair.getFirst().equals(LastSyncStatus.SUCCESS) && !item.isFirstSyncCompleted()) {
+                    item.setFirstSyncCompleted(true);
+                }
 
                 item.setLastSyncStatus(pair.getFirst());
                 item.setLastSyncMessage(pair.getSecond());

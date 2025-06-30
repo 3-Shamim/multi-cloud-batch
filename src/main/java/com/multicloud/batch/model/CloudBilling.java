@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -33,7 +35,10 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CloudBilling {
+public class CloudBilling implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 6548746514148656478L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

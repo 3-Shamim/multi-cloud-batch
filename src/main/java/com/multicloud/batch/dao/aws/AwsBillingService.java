@@ -12,7 +12,7 @@ import org.springframework.data.util.Pair;
 public interface AwsBillingService {
 
     Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(
-            long organizationId, String accessKey, String secretKey, LastSyncStatus lastSyncStatus
+            long organizationId, String accessKey, String secretKey, boolean firstSync
     );
 
     boolean checkAwsExplorerConnection(String accessKey, String secretKey);

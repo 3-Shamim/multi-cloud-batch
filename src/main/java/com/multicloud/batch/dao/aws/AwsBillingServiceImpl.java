@@ -38,7 +38,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     @Override
     public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, String accessKey,
-                                                                   String secretKey, LastSyncStatus lastSyncStatus) {
+                                                                   String secretKey, boolean firstSync) {
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
@@ -47,7 +47,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             LocalDate start;
 
-            if (lastSyncStatus == null) {
+            if (firstSync) {
                 start = YearMonth.now().minusMonths(12).atDay(1);
             } else {
                 start = LocalDate.now().minusDays(7);

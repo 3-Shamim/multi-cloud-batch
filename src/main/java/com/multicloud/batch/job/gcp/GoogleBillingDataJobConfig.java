@@ -75,7 +75,7 @@ public class GoogleBillingDataJobConfig {
     public ItemProcessor<CloudConfig, CloudConfig> googleBillingDataProcessor() {
         return item -> {
 
-            log.info("Processing google billing data with creation time: {}", item);
+            log.info("Processing google billing data for account: {}", item);
 
             return item;
         };
@@ -88,8 +88,12 @@ public class GoogleBillingDataJobConfig {
             for (CloudConfig item : items) {
 
                 Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
-                        item.getOrganizationId(), item.getFile(), item.getLastSyncStatus()
+                        item.getOrganizationId(), item.getFile(), !item.isFirstSyncCompleted()
                 );
+
+                if (pair.getFirst().equals(LastSyncStatus.SUCCESS) && !item.isFirstSyncCompleted()) {
+                    item.setFirstSyncCompleted(true);
+                }
 
                 item.setLastSyncStatus(pair.getFirst());
                 item.setLastSyncMessage(pair.getSecond());
