@@ -1,5 +1,8 @@
 package com.multicloud.batch.dao.google;
 
+import com.multicloud.batch.enums.LastSyncStatus;
+import org.springframework.data.util.Pair;
+
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -8,7 +11,7 @@ package com.multicloud.batch.dao.google;
 
 public interface GoogleBillingService {
 
-    void fetchDailyServiceCostUsage(byte[] jsonKey, long organizationId);
+    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LastSyncStatus lastSyncStatus);
 
     boolean checkGoogleBigQueryConnection(byte[] jsonKey);
 

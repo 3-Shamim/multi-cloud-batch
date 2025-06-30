@@ -1,6 +1,8 @@
 package com.multicloud.batch.job.aws;
 
+import com.multicloud.batch.dao.aws.AwsBillingService;
 import com.multicloud.batch.enums.CloudProvider;
+import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.model.CloudConfig;
 import com.multicloud.batch.repository.CloudConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +19,9 @@ import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.util.Pair;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -37,6 +39,7 @@ public class AwsBillingDataJobConfig {
     private final JobRepository jobRepository;
     private final CloudConfigRepository cloudConfigRepository;
     private final PlatformTransactionManager platformTransactionManager;
+    private final AwsBillingService awsBillingService;
 
     @Bean
     public Job awsBillingDataJob() {
@@ -48,7 +51,7 @@ public class AwsBillingDataJobConfig {
     @Bean
     public Step awsBillingDataStep() {
         return new StepBuilder("awsBillingDataStep", jobRepository)
-                .<CloudConfig, AwsAccountConfig>chunk(10, platformTransactionManager)
+                .<CloudConfig, CloudConfig>chunk(10, platformTransactionManager)
                 .reader(awsActiveAccountReader())
                 .processor(awsBillingDataProcessor())
                 .writer(awsBillingDataWriter())
@@ -69,36 +72,35 @@ public class AwsBillingDataJobConfig {
     }
 
     @Bean
-    public ItemProcessor<CloudConfig, AwsAccountConfig> awsBillingDataProcessor() {
+    public ItemProcessor<CloudConfig, CloudConfig> awsBillingDataProcessor() {
         return item -> {
 
             log.info("Processing AWS billing data with creation time: {}", item);
-            // In a real implementation, you would process the data here
 
-            return new AwsAccountConfig(
-                    item.getAccessKey(),
-                    item.getSecretKey(),
-                    item.isConnected(),
-                    item.getLastSyncTime()
-            );
+            return item;
         };
     }
 
     @Bean
-    public ItemWriter<AwsAccountConfig> awsBillingDataWriter() {
+    public ItemWriter<CloudConfig> awsBillingDataWriter() {
         return items -> {
 
-            for (AwsAccountConfig item : items) {
+            for (CloudConfig item : items) {
 
                 log.info("Writing AWS billing data: {}", item);
-                // In a real implementation, you would write the data to a destination here
+
+                Pair<LastSyncStatus, String> pair = awsBillingService.fetchDailyServiceCostUsage(
+                        item.getOrganizationId(), item.getAccessKey(), item.getSecretKey(), item.getLastSyncStatus()
+                );
+
+                item.setLastSyncStatus(pair.getFirst());
+                item.setLastSyncMessage(pair.getSecond());
+
+                cloudConfigRepository.save(item);
 
             }
 
         };
-    }
-
-    public record AwsAccountConfig(String accessKey, String secretKey, boolean connected, LocalDateTime lastSyncTime) {
     }
 
 }

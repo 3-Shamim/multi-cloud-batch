@@ -19,6 +19,7 @@ import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.util.Pair;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.Collections;
@@ -50,7 +51,7 @@ public class GoogleBillingDataJobConfig {
     @Bean
     public Step googleBillingDataStep() {
         return new StepBuilder("googleBillingDataStep", jobRepository)
-                .<CloudConfig, GoogleAccountConfig>chunk(10, platformTransactionManager)
+                .<CloudConfig, CloudConfig>chunk(10, platformTransactionManager)
                 .reader(googleActiveAccountReader())
                 .processor(googleBillingDataProcessor())
                 .writer(googleBillingDataWriter())
@@ -71,44 +72,34 @@ public class GoogleBillingDataJobConfig {
     }
 
     @Bean
-    public ItemProcessor<CloudConfig, GoogleAccountConfig> googleBillingDataProcessor() {
+    public ItemProcessor<CloudConfig, CloudConfig> googleBillingDataProcessor() {
         return item -> {
 
             log.info("Processing google billing data with creation time: {}", item);
-            // In a real implementation, you would process the data here
 
-            return new GoogleAccountConfig(
-                    item.getFile(),
-                    item.isConnected(),
-                    item.getLastSyncStatus(),
-                    item.getOrganizationId()
-            );
+            return item;
         };
     }
 
     @Bean
-    public ItemWriter<GoogleAccountConfig> googleBillingDataWriter() {
+    public ItemWriter<CloudConfig> googleBillingDataWriter() {
         return items -> {
 
-            for (GoogleAccountConfig item : items) {
+            for (CloudConfig item : items) {
 
-                boolean connection = googleBillingService.checkGoogleBigQueryConnection(item.jsonKey);
-                googleBillingService.fetchDailyServiceCostUsage(item.jsonKey, item.organizationId);
+                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
+                        item.getOrganizationId(), item.getFile(), item.getLastSyncStatus()
+                );
 
-                log.info("Writing google billing data: {} -- {}", item, connection);
-                // In a real implementation, you would write the data to a destination here
+                item.setLastSyncStatus(pair.getFirst());
+                item.setLastSyncMessage(pair.getSecond());
+
+                cloudConfigRepository.save(item);
+
 
             }
 
         };
-    }
-
-    public record GoogleAccountConfig(
-            byte[] jsonKey,
-            boolean connected,
-            LastSyncStatus lastSyncStatus,
-            long organizationId
-    ) {
     }
 
 }

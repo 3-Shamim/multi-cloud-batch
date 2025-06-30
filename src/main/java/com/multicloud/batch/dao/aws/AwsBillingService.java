@@ -1,5 +1,8 @@
 package com.multicloud.batch.dao.aws;
 
+import com.multicloud.batch.enums.LastSyncStatus;
+import org.springframework.data.util.Pair;
+
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -8,7 +11,9 @@ package com.multicloud.batch.dao.aws;
 
 public interface AwsBillingService {
 
-    void fetchDailyServiceCostUsage(String accessKey, String secretKey, long organizationId);
+    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(
+            long organizationId, String accessKey, String secretKey, LastSyncStatus lastSyncStatus
+    );
 
     boolean checkAwsExplorerConnection(String accessKey, String secretKey);
 
