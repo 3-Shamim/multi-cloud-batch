@@ -23,7 +23,7 @@ public class GoogleBillingDataJobScheduler {
     private final JobLauncher jobLauncher;
     private final Job googleBillingDataJob;
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
     public void runJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()

@@ -2,7 +2,10 @@ package com.multicloud.batch.cloud_config.aws;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
 
 /**
@@ -25,6 +28,19 @@ public class AwsConfig {
         return CostExplorerClient.builder()
                 .region(Region.AWS_GLOBAL)
                 .credentialsProvider(awsDynamicCredentialsProvider())
+                .build();
+    }
+
+    @Bean
+    public AthenaClient athenaClient() {
+
+        AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
+                "", ""
+        );
+
+        return AthenaClient.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+                .region(Region.EU_WEST_1) // Use the correct region for Athena
                 .build();
     }
 

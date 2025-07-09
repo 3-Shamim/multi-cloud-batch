@@ -104,6 +104,11 @@
             <artifactId>costexplorer</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>athena</artifactId>
+        </dependency>
+
         <!-- Huawei SDK -->
         <dependency>
             <groupId>com.huaweicloud.sdk</groupId>
