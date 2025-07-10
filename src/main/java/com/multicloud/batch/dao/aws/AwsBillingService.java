@@ -11,7 +11,7 @@ import org.springframework.data.util.Pair;
 
 public interface AwsBillingService {
 
-    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(
+    Pair<LastSyncStatus, String> syncDailyServiceCostUsageFromExplorer(
             long organizationId, String accessKey, String secretKey, boolean firstSync
     );
 

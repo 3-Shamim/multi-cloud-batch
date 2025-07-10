@@ -37,8 +37,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
 
     @Override
-    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, String accessKey,
-                                                                   String secretKey, boolean firstSync) {
+    public Pair<LastSyncStatus, String> syncDailyServiceCostUsageFromExplorer(long organizationId, String accessKey,
+                                                                              String secretKey, boolean firstSync) {
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
