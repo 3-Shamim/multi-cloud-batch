@@ -40,8 +40,10 @@ public class AwsConfig {
 
         return AthenaClient.builder()
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+//                .credentialsProvider(awsDynamicCredentialsProvider())
                 .region(Region.EU_WEST_1) // Use the correct region for Athena
                 .build();
     }
+
 
 }

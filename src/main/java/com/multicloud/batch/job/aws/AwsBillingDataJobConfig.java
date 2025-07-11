@@ -89,7 +89,7 @@ public class AwsBillingDataJobConfig {
 
                 log.info("Writing AWS billing data: {}", item);
 
-                Pair<LastSyncStatus, String> pair = awsBillingService.syncDailyServiceCostUsageFromExplorer(
+                Pair<LastSyncStatus, String> pair = awsBillingService.syncDailyCostUsageFromAthena(
                         item.getOrganizationId(), item.getAccessKey(), item.getSecretKey(), !item.isFirstSyncCompleted()
                 );
 

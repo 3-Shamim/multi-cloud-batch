@@ -24,7 +24,7 @@ public class TestScheduler {
 
     private final AthenaClient athenaClient;
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void test() throws InterruptedException {
 
         System.out.println("===========================================");
@@ -41,7 +41,7 @@ public class TestScheduler {
                             line_item_usage_account_id AS usage_account_id,
 
                             -- Project (from tags)
-                            resource_tags_user_project AS project,
+                            COALESCE(resource_tags_user_project, 'unassigned') AS project,
                             resource_tags_user_env AS environment,
 
                             -- Region / Location
@@ -111,7 +111,7 @@ public class TestScheduler {
 
     }
 
-    public String submitAthenaQuery(String query) {
+    private String submitAthenaQuery(String query) {
 
         StartQueryExecutionRequest request = StartQueryExecutionRequest.builder()
                 .queryString(query)
