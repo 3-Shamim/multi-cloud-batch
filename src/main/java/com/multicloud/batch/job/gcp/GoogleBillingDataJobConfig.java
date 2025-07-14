@@ -87,18 +87,18 @@ public class GoogleBillingDataJobConfig {
 
             for (CloudConfig item : items) {
 
-                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
-                        item.getOrganizationId(), item.getFile(), !item.isFirstSyncCompleted()
-                );
-
-                if (pair.getFirst().equals(LastSyncStatus.SUCCESS) && !item.isFirstSyncCompleted()) {
-                    item.setFirstSyncCompleted(true);
-                }
-
-                item.setLastSyncStatus(pair.getFirst());
-                item.setLastSyncMessage(pair.getSecond());
-
-                cloudConfigRepository.save(item);
+//                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
+//                        item.getOrganizationId(), item.getFile(), !item.isFirstSyncCompleted()
+//                );
+//
+//                if (pair.getFirst().equals(LastSyncStatus.SUCCESS) && !item.isFirstSyncCompleted()) {
+//                    item.setFirstSyncCompleted(true);
+//                }
+//
+//                item.setLastSyncStatus(pair.getFirst());
+//                item.setLastSyncMessage(pair.getSecond());
+//
+//                cloudConfigRepository.save(item);
 
 
             }

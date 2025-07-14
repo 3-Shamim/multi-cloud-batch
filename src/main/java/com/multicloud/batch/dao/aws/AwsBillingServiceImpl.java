@@ -3,6 +3,7 @@ package com.multicloud.batch.dao.aws;
 import com.multicloud.batch.cloud_config.aws.AwsDynamicCredentialsProvider;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
+import com.multicloud.batch.model.AwsBillingDailyCost;
 import com.multicloud.batch.model.CloudDailyBilling;
 import com.multicloud.batch.repository.CloudDailyBillingRepository;
 import jakarta.persistence.EntityManager;
@@ -18,6 +19,7 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -122,102 +124,69 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
-    public Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey, boolean firstSync) {
+    public Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey,
+                                                                     long days) {
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
 
         try {
 
-            int days;
-
-            if (firstSync) {
-                days = 365;
-            } else {
-                days = 7;
-            }
-
             String query = """
-                        SELECT
-                            DATE(line_item_usage_start_date) AS usage_date,
-    
-                            -- Account
-                            bill_payer_account_id AS payer_account_id,
-                            line_item_usage_account_id AS usage_account_id,
-
-                            -- Project (from tags)
-                            COALESCE(resource_tags_user_project, 'unassigned') AS project,
-                            resource_tags_user_env AS environment,
-
-                            -- Region / Location
-                            product_region AS region,
-                            product_location AS location,
-
-                            -- Service & SKU
-                            product_servicename AS service_name,
-                            product_sku,
-
-                            -- SKU readable label (fallback chain)
-                            COALESCE(
-                            NULLIF(line_item_line_item_description, ''),
-                            NULLIF(product_product_name, ''),
-                            'Unknown SKU'
-                            ) AS sku_label,
-
-                            -- Usage type
-                            line_item_usage_type,
-
-                            -- Usage and Cost
-                            SUM(line_item_usage_amount) AS usage_amount,
-                            pricing_unit AS usage_unit,
-                            SUM(line_item_unblended_cost) AS unblended_cost,
-
-                            -- Currency & Pricing
-                            line_item_currency_code AS currency,
-                            pricing_term,
-                            pricing_purchase_option,
-                            pricing_offering_class
-
+                        SELECT date(line_item_usage_start_date)                               AS usage_date,
+                    
+                               -- Account
+                               bill_payer_account_id                                          AS payer_account_id,
+                               line_item_usage_account_id                                     AS usage_account_id,
+                    
+                               -- Project (from tags)
+                               resource_tags_user_project                                     AS project_id,
+                    
+                               -- Service
+                               product_servicecode                                            AS service_code,
+                               product_servicename                                            AS service_name,
+                    
+                               -- SKU
+                               product_sku                                                    AS sku_id,
+                               product_description                                            AS sku_description,
+                    
+                               -- Region / Location
+                               product_region                                                 AS region,
+                               product_location                                               AS location,
+                    
+                               line_item_currency_code                                        AS currency,
+                               pricing_term                                                   AS pricing_type,
+                               line_item_usage_type                                           AS usage_type,
+                    
+                               SUM(line_item_usage_amount)                                    AS usage_amount,
+                               MAX(pricing_unit)                                              AS usage_unit,
+                    
+                               SUM(line_item_unblended_cost)                                  AS unblended_cost,
+                               SUM(line_item_blended_cost)                                    AS blended_cost,
+                               SUM(
+                                       COALESCE(reservation_effective_cost, 0) +
+                                       COALESCE(savings_plan_savings_plan_effective_cost, 0)
+                               )                                                              AS effective_cost,
+                    
+                               MIN(bill_billing_period_start_date)                            AS billing_period_start,
+                               MAX(bill_billing_period_end_date)                              AS billing_period_end
+                    
                         FROM athena
-
-                        WHERE
-                            line_item_usage_start_date >= DATE_ADD('day', -%d, CURRENT_DATE)
-                            AND line_item_line_item_type = 'Usage' -- filter out credits, taxes, etc.
-
-                        GROUP BY
-                            DATE(line_item_usage_start_date),
-                            bill_payer_account_id,
-                            line_item_usage_account_id,
-                            resource_tags_user_project,
-                            resource_tags_user_env,
-                            product_region,
-                            product_location,
-                            product_servicename,
-                            product_sku,
-                            line_item_line_item_description,
-                            product_product_name,
-                            line_item_usage_type,
-                            pricing_unit,
-                            line_item_currency_code,
-                            pricing_term,
-                            pricing_purchase_option,
-                            pricing_offering_class
-                        ORDER BY usage_date DESC;
-                    """.formatted(days);
+                        WHERE line_item_usage_start_date >= date_add('day', -7, current_date)
+                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+                        ORDER BY 1 DESC;
+                    """;
 
             String executionId = submitAthenaQuery(query);
             waitForQueryToComplete(executionId);
-            List<Map<String, String>> results = getQueryResults(executionId);
+
+            List<AwsBillingDailyCost> results = fetchQueryResults(executionId);
 
             results.forEach(System.out::println);
 
 
-            List<CloudDailyBilling> billings = new ArrayList<>();
 
-
-//            cloudDailyBillingRepository.batchUpsert(billings, entityManager);
-
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(billings.size()));
+            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(results.size()));
 
         } catch (Exception e) {
             log.error("AWS billing data fetch error", e);
@@ -371,13 +340,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     .queryExecutionId(executionId)
                     .build();
 
-            QueryExecutionState state = athenaClient.getQueryExecution(getRequest)
-                    .queryExecution().status().state();
+            QueryExecution queryExecution = athenaClient.getQueryExecution(getRequest)
+                    .queryExecution();
+
+            QueryExecutionStatus status = queryExecution.status();
+
+            QueryExecutionState state = status.state();
 
             if (state == QueryExecutionState.SUCCEEDED) return;
 
             if (state == QueryExecutionState.FAILED || state == QueryExecutionState.CANCELLED) {
-                throw new RuntimeException("Query failed or was cancelled");
+                throw new RuntimeException(status.stateChangeReason());
             }
 
             Thread.sleep(1000); // Poll every second
@@ -414,6 +387,72 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         }
 
         return results;
+    }
+
+    public List<AwsBillingDailyCost> fetchQueryResults(String executionId) {
+
+        GetQueryResultsRequest resultRequest = GetQueryResultsRequest.builder()
+                .queryExecutionId(executionId)
+                .build();
+
+        GetQueryResultsResponse resultResponse = athenaClient.getQueryResults(resultRequest);
+
+        List<Row> rows = resultResponse.resultSet().rows();
+
+        return bindQueryResults(rows);
+    }
+
+    public List<AwsBillingDailyCost> bindQueryResults(List<Row> rows) {
+
+        List<AwsBillingDailyCost> results = new ArrayList<>();
+
+        // Skip the header row (index 0)
+        for (int i = 1; i < rows.size(); i++) {
+
+            Row row = rows.get(i);
+            List<Datum> data = row.data();
+
+            AwsBillingDailyCost usage = new AwsBillingDailyCost();
+
+            usage.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
+            usage.setPayerAccountId(data.get(1).varCharValue());
+            usage.setUsageAccountId(data.get(2).varCharValue());
+            
+            String projectId = data.get(3).varCharValue();
+            usage.setProjectId(projectId);
+            usage.setProjectName(projectId);
+            
+            usage.setServiceCode(data.get(4).varCharValue());
+            usage.setServiceName(data.get(5).varCharValue());
+            usage.setSkuId(data.get(6).varCharValue());
+            usage.setSkuDescription(data.get(7).varCharValue());
+            usage.setRegion(data.get(8).varCharValue());
+            usage.setLocation(data.get(9).varCharValue());
+            usage.setCurrency(data.get(10).varCharValue());
+            usage.setPricingType(data.get(11).varCharValue());
+            usage.setUsageType(data.get(12).varCharValue());
+
+            usage.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
+            usage.setUsageUnit(data.get(14).varCharValue());
+            usage.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+            usage.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+            usage.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+
+            usage.setBillingPeriodStart(
+                    LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
+            );
+            usage.setBillingPeriodEnd(
+                    LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
+            );
+
+            results.add(usage);
+        }
+
+        return results;
+    }
+
+    private BigDecimal parseBigDecimalSafe(String value) {
+        return (value == null || value.isEmpty()) ? BigDecimal.ZERO : new BigDecimal(value);
     }
 
 }

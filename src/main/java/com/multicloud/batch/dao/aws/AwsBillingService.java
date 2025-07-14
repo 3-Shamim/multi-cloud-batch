@@ -16,7 +16,7 @@ public interface AwsBillingService {
     );
 
     Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(
-            long organizationId, String accessKey, String secretKey, boolean firstSync
+            long organizationId, String accessKey, String secretKey, long days
     );
 
     boolean checkAwsExplorerConnection(String accessKey, String secretKey);

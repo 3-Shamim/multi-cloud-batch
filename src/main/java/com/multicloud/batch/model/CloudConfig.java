@@ -1,5 +1,6 @@
 package com.multicloud.batch.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import jakarta.persistence.*;
@@ -10,6 +11,7 @@ import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -64,8 +66,11 @@ public class CloudConfig implements Serializable {
     @Column(columnDefinition = "boolean default false")
     private boolean connected;
 
-    @Column(columnDefinition = "boolean default false")
-    private boolean firstSyncCompleted;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastSuccessSyncTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastSyncTime;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
