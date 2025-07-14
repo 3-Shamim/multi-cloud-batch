@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "aws_billing_daily_costs",
         uniqueConstraints = @UniqueConstraint(
-                name = "uq_aws_billing_grouped_fields",
+                name = "idx_uq_const",
                 columnNames = {
                         "usageDate", "payerAccountId", "usageAccountId", "projectId",
                         "serviceCode", "serviceName", "skuId", "skuDescription",
@@ -47,33 +47,64 @@ public class AwsBillingDailyCost {
 
     private LocalDate usageDate;
 
+    @Column(length = 12)
     private String payerAccountId;
+
+    @Column(length = 12)
     private String usageAccountId;
 
+    @Column(length = 64)
     private String projectId;
+
+    @Column(length = 128)
     private String projectName;
 
+    @Column(length = 32)
     private String serviceCode;
+
+    @Column(length = 64)
     private String serviceName;
 
+    @Column(length = 32)
     private String skuId;
+
+    @Column(length = 256)
     private String skuDescription;
 
+    @Column(length = 32)
     private String region;
+
+    @Column(length = 64)
     private String location;
 
+    @Column(length = 3)
     private String currency;
+
+    @Column(length = 16)
     private String pricingType;
+
+    @Column(length = 64)
     private String usageType;
 
+    @Column(precision = 20, scale = 6)
     private BigDecimal usageAmount;
+
+    @Column(length = 32)
     private String usageUnit;
 
+    @Column(precision = 20, scale = 6)
     private BigDecimal unblendedCost;
+
+    @Column(precision = 20, scale = 6)
     private BigDecimal blendedCost;
+
+    @Column(precision = 20, scale = 6)
     private BigDecimal effectiveCost;
 
+    @Column(columnDefinition = "DATETIME(0)")
     private LocalDateTime billingPeriodStart;
+
+    @Column(columnDefinition = "DATETIME(0)")
     private LocalDateTime billingPeriodEnd;
 
 }

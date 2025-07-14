@@ -5,6 +5,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -32,6 +33,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                 """);
 
         for (int i = 0; i < bills.size(); i++) {
+
             AwsBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
@@ -58,16 +60,17 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                                     b.getEffectiveCost() != null ? b.getEffectiveCost().toPlainString() : "NULL",
                                     b.getBillingPeriodStart(),
                                     b.getBillingPeriodEnd()
-                            ));
+                            )
+            );
 
             if (i < bills.size() - 1) {
                 sqlBuilder.append(", ");
             }
+
         }
 
         sqlBuilder.append("""
                     ON DUPLICATE KEY UPDATE
-                        project_name = VALUES(project_name),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
                         unblended_cost = VALUES(unblended_cost),

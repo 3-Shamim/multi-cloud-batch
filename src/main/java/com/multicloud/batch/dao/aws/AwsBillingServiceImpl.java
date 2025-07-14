@@ -5,6 +5,7 @@ import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.model.AwsBillingDailyCost;
 import com.multicloud.batch.model.CloudDailyBilling;
+import com.multicloud.batch.repository.AwsBillingDailyCostRepository;
 import com.multicloud.batch.repository.CloudDailyBillingRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final CostExplorerClient costExplorerClient;
     private final AthenaClient athenaClient;
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
+    private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
     @Override
     public Pair<LastSyncStatus, String> syncDailyServiceCostUsageFromExplorer(long organizationId, String accessKey,
@@ -132,6 +134,10 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         try {
 
+            String query1 = """
+                    select distinct date(line_item_usage_start_date) from athena where line_item_usage_start_date >= date_add('day', -7, current_date) order by 1 desc;
+                    """;
+
             String query = """
                         SELECT date(line_item_usage_start_date)                               AS usage_date,
                     
@@ -155,7 +161,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                product_location                                               AS location,
                     
                                line_item_currency_code                                        AS currency,
-                               pricing_term                                                   AS pricing_type,
+                               COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
                                line_item_usage_type                                           AS usage_type,
                     
                                SUM(line_item_usage_amount)                                    AS usage_amount,
@@ -173,18 +179,22 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     
                         FROM athena
                         WHERE line_item_usage_start_date >= date_add('day', -7, current_date)
+                            AND line_item_line_item_type IN (
+                                'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage'
+                            )
+                            AND line_item_unblended_cost IS NOT NULL
                         GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
                         ORDER BY 1 DESC;
                     """;
 
-            String executionId = submitAthenaQuery(query);
+            String executionId = submitAthenaQuery(query1);
             waitForQueryToComplete(executionId);
 
-            List<AwsBillingDailyCost> results = fetchQueryResults(executionId);
-
+//            List<AwsBillingDailyCost> results = fetchQueryResults(executionId);
+            List<Map<String, String>> results = getQueryResults(executionId);
             results.forEach(System.out::println);
 
-
+//            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
 
             return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(results.size()));
 
@@ -417,11 +427,11 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             usage.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
             usage.setPayerAccountId(data.get(1).varCharValue());
             usage.setUsageAccountId(data.get(2).varCharValue());
-            
+
             String projectId = data.get(3).varCharValue();
             usage.setProjectId(projectId);
             usage.setProjectName(projectId);
-            
+
             usage.setServiceCode(data.get(4).varCharValue());
             usage.setServiceName(data.get(5).varCharValue());
             usage.setSkuId(data.get(6).varCharValue());
