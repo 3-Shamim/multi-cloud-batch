@@ -35,7 +35,7 @@ spring:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
         implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
       ddl-auto: update
-    show-sql: true
+    show-sql: false
   sql:
     init:
       mode: always

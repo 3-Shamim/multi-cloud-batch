@@ -7,6 +7,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
+import software.amazon.awssdk.services.s3.S3Client;
 
 /**
  * Created by IntelliJ IDEA.
@@ -42,6 +43,20 @@ public class AwsConfig {
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
 //                .credentialsProvider(awsDynamicCredentialsProvider())
                 .region(Region.EU_WEST_1) // Use the correct region for Athena
+                .build();
+    }
+
+    @Bean
+    public S3Client s3Client() {
+
+        AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
+                "", ""
+        );
+
+        return S3Client.builder()
+                .region(Region.EU_WEST_1) // Replace it with your AWS region
+                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+//                .credentialsProvider(awsDynamicCredentialsProvider())
                 .build();
     }
 

@@ -10,15 +10,23 @@ import com.multicloud.batch.repository.CloudDailyBillingRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
 import software.amazon.awssdk.services.costexplorer.model.*;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,6 +51,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final EntityManager entityManager;
     private final CostExplorerClient costExplorerClient;
     private final AthenaClient athenaClient;
+    private final S3Client s3Client;
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
@@ -187,10 +196,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         ORDER BY 1 DESC;
                     """.formatted("athena", year, year, month, days);
 
-            String executionId = submitAthenaQuery(query);
+            String bucket = "azerion-athena-results";
+            String prefix = "azerion_mc";
+            String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
+            String database = "athenacurcfn_athena";
+
+            String executionId = submitAthenaQuery(query, outputLocation, database);
             waitForQueryToComplete(executionId);
 
-            long totalResults = fetchQueryResultsAndSaveItIntoDB(executionId);
+            long totalResults = fetchResultsToUnloadedFileFromS3(bucket, prefix, executionId);
+//            long totalResults = fetchQueryResultsAndSaveItIntoDB(executionId);
+
 //            List<Map<String, String>> results = getQueryResults(executionId);
 //            results.forEach(System.out::println);
 
@@ -325,16 +341,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     }
 
-    private String submitAthenaQuery(String query) {
+    private String submitAthenaQuery(String query, String outputLocation, String database) {
 
         StartQueryExecutionRequest request = StartQueryExecutionRequest.builder()
                 .queryString(query)
                 .queryExecutionContext(
-                        QueryExecutionContext.builder().database("athenacurcfn_athena").build()
+                        QueryExecutionContext.builder().database(database).build()
                 )
                 .resultConfiguration(
-                        ResultConfiguration.builder().outputLocation("s3://azerion-athena-results/azerion_mc/").build()
+                        ResultConfiguration.builder().outputLocation(outputLocation).build()
                 )
+                .workGroup("primary")
                 .build();
 
         StartQueryExecutionResponse response = athenaClient.startQueryExecution(request);
@@ -451,24 +468,91 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             for (; i < rows.size(); i++) {
                 results.add(bindRow(rows.get(i)));
+                count++;
             }
 
-            log.info("Upserting {} fetched records into DB.", results.size());
-
-            count += results.size();
-
             // Save each batch
-            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
-
             // Clean before the next
-            results.clear();
+            log.info("Upserting {} fetched records into DB.", results.size());
+            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+            results = new ArrayList<>();
 
         }
 
         return count;
     }
 
-    public AwsBillingDailyCost bindRow(Row row) {
+    private long fetchResultsToUnloadedFileFromS3(String bucket, String prefix, String executionId) {
+
+        ListObjectsV2Request s3Request = ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .build();
+
+        ListObjectsV2Response s3Response = s3Client.listObjectsV2(s3Request);
+
+        List<AwsBillingDailyCost> results = new ArrayList<>();
+        long count = 0;
+
+        for (S3Object s3Object : s3Response.contents()) {
+
+            String key = s3Object.key();
+
+            // Only process files with this execution ID and CSV extension
+            if (key.contains(executionId) && key.endsWith(".csv")) {
+
+                System.out.println("Processing file: " + key);
+
+                // Read and parse this file only
+                GetObjectRequest getRequest = GetObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .build();
+
+                try (ResponseInputStream<GetObjectResponse> s3Stream = s3Client.getObject(getRequest);
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(s3Stream))) {
+
+                    Iterable<CSVRecord> records = CSVFormat.DEFAULT
+                            .builder()
+                            .setHeader()
+                            .setSkipHeaderRecord(true)
+                            .get()
+                            .parse(reader);
+
+                    for (CSVRecord record : records) {
+
+                        AwsBillingDailyCost usage = bindRecord(record);
+                        results.add(usage);
+                        count++;
+
+                        if (results.size() == 2000) {
+                            // Save each batch
+                            // Clean before the next
+                            log.info("Upserting {} fetched records into DB.", results.size());
+                            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+                            results = new ArrayList<>();
+                        }
+
+                    }
+
+                } catch (IOException e) {
+                    log.error("Error reading file: {}", key, e);
+                }
+
+            }
+
+        }
+
+        // Save the remaining records
+        // Clean before the next
+        log.info("Upserting {} fetched records into DB.", results.size());
+        awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+        results.clear();
+
+        return count;
+    }
+
+    private AwsBillingDailyCost bindRow(Row row) {
 
         List<Datum> data = row.data();
 
@@ -506,6 +590,40 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         );
 
         return usage;
+    }
+
+    private AwsBillingDailyCost bindRecord(CSVRecord record) {
+
+        return AwsBillingDailyCost.builder()
+                .usageDate(LocalDate.parse(record.get("usage_date")))
+                .payerAccountId(record.get("payer_account_id"))
+                .usageAccountId(record.get("usage_account_id"))
+                .projectId(record.get("project_id"))
+                .serviceCode(record.get("service_code"))
+                .serviceName(record.get("service_name"))
+                .skuId(record.get("sku_id"))
+                .skuDescription(record.get("sku_description"))
+                .region(record.get("region"))
+                .location(record.get("location"))
+                .currency(record.get("currency"))
+                .pricingType(record.get("pricing_type"))
+                .usageType(record.get("usage_type"))
+                .usageAmount(parseBigDecimalSafe(record.get("usage_amount")))
+                .usageUnit(record.get("usage_unit"))
+                .unblendedCost(parseBigDecimalSafe(record.get("unblended_cost")))
+                .blendedCost(parseBigDecimalSafe(record.get("blended_cost")))
+                .effectiveCost(parseBigDecimalSafe(record.get("effective_cost")))
+                .billingPeriodStart(
+                        LocalDateTime.parse(
+                                record.get("billing_period_start").replace(" ", "T")
+                        )
+                )
+                .billingPeriodEnd(
+                        LocalDateTime.parse(
+                                record.get("billing_period_end").replace(" ", "T")
+                        )
+                )
+                .build();
     }
 
     private BigDecimal parseBigDecimalSafe(String value) {
