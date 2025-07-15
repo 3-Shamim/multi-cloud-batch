@@ -89,7 +89,7 @@ public class AwsBillingDailyCost {
     @Column(precision = 20, scale = 6)
     private BigDecimal usageAmount;
 
-    @Column(length = 32)
+    @Column(length = 64)
     private String usageUnit;
 
     @Column(precision = 20, scale = 6)

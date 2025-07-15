@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
@@ -134,9 +135,9 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         try {
 
-            String query1 = """
-                    select distinct date(line_item_usage_start_date) from athena where line_item_usage_start_date >= date_add('day', -7, current_date) order by 1 desc;
-                    """;
+            LocalDate date = LocalDate.now().minusDays(days + 1);
+            int year = date.getYear();
+            int month = date.getMonthValue();
 
             String query = """
                         SELECT date(line_item_usage_start_date)                               AS usage_date,
@@ -177,26 +178,25 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                MIN(bill_billing_period_start_date)                            AS billing_period_start,
                                MAX(bill_billing_period_end_date)                              AS billing_period_end
                     
-                        FROM athena
-                        WHERE line_item_usage_start_date >= date_add('day', -7, current_date)
-                            AND line_item_line_item_type IN (
-                                'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage'
-                            )
+                        FROM %s
+                        WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
+                            AND line_item_usage_start_date >= date_add('day', -%d, current_date)
+                            AND line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage')
                             AND line_item_unblended_cost IS NOT NULL
                         GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
                         ORDER BY 1 DESC;
-                    """;
+                    """.formatted("athena", year, year, month, days);
 
-            String executionId = submitAthenaQuery(query1);
+            String executionId = submitAthenaQuery(query);
             waitForQueryToComplete(executionId);
 
-//            List<AwsBillingDailyCost> results = fetchQueryResults(executionId);
-            List<Map<String, String>> results = getQueryResults(executionId);
-            results.forEach(System.out::println);
+            long totalResults = fetchQueryResultsAndSaveItIntoDB(executionId);
+//            List<Map<String, String>> results = getQueryResults(executionId);
+//            results.forEach(System.out::println);
 
-//            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+            log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
 
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(results.size()));
+            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(totalResults));
 
         } catch (Exception e) {
             log.error("AWS billing data fetch error", e);
@@ -339,6 +339,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         StartQueryExecutionResponse response = athenaClient.startQueryExecution(request);
 
+        log.info("Athena query submitted successfully.");
+
         return response.queryExecutionId();
     }
 
@@ -357,9 +359,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             QueryExecutionState state = status.state();
 
-            if (state == QueryExecutionState.SUCCEEDED) return;
+            if (state == QueryExecutionState.SUCCEEDED) {
+                log.info("Athena query execution completed successfully.");
+                return;
+            }
 
             if (state == QueryExecutionState.FAILED || state == QueryExecutionState.CANCELLED) {
+                log.error("Athena query execution failed.");
                 throw new RuntimeException(status.stateChangeReason());
             }
 
@@ -372,93 +378,134 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         List<Map<String, String>> results = new ArrayList<>();
 
-        GetQueryResultsRequest resultRequest = GetQueryResultsRequest.builder()
-                .queryExecutionId(executionId)
-                .build();
+        String nextToken = null;
 
-        GetQueryResultsResponse resultResponse = athenaClient.getQueryResults(resultRequest);
+        do {
 
-        List<ColumnInfo> columnInfoList = resultResponse.resultSet().resultSetMetadata().columnInfo();
+            GetQueryResultsRequest resultRequest = GetQueryResultsRequest.builder()
+                    .queryExecutionId(executionId)
+                    .nextToken(nextToken)
+                    .build();
 
-        List<Row> rows = resultResponse.resultSet().rows();
+            GetQueryResultsResponse resultResponse = athenaClient.getQueryResults(resultRequest);
 
-        for (int i = 1; i < rows.size(); i++) { // skip header
+            List<ColumnInfo> columnInfoList = resultResponse.resultSet().resultSetMetadata().columnInfo();
 
-            Row row = rows.get(i);
+            List<Row> rows = resultResponse.resultSet().rows();
 
-            Map<String, String> rowMap = new HashMap<>();
+            int i = 0;
 
-            for (int j = 0; j < row.data().size(); j++) {
-                rowMap.put(columnInfoList.get(j).name(), row.data().get(j).varCharValue());
+            if (nextToken == null) {
+                i = 1; // skip header
             }
 
-            results.add(rowMap);
+            for (; i < rows.size(); i++) {
 
-        }
+                Row row = rows.get(i);
+
+                Map<String, String> rowMap = new HashMap<>();
+
+                for (int j = 0; j < row.data().size(); j++) {
+                    rowMap.put(columnInfoList.get(j).name(), row.data().get(j).varCharValue());
+                }
+
+                results.add(rowMap);
+
+            }
+
+            nextToken = resultResponse.nextToken();
+
+        } while (nextToken != null);
 
         return results;
     }
 
-    public List<AwsBillingDailyCost> fetchQueryResults(String executionId) {
+    public long fetchQueryResultsAndSaveItIntoDB(String executionId) {
 
-        GetQueryResultsRequest resultRequest = GetQueryResultsRequest.builder()
-                .queryExecutionId(executionId)
-                .build();
+        log.info("Start fetching query results.");
 
-        GetQueryResultsResponse resultResponse = athenaClient.getQueryResults(resultRequest);
-
-        List<Row> rows = resultResponse.resultSet().rows();
-
-        return bindQueryResults(rows);
-    }
-
-    public List<AwsBillingDailyCost> bindQueryResults(List<Row> rows) {
+        int count = 0;
 
         List<AwsBillingDailyCost> results = new ArrayList<>();
 
-        // Skip the header row (index 0)
-        for (int i = 1; i < rows.size(); i++) {
+        GetQueryResultsRequest request = GetQueryResultsRequest.builder()
+                .queryExecutionId(executionId)
+                .build();
 
-            Row row = rows.get(i);
-            List<Datum> data = row.data();
+        SdkIterable<GetQueryResultsResponse> resultsPages = athenaClient.getQueryResultsPaginator(request);
 
-            AwsBillingDailyCost usage = new AwsBillingDailyCost();
+        log.info("Fetched pagination results.");
 
-            usage.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
-            usage.setPayerAccountId(data.get(1).varCharValue());
-            usage.setUsageAccountId(data.get(2).varCharValue());
+        boolean hasHeader = true;
 
-            String projectId = data.get(3).varCharValue();
-            usage.setProjectId(projectId);
-            usage.setProjectName(projectId);
+        for (GetQueryResultsResponse response : resultsPages) {
 
-            usage.setServiceCode(data.get(4).varCharValue());
-            usage.setServiceName(data.get(5).varCharValue());
-            usage.setSkuId(data.get(6).varCharValue());
-            usage.setSkuDescription(data.get(7).varCharValue());
-            usage.setRegion(data.get(8).varCharValue());
-            usage.setLocation(data.get(9).varCharValue());
-            usage.setCurrency(data.get(10).varCharValue());
-            usage.setPricingType(data.get(11).varCharValue());
-            usage.setUsageType(data.get(12).varCharValue());
+            List<Row> rows = response.resultSet().rows();
 
-            usage.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
-            usage.setUsageUnit(data.get(14).varCharValue());
-            usage.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-            usage.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-            usage.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+            int i = 0;
 
-            usage.setBillingPeriodStart(
-                    LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
-            );
-            usage.setBillingPeriodEnd(
-                    LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
-            );
+            if (hasHeader) {
+                i = 1;
+                hasHeader = false;
+            }
 
-            results.add(usage);
+            for (; i < rows.size(); i++) {
+                results.add(bindRow(rows.get(i)));
+            }
+
+            log.info("Upserting {} fetched records into DB.", results.size());
+
+            count += results.size();
+
+            // Save each batch
+            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+
+            // Clean before the next
+            results.clear();
+
         }
 
-        return results;
+        return count;
+    }
+
+    public AwsBillingDailyCost bindRow(Row row) {
+
+        List<Datum> data = row.data();
+
+        AwsBillingDailyCost usage = new AwsBillingDailyCost();
+
+        usage.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
+        usage.setPayerAccountId(data.get(1).varCharValue());
+        usage.setUsageAccountId(data.get(2).varCharValue());
+
+        String projectId = data.get(3).varCharValue();
+        usage.setProjectId(projectId);
+        usage.setProjectName(projectId);
+
+        usage.setServiceCode(data.get(4).varCharValue());
+        usage.setServiceName(data.get(5).varCharValue());
+        usage.setSkuId(data.get(6).varCharValue());
+        usage.setSkuDescription(data.get(7).varCharValue());
+        usage.setRegion(data.get(8).varCharValue());
+        usage.setLocation(data.get(9).varCharValue());
+        usage.setCurrency(data.get(10).varCharValue());
+        usage.setPricingType(data.get(11).varCharValue());
+        usage.setUsageType(data.get(12).varCharValue());
+
+        usage.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
+        usage.setUsageUnit(data.get(14).varCharValue());
+        usage.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+        usage.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+        usage.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+
+        usage.setBillingPeriodStart(
+                LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
+        );
+        usage.setBillingPeriodEnd(
+                LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
+        );
+
+        return usage;
     }
 
     private BigDecimal parseBigDecimalSafe(String value) {
