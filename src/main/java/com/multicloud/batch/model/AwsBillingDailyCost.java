@@ -24,9 +24,9 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const",
                 columnNames = {
-                        "usageDate", "payerAccountId", "usageAccountId", "projectId",
-                        "serviceCode", "serviceName", "skuId", "skuDescription",
-                        "region", "location", "currency", "pricingType", "usageType"
+                        "usageDate", "payerAccountId", "usageAccountId", "projectId", "projectName",
+                        "serviceCode", "serviceName", "skuId", "skuDescription", "region", "location",
+                        "currency", "pricingType", "usageType"
                 }
         ),
         indexes = {

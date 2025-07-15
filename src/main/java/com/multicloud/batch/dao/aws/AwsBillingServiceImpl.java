@@ -156,7 +156,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                line_item_usage_account_id                                     AS usage_account_id,
                     
                                -- Project (from tags)
-                               resource_tags_user_project                                     AS project_id,
+                               UPPER(resource_tags_user_project)                              AS project_id,
+                               UPPER(resource_tags_user_project)                              AS project_name,
                     
                                -- Service
                                product_servicecode                                            AS service_code,
@@ -192,7 +193,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                             AND line_item_usage_start_date >= date_add('day', -%d, current_date)
                             AND line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage')
                             AND line_item_unblended_cost IS NOT NULL
-                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
                         ORDER BY 1 DESC;
                     """.formatted("athena", year, year, month, days);
 
@@ -562,31 +563,30 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         usage.setPayerAccountId(data.get(1).varCharValue());
         usage.setUsageAccountId(data.get(2).varCharValue());
 
-        String projectId = data.get(3).varCharValue();
-        usage.setProjectId(projectId);
-        usage.setProjectName(projectId);
+        usage.setProjectId(data.get(3).varCharValue());
+        usage.setProjectName(data.get(4).varCharValue());
 
-        usage.setServiceCode(data.get(4).varCharValue());
-        usage.setServiceName(data.get(5).varCharValue());
-        usage.setSkuId(data.get(6).varCharValue());
-        usage.setSkuDescription(data.get(7).varCharValue());
-        usage.setRegion(data.get(8).varCharValue());
-        usage.setLocation(data.get(9).varCharValue());
-        usage.setCurrency(data.get(10).varCharValue());
-        usage.setPricingType(data.get(11).varCharValue());
-        usage.setUsageType(data.get(12).varCharValue());
+        usage.setServiceCode(data.get(5).varCharValue());
+        usage.setServiceName(data.get(6).varCharValue());
+        usage.setSkuId(data.get(7).varCharValue());
+        usage.setSkuDescription(data.get(8).varCharValue());
+        usage.setRegion(data.get(9).varCharValue());
+        usage.setLocation(data.get(10).varCharValue());
+        usage.setCurrency(data.get(11).varCharValue());
+        usage.setPricingType(data.get(12).varCharValue());
+        usage.setUsageType(data.get(13).varCharValue());
 
-        usage.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
-        usage.setUsageUnit(data.get(14).varCharValue());
-        usage.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-        usage.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-        usage.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+        usage.setUsageAmount(parseBigDecimalSafe(data.get(14).varCharValue()));
+        usage.setUsageUnit(data.get(15).varCharValue());
+        usage.setUnblendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
+        usage.setBlendedCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+        usage.setEffectiveCost(parseBigDecimalSafe(data.get(18).varCharValue()));
 
         usage.setBillingPeriodStart(
-                LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
+                LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
         );
         usage.setBillingPeriodEnd(
-                LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
+                LocalDateTime.parse(data.get(20).varCharValue().replace(" ", "T"))
         );
 
         return usage;
@@ -599,6 +599,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .payerAccountId(record.get("payer_account_id"))
                 .usageAccountId(record.get("usage_account_id"))
                 .projectId(record.get("project_id"))
+                .projectName(record.get("project_name"))
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))
                 .skuId(record.get("sku_id"))
