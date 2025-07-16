@@ -20,25 +20,25 @@ import java.time.LocalDateTime;
 @Builder
 @ToString
 @Entity
-@Table(name = "aws_billing_daily_costs",
+@Table(
+        name = "gcp_billing_daily_costs",
         uniqueConstraints = @UniqueConstraint(
-                name = "idx_uq_const",
+                name = "idx_uq_const_gcp",
                 columnNames = {
-                        "usageDate", "payerAccountId", "usageAccountId", "projectTag", "serviceCode", "serviceName",
-                        "skuId", "skuDescription", "region", "location", "currency", "pricingType", "usageType"
+                        "usageDate", "billingAccountId", "projectId", "projectName", "serviceCode", "serviceName",
+                        "skuId", "skuDescription", "region", "location", "currency", "costType", "usageUnit"
                 }
         ),
         indexes = {
                 @Index(name = "idx_usage_date", columnList = "usageDate"),
-                @Index(name = "idx_payer_account_id", columnList = "payerAccountId"),
-                @Index(name = "idx_usage_account_id", columnList = "usageAccountId"),
+                @Index(name = "idx_billing_account_id", columnList = "billingAccountId"),
+                @Index(name = "idx_project_id", columnList = "projectId"),
                 @Index(name = "idx_service_code", columnList = "serviceCode"),
                 @Index(name = "idx_sku_id", columnList = "skuId"),
-                @Index(name = "idx_project_id", columnList = "projectTag"),
-                @Index(name = "idx_service_level", columnList = "usageDate, payerAccountId, serviceCode")
+                @Index(name = "idx_project_service", columnList = "usageDate, billingAccountId, serviceCode")
         }
 )
-public class AwsBillingDailyCost {
+public class GcpBillingDailyCost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,33 +50,28 @@ public class AwsBillingDailyCost {
 
     private LocalDate usageDate;
 
-    // Master/Billing Account ID
-    @Column(length = 12)
-    private String payerAccountId;
-
-    // Linked/Usage Account ID
-    // Usage scope
-    @Column(length = 12)
-    private String usageAccountId;
-
-    // Project (from tags)
-    // This represents the project ID and name
-    @Column
-    private String projectTag;
-
     @Column(length = 32)
+    private String billingAccountId;
+
+    @Column(length = 128)
+    private String projectId;
+
+    @Column(length = 128)
+    private String projectName;
+
+    @Column(length = 64)
     private String serviceCode;
 
     @Column(length = 128)
     private String serviceName;
 
-    @Column(length = 32)
+    @Column(length = 64)
     private String skuId;
 
     @Column(length = 512)
     private String skuDescription;
 
-    @Column(length = 32)
+    @Column(length = 64)
     private String region;
 
     @Column(length = 128)
@@ -85,26 +80,17 @@ public class AwsBillingDailyCost {
     @Column(length = 3)
     private String currency;
 
-    @Column(length = 16)
-    private String pricingType;
+    @Column(length = 32)
+    private String costType;
 
-    @Column(length = 128)
-    private String usageType;
+    @Column(length = 64)
+    private String usageUnit;
 
     @Column(precision = 20, scale = 6)
     private BigDecimal usageAmount;
 
-    @Column(length = 128)
-    private String usageUnit;
-
     @Column(precision = 20, scale = 6)
-    private BigDecimal unblendedCost;
-
-    @Column(precision = 20, scale = 6)
-    private BigDecimal blendedCost;
-
-    @Column(precision = 20, scale = 6)
-    private BigDecimal effectiveCost;
+    private BigDecimal cost;
 
     @Column(columnDefinition = "DATETIME(0)")
     private LocalDateTime billingPeriodStart;

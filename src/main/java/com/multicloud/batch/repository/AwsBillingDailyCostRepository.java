@@ -5,7 +5,6 @@ import jakarta.persistence.EntityManager;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -24,10 +23,10 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
         StringBuilder sqlBuilder = new StringBuilder("""
                     INSERT INTO aws_billing_daily_costs
                     (
-                        usage_date, payer_account_id, usage_account_id, project_id, project_name,
-                        service_code, service_name, sku_id, sku_description, region, location,
-                        currency, pricing_type, usage_type, usage_amount, usage_unit,
-                        unblended_cost, blended_cost, effective_cost, billing_period_start, billing_period_end
+                        usage_date, payer_account_id, usage_account_id, project_tag, service_code, service_name,
+                        sku_id, sku_description, region, location, currency, pricing_type, usage_type,
+                        usage_amount, usage_unit, unblended_cost, blended_cost, effective_cost,
+                        billing_period_start, billing_period_end
                     )
                     VALUES
                 """);
@@ -37,13 +36,12 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             AwsBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s, '%s', '%s')"
+                    "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s, '%s')"
                             .formatted(
                                     b.getUsageDate(),
                                     escapeSql(b.getPayerAccountId()),
                                     escapeSql(b.getUsageAccountId()),
-                                    escapeSql(b.getProjectId()),
-                                    escapeSql(b.getProjectName()),
+                                    escapeSql(b.getProjectTag()),
                                     escapeSql(b.getServiceCode()),
                                     escapeSql(b.getServiceName()),
                                     escapeSql(b.getSkuId()),

@@ -22,6 +22,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Pair;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -87,19 +89,36 @@ public class GoogleBillingDataJobConfig {
 
             for (CloudConfig item : items) {
 
-//                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
-//                        item.getOrganizationId(), item.getFile(), !item.isFirstSyncCompleted()
-//                );
-//
-//                if (pair.getFirst().equals(LastSyncStatus.SUCCESS) && !item.isFirstSyncCompleted()) {
-//                    item.setFirstSyncCompleted(true);
-//                }
-//
-//                item.setLastSyncStatus(pair.getFirst());
-//                item.setLastSyncMessage(pair.getSecond());
-//
-//                cloudConfigRepository.save(item);
+                log.info("Writing google billing data: {}", item);
 
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime successSyncTime = item.getLastSuccessSyncTime();
+
+                long days = 365;
+
+                if (successSyncTime != null) {
+
+                    days = Duration.between(item.getLastSuccessSyncTime(), now).toDays();
+
+                    if (days < 7) {
+                        days = 7;
+                    }
+
+                }
+
+                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
+                        item.getOrganizationId(), item.getFile(), days
+                );
+
+
+                if (pair.getFirst().equals(LastSyncStatus.SUCCESS)) {
+                    item.setLastSuccessSyncTime(now);
+                }
+
+                item.setLastSyncStatus(pair.getFirst());
+                item.setLastSyncMessage(pair.getSecond());
+
+                cloudConfigRepository.save(item);
 
             }
 

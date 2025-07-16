@@ -2,10 +2,9 @@ package com.multicloud.batch.dao.google;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.*;
-import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
-import com.multicloud.batch.model.CloudDailyBilling;
-import com.multicloud.batch.repository.CloudDailyBillingRepository;
+import com.multicloud.batch.model.GcpBillingDailyCost;
+import com.multicloud.batch.repository.GcpBillingDailyCostRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +12,8 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,42 +30,62 @@ import java.util.List;
 public class GoogleBillingServiceImpl implements GoogleBillingService {
 
     private final EntityManager entityManager;
-    private final CloudDailyBillingRepository cloudDailyBillingRepository;
+    private final GcpBillingDailyCostRepository gcpBillingDailyCostRepository;
 
     @Override
-    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, boolean firstSync) {
-
-        LocalDate start;
-
-        if (firstSync) {
-            start = YearMonth.now().minusMonths(12).atDay(1);
-        } else {
-            start = LocalDate.now().minusDays(7);
-        }
+    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, long days) {
 
         LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(days);
 
         String query = """
                     SELECT
-                        DATE(usage_start_time) AS start_date,
-                        billing_account_id AS account_id,
-                        project.id AS project_id,
-                        project.name AS project_name,
-                        service.description AS service_name,
-                        SUM(cost) AS cost_amount_usd,
-                        ANY_VALUE(currency) AS currency
-                    FROM
-                        `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
-                    WHERE
-                        usage_start_time >= ':start_date' AND usage_start_time < ':end_date'
-                    GROUP BY
-                        start_date, account_id, project_id, project_name, service_name
+                        DATE(usage_start_time)                  AS usage_date,
+                
+                        -- Billing account ID
+                        billing_account_id                      AS billing_account_id,
+                
+                        -- Project Info
+                        -- Usage Scop
+                        project.id                              AS project_id,
+                        project.name                            AS project_name,
+                
+                        -- Service
+                        service.id                              AS service_code,
+                        service.description                     AS service_name,
+                
+                        -- SKU
+                        sku.id                                  AS sku_id,
+                        sku.description                         AS sku_description,
+                
+                        -- Region & Location
+                        location.region                         AS region,
+                        location.location                       AS location,
+                
+                        -- Currency & Usage & Cost
+                        currency                                AS currency,
+                        cost_type                               AS cost_type,
+                
+                        SUM(usage.amount)                       AS usage_amount,
+                        MAX(usage.unit)                         AS usage_unit,
+                
+                        SUM(cost)                               AS cost,
+                
+                        -- Billing period
+                        MIN(usage_start_time)                   AS billing_period_start,
+                        MAX(usage_start_time)                   AS billing_period_end
+                
+                    FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
+                    WHERE usage_start_time >= ':start_date' AND usage_start_time <= ':end_date'
+                        AND cost IS NOT NULL
+                        -- AND cost_type IN ('usage', 'commitment', 'adjustment', 'discount', 'overcommit')
+                    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+                    ORDER BY 1 DESC;
                 """;
 
         query = query
                 .replace(":start_date", start.format(DateTimeFormatter.ISO_DATE))
                 .replace(":end_date", end.format(DateTimeFormatter.ISO_DATE));
-
         try {
 
             GoogleCredentials credentials = GoogleCredentials.fromStream(
@@ -82,41 +100,35 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
             TableResult result = bigQuery.query(queryConfig);
 
-            List<CloudDailyBilling> billings = new ArrayList<>();
+            List<GcpBillingDailyCost> billings = new ArrayList<>();
 
-            long totalCount = 0;
+            long count = 0;
 
             for (FieldValueList row : result.iterateAll()) {
 
-                CloudDailyBilling billing = CloudDailyBilling.builder()
-                        .organizationId(organizationId)
-                        .cloudProvider(CloudProvider.GCP)
-                        .accountId(row.get("account_id").isNull() ? null : row.get("account_id").getStringValue())
-                        .projectId(row.get("project_id").isNull() ? null : row.get("project_id").getStringValue())
-                        .projectName(row.get("project_name").isNull() ? null : row.get("project_name").getStringValue())
-                        .serviceName(row.get("service_name").getStringValue())
-                        .date(LocalDate.parse(row.get("start_date").getStringValue()))
-                        .costAmountUsd(row.get("cost_amount_usd").isNull() ? null : BigDecimal.valueOf(row.get("cost_amount_usd").getDoubleValue()))
-                        .currency(row.get("currency").isNull() ? null : row.get("currency").getStringValue())
-                        .billingExportSource("BigQueryBillingExport")
-                        .build();
+                GcpBillingDailyCost billing = bindRow(row, organizationId);
 
                 billings.add(billing);
+                count++;
 
-                if (billings.size() == 20000) {
+                if (billings.size() == 2000) {
 
-                    totalCount += saveDailyBillingIntoDB(billings);
-
+                    // Save each batch
+                    // Clean before the next
+                    log.info("Upserting {} fetched GCP records into DB.", billings.size());
+                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
                     billings.clear();
 
                 }
 
             }
 
-            totalCount += saveDailyBillingIntoDB(billings);
+            // Save each batch
+            log.info("Upserting {} fetched GCP records into DB.", billings.size());
+            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+            billings.clear();
 
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(totalCount));
-
+            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(count));
         } catch (Exception e) {
             log.error("GCP billing data fetch error", e);
             return Pair.of(LastSyncStatus.FAIL, e.getMessage());
@@ -217,11 +229,6 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 //
 //    }
 
-    private int saveDailyBillingIntoDB(List<CloudDailyBilling> billings) {
-        cloudDailyBillingRepository.batchUpsert(billings, entityManager);
-        return billings.size();
-    }
-
     @Override
     public boolean checkGoogleBigQueryConnection(byte[] jsonKey) {
 
@@ -246,6 +253,30 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             return false;
         }
 
+    }
+
+    private GcpBillingDailyCost bindRow(FieldValueList row, long organizationId) {
+
+        return GcpBillingDailyCost.builder()
+                .organizationId(organizationId)
+                .usageDate(LocalDate.parse(row.get("usage_date").getStringValue()))
+                .billingAccountId(row.get("billing_account_id").getStringValue())
+                .projectId(row.get("project.id").getStringValue())
+                .projectName(row.get("project.name").getStringValue())
+                .serviceCode(row.get("service.id").getStringValue())
+                .serviceName(row.get("service.description").getStringValue())
+                .skuId(row.get("sku.id").getStringValue())
+                .skuDescription(row.get("sku.description").getStringValue())
+                .region(row.get("location.region").getStringValue())
+                .location(row.get("location.location").getStringValue())
+                .currency(row.get("currency").getStringValue())
+                .costType(row.get("cost_type").getStringValue())
+                .usageUnit(row.get("usage.unit").getStringValue())
+                .usageAmount(row.get("usage_amount").getNumericValue())
+                .cost(row.get("cost").getNumericValue())
+                .billingPeriodStart(LocalDateTime.parse(row.get("billing_period_start").getStringValue()))
+                .billingPeriodEnd(LocalDateTime.parse(row.get("billing_period_end").getStringValue()))
+                .build();
     }
 
 }

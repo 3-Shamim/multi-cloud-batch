@@ -16,9 +16,10 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.pagination.sync.SdkIterable;
-import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.athena.model.*;
+import software.amazon.awssdk.services.athena.model.Datum;
+import software.amazon.awssdk.services.athena.model.GetQueryResultsResponse;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.athena.paginators.GetQueryResultsIterable;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
 import software.amazon.awssdk.services.costexplorer.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -33,9 +34,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by IntelliJ IDEA.
@@ -50,8 +49,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final EntityManager entityManager;
     private final CostExplorerClient costExplorerClient;
-    private final AthenaClient athenaClient;
     private final S3Client s3Client;
+    private final AthenaService athenaService;
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
@@ -149,51 +148,56 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int month = date.getMonthValue();
 
             String query = """
-                        SELECT date(line_item_usage_start_date)                               AS usage_date,
+                        SELECT date(line_item_usage_start_date)                            AS usage_date,
                     
-                               -- Account
-                               bill_payer_account_id                                          AS payer_account_id,
-                               line_item_usage_account_id                                     AS usage_account_id,
+                            -- Master/Billing account ID
+                            bill_payer_account_id                                          AS payer_account_id,
                     
-                               -- Project (from tags)
-                               UPPER(resource_tags_user_project)                              AS project_id,
-                               UPPER(resource_tags_user_project)                              AS project_name,
+                            -- Linked/Usage account ID
+                            -- Usage Scope
+                            line_item_usage_account_id                                     AS usage_account_id,
                     
-                               -- Service
-                               product_servicecode                                            AS service_code,
-                               product_servicename                                            AS service_name,
+                            -- Project (from tags)
+                            -- User defined tags
+                            UPPER(resource_tags_user_project)                              AS project_tag,
                     
-                               -- SKU
-                               product_sku                                                    AS sku_id,
-                               product_description                                            AS sku_description,
+                            -- Service
+                            product_servicecode                                            AS service_code,
+                            product_servicename                                            AS service_name,
                     
-                               -- Region / Location
-                               product_region                                                 AS region,
-                               product_location                                               AS location,
+                            -- SKU
+                            product_sku                                                    AS sku_id,
+                            product_description                                            AS sku_description,
                     
-                               line_item_currency_code                                        AS currency,
-                               COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
-                               line_item_usage_type                                           AS usage_type,
+                            -- Region & Location
+                            product_region                                                 AS region,
+                            product_location                                               AS location,
                     
-                               SUM(line_item_usage_amount)                                    AS usage_amount,
-                               MAX(pricing_unit)                                              AS usage_unit,
+                            -- Currency & Usage & Cost
+                            line_item_currency_code                                        AS currency,
+                            COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
+                            line_item_usage_type                                           AS usage_type,
                     
-                               SUM(line_item_unblended_cost)                                  AS unblended_cost,
-                               SUM(line_item_blended_cost)                                    AS blended_cost,
-                               SUM(
-                                       COALESCE(reservation_effective_cost, 0) +
-                                       COALESCE(savings_plan_savings_plan_effective_cost, 0)
-                               )                                                              AS effective_cost,
+                            SUM(line_item_usage_amount)                                    AS usage_amount,
+                            MAX(pricing_unit)                                              AS usage_unit,
                     
-                               MIN(bill_billing_period_start_date)                            AS billing_period_start,
-                               MAX(bill_billing_period_end_date)                              AS billing_period_end
+                            SUM(line_item_unblended_cost)                                  AS unblended_cost,
+                            SUM(line_item_blended_cost)                                    AS blended_cost,
+                            SUM(
+                                COALESCE(reservation_effective_cost, 0) +
+                                COALESCE(savings_plan_savings_plan_effective_cost, 0)
+                            )                                                              AS effective_cost,
+                    
+                            -- Billing period
+                            MIN(bill_billing_period_start_date)                            AS billing_period_start,
+                            MAX(bill_billing_period_end_date)                              AS billing_period_end
                     
                         FROM %s
                         WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
                             AND line_item_usage_start_date >= date_add('day', -%d, current_date)
                             AND line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage')
                             AND line_item_unblended_cost IS NOT NULL
-                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
                         ORDER BY 1 DESC;
                     """.formatted("athena", year, year, month, days);
 
@@ -202,19 +206,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
             String database = "athenacurcfn_athena";
 
-            String executionId = submitAthenaQuery(query, outputLocation, database);
-            waitForQueryToComplete(executionId);
+            String executionId = athenaService.submitAthenaQuery(query, outputLocation, database);
+            athenaService.waitForQueryToComplete(executionId);
 
-            long totalResults = fetchResultsToUnloadedFileFromS3(bucket, prefix, executionId);
-//            long totalResults = fetchQueryResultsAndSaveItIntoDB(executionId);
+            long totalResults = fetchResultsToUnloadedFileFromS3(organizationId, bucket, prefix, executionId);
+//            long totalResults = fetchQueryResultsAndSaveItIntoDB(organizationId, executionId);
 
-//            List<Map<String, String>> results = getQueryResults(executionId);
-//            results.forEach(System.out::println);
+//            athenaService.printQueryResults(executionId);
 
             log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
 
             return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(totalResults));
-
         } catch (Exception e) {
             log.error("AWS billing data fetch error", e);
             return Pair.of(LastSyncStatus.FAIL, e.getMessage());
@@ -342,103 +344,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     }
 
-    private String submitAthenaQuery(String query, String outputLocation, String database) {
-
-        StartQueryExecutionRequest request = StartQueryExecutionRequest.builder()
-                .queryString(query)
-                .queryExecutionContext(
-                        QueryExecutionContext.builder().database(database).build()
-                )
-                .resultConfiguration(
-                        ResultConfiguration.builder().outputLocation(outputLocation).build()
-                )
-                .workGroup("primary")
-                .build();
-
-        StartQueryExecutionResponse response = athenaClient.startQueryExecution(request);
-
-        log.info("Athena query submitted successfully.");
-
-        return response.queryExecutionId();
-    }
-
-    public void waitForQueryToComplete(String executionId) throws InterruptedException {
-
-        while (true) {
-
-            GetQueryExecutionRequest getRequest = GetQueryExecutionRequest.builder()
-                    .queryExecutionId(executionId)
-                    .build();
-
-            QueryExecution queryExecution = athenaClient.getQueryExecution(getRequest)
-                    .queryExecution();
-
-            QueryExecutionStatus status = queryExecution.status();
-
-            QueryExecutionState state = status.state();
-
-            if (state == QueryExecutionState.SUCCEEDED) {
-                log.info("Athena query execution completed successfully.");
-                return;
-            }
-
-            if (state == QueryExecutionState.FAILED || state == QueryExecutionState.CANCELLED) {
-                log.error("Athena query execution failed.");
-                throw new RuntimeException(status.stateChangeReason());
-            }
-
-            Thread.sleep(1000); // Poll every second
-        }
-
-    }
-
-    public List<Map<String, String>> getQueryResults(String executionId) {
-
-        List<Map<String, String>> results = new ArrayList<>();
-
-        String nextToken = null;
-
-        do {
-
-            GetQueryResultsRequest resultRequest = GetQueryResultsRequest.builder()
-                    .queryExecutionId(executionId)
-                    .nextToken(nextToken)
-                    .build();
-
-            GetQueryResultsResponse resultResponse = athenaClient.getQueryResults(resultRequest);
-
-            List<ColumnInfo> columnInfoList = resultResponse.resultSet().resultSetMetadata().columnInfo();
-
-            List<Row> rows = resultResponse.resultSet().rows();
-
-            int i = 0;
-
-            if (nextToken == null) {
-                i = 1; // skip header
-            }
-
-            for (; i < rows.size(); i++) {
-
-                Row row = rows.get(i);
-
-                Map<String, String> rowMap = new HashMap<>();
-
-                for (int j = 0; j < row.data().size(); j++) {
-                    rowMap.put(columnInfoList.get(j).name(), row.data().get(j).varCharValue());
-                }
-
-                results.add(rowMap);
-
-            }
-
-            nextToken = resultResponse.nextToken();
-
-        } while (nextToken != null);
-
-        return results;
-    }
-
-    public long fetchQueryResultsAndSaveItIntoDB(String executionId) {
+    public long fetchQueryResultsAndSaveItIntoDB(long organizationId, String executionId) {
 
         log.info("Start fetching query results.");
 
@@ -446,11 +352,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         List<AwsBillingDailyCost> results = new ArrayList<>();
 
-        GetQueryResultsRequest request = GetQueryResultsRequest.builder()
-                .queryExecutionId(executionId)
-                .build();
-
-        SdkIterable<GetQueryResultsResponse> resultsPages = athenaClient.getQueryResultsPaginator(request);
+        GetQueryResultsIterable resultsPages = athenaService.fetchQueryResults(executionId);
 
         log.info("Fetched pagination results.");
 
@@ -468,22 +370,23 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             }
 
             for (; i < rows.size(); i++) {
-                results.add(bindRow(rows.get(i)));
+                results.add(bindRow(rows.get(i), organizationId));
                 count++;
+
             }
 
             // Save each batch
             // Clean before the next
-            log.info("Upserting {} fetched records into DB.", results.size());
+            log.info("Upserting {} fetched AWS records into DB.", results.size());
             awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
-            results = new ArrayList<>();
+            results.clear();
 
         }
 
         return count;
     }
 
-    private long fetchResultsToUnloadedFileFromS3(String bucket, String prefix, String executionId) {
+    private long fetchResultsToUnloadedFileFromS3(long organizationId, String bucket, String prefix, String executionId) {
 
         ListObjectsV2Request s3Request = ListObjectsV2Request.builder()
                 .bucket(bucket)
@@ -502,7 +405,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             // Only process files with this execution ID and CSV extension
             if (key.contains(executionId) && key.endsWith(".csv")) {
 
-                System.out.println("Processing file: " + key);
+                log.info("Processing AWS Athena unloaded file: {}", key);
 
                 // Read and parse this file only
                 GetObjectRequest getRequest = GetObjectRequest.builder()
@@ -522,16 +425,15 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
                     for (CSVRecord record : records) {
 
-                        AwsBillingDailyCost usage = bindRecord(record);
-                        results.add(usage);
+                        results.add(bindRecord(record, organizationId));
                         count++;
 
                         if (results.size() == 2000) {
                             // Save each batch
                             // Clean before the next
-                            log.info("Upserting {} fetched records into DB.", results.size());
+                            log.info("Upserting {} fetched AWS records into DB.", results.size());
                             awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
-                            results = new ArrayList<>();
+                            results.clear();
                         }
 
                     }
@@ -545,61 +447,60 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         }
 
         // Save the remaining records
-        // Clean before the next
-        log.info("Upserting {} fetched records into DB.", results.size());
+        log.info("Upserting {} fetched AWS records into DB.", results.size());
         awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
         results.clear();
 
         return count;
     }
 
-    private AwsBillingDailyCost bindRow(Row row) {
+    private AwsBillingDailyCost bindRow(Row row, long organizationId) {
 
         List<Datum> data = row.data();
 
-        AwsBillingDailyCost usage = new AwsBillingDailyCost();
+        AwsBillingDailyCost dailyCost = new AwsBillingDailyCost();
+        dailyCost.setOrganizationId(organizationId);
 
-        usage.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
-        usage.setPayerAccountId(data.get(1).varCharValue());
-        usage.setUsageAccountId(data.get(2).varCharValue());
+        dailyCost.setUsageDate(LocalDate.parse(data.get(0).varCharValue()));
+        dailyCost.setPayerAccountId(data.get(1).varCharValue());
+        dailyCost.setUsageAccountId(data.get(2).varCharValue());
 
-        usage.setProjectId(data.get(3).varCharValue());
-        usage.setProjectName(data.get(4).varCharValue());
+        dailyCost.setProjectTag(data.get(3).varCharValue());
 
-        usage.setServiceCode(data.get(5).varCharValue());
-        usage.setServiceName(data.get(6).varCharValue());
-        usage.setSkuId(data.get(7).varCharValue());
-        usage.setSkuDescription(data.get(8).varCharValue());
-        usage.setRegion(data.get(9).varCharValue());
-        usage.setLocation(data.get(10).varCharValue());
-        usage.setCurrency(data.get(11).varCharValue());
-        usage.setPricingType(data.get(12).varCharValue());
-        usage.setUsageType(data.get(13).varCharValue());
+        dailyCost.setServiceCode(data.get(4).varCharValue());
+        dailyCost.setServiceName(data.get(5).varCharValue());
+        dailyCost.setSkuId(data.get(6).varCharValue());
+        dailyCost.setSkuDescription(data.get(7).varCharValue());
+        dailyCost.setRegion(data.get(8).varCharValue());
+        dailyCost.setLocation(data.get(9).varCharValue());
+        dailyCost.setCurrency(data.get(10).varCharValue());
+        dailyCost.setPricingType(data.get(11).varCharValue());
+        dailyCost.setUsageType(data.get(12).varCharValue());
 
-        usage.setUsageAmount(parseBigDecimalSafe(data.get(14).varCharValue()));
-        usage.setUsageUnit(data.get(15).varCharValue());
-        usage.setUnblendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
-        usage.setBlendedCost(parseBigDecimalSafe(data.get(17).varCharValue()));
-        usage.setEffectiveCost(parseBigDecimalSafe(data.get(18).varCharValue()));
+        dailyCost.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
+        dailyCost.setUsageUnit(data.get(14).varCharValue());
+        dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+        dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
+        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
 
-        usage.setBillingPeriodStart(
+        dailyCost.setBillingPeriodStart(
+                LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
+        );
+        dailyCost.setBillingPeriodEnd(
                 LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
         );
-        usage.setBillingPeriodEnd(
-                LocalDateTime.parse(data.get(20).varCharValue().replace(" ", "T"))
-        );
 
-        return usage;
+        return dailyCost;
     }
 
-    private AwsBillingDailyCost bindRecord(CSVRecord record) {
+    private AwsBillingDailyCost bindRecord(CSVRecord record, long organizationId) {
 
         return AwsBillingDailyCost.builder()
+                .organizationId(organizationId)
                 .usageDate(LocalDate.parse(record.get("usage_date")))
                 .payerAccountId(record.get("payer_account_id"))
                 .usageAccountId(record.get("usage_account_id"))
-                .projectId(record.get("project_id"))
-                .projectName(record.get("project_name"))
+                .projectTag(record.get("project_tag"))
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))
                 .skuId(record.get("sku_id"))

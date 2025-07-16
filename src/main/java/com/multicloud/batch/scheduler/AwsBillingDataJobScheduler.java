@@ -23,7 +23,7 @@ public class AwsBillingDataJobScheduler {
     private final JobLauncher jobLauncher;
     private final Job awsBillingDataJob;
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()
