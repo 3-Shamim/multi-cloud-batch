@@ -12,6 +12,7 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -40,45 +41,45 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
         String query = """
                     SELECT
-                        DATE(usage_start_time)                  AS usage_date,
+                        DATE(usage_start_time)                      AS usage_date,
                 
                         -- Billing account ID
-                        billing_account_id                      AS billing_account_id,
+                        billing_account_id                          AS billing_account_id,
                 
                         -- Project Info
                         -- Usage Scop
-                        project.id                              AS project_id,
-                        project.name                            AS project_name,
+                        project.id                                  AS project_id,
+                        project.name                                AS project_name,
                 
                         -- Service
-                        service.id                              AS service_code,
-                        service.description                     AS service_name,
+                        service.id                                  AS service_code,
+                        service.description                         AS service_name,
                 
                         -- SKU
-                        sku.id                                  AS sku_id,
-                        sku.description                         AS sku_description,
+                        sku.id                                      AS sku_id,
+                        sku.description                             AS sku_description,
                 
                         -- Region & Location
-                        location.region                         AS region,
-                        location.location                       AS location,
+                        location.region                             AS region,
+                        location.location                           AS location,
                 
                         -- Currency & Usage & Cost
-                        currency                                AS currency,
-                        cost_type                               AS cost_type,
+                        currency                                    AS currency,
+                        cost_type                                   AS cost_type,
                 
-                        SUM(usage.amount)                       AS usage_amount,
-                        MAX(usage.unit)                         AS usage_unit,
+                        SUM(usage.amount)                           AS usage_amount,
+                        MAX(usage.unit)                             AS usage_unit,
                 
-                        SUM(cost)                               AS cost,
+                        SUM(cost)                                   AS cost,
                 
                         -- Billing period
-                        MIN(usage_start_time)                   AS billing_period_start,
-                        MAX(usage_start_time)                   AS billing_period_end
+                        CAST(MIN(usage_start_time) AS DATETIME)     AS billing_period_start,
+                        CAST(MAX(usage_start_time) AS DATETIME)     AS billing_period_end
                 
                     FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
                     WHERE usage_start_time >= ':start_date' AND usage_start_time <= ':end_date'
                         AND cost IS NOT NULL
-                        -- AND cost_type IN ('usage', 'commitment', 'adjustment', 'discount', 'overcommit')
+                        AND cost_type IN ('regular', 'commitment', 'overcommit', 'adjustment', 'discount', 'support', 'tax')
                     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
                     ORDER BY 1 DESC;
                 """;
@@ -104,6 +105,8 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
             long count = 0;
 
+            // BigQuery returns results in pages.
+            // Each page can contain up to 10,000 rows by default, depending on the query and row size.
             for (FieldValueList row : result.iterateAll()) {
 
                 GcpBillingDailyCost billing = bindRow(row, organizationId);
@@ -111,22 +114,15 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 billings.add(billing);
                 count++;
 
-                if (billings.size() == 2000) {
-
-                    // Save each batch
-                    // Clean before the next
-                    log.info("Upserting {} fetched GCP records into DB.", billings.size());
-                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
-                    billings.clear();
-
-                }
+                // Save each batch
+                // Clean before the next
+                log.info("Upserting {} fetched GCP records into DB.", billings.size());
+                gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+                billings.clear();
 
             }
 
-            // Save each batch
-            log.info("Upserting {} fetched GCP records into DB.", billings.size());
-            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
-            billings.clear();
+            log.info("GCP billing data fetched and stored successfully. Total results: {}", count);
 
             return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(count));
         } catch (Exception e) {
@@ -259,24 +255,44 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
         return GcpBillingDailyCost.builder()
                 .organizationId(organizationId)
-                .usageDate(LocalDate.parse(row.get("usage_date").getStringValue()))
-                .billingAccountId(row.get("billing_account_id").getStringValue())
-                .projectId(row.get("project.id").getStringValue())
-                .projectName(row.get("project.name").getStringValue())
-                .serviceCode(row.get("service.id").getStringValue())
-                .serviceName(row.get("service.description").getStringValue())
-                .skuId(row.get("sku.id").getStringValue())
-                .skuDescription(row.get("sku.description").getStringValue())
-                .region(row.get("location.region").getStringValue())
-                .location(row.get("location.location").getStringValue())
-                .currency(row.get("currency").getStringValue())
-                .costType(row.get("cost_type").getStringValue())
-                .usageUnit(row.get("usage.unit").getStringValue())
-                .usageAmount(row.get("usage_amount").getNumericValue())
-                .cost(row.get("cost").getNumericValue())
-                .billingPeriodStart(LocalDateTime.parse(row.get("billing_period_start").getStringValue()))
-                .billingPeriodEnd(LocalDateTime.parse(row.get("billing_period_end").getStringValue()))
+                .usageDate(parseLocalDate(row, "usage_date"))
+                .billingAccountId(getStringSafe(row, "billing_account_id"))
+                .projectId(getStringSafe(row, "project_id"))
+                .projectName(getStringSafe(row, "project_name"))
+                .serviceCode(getStringSafe(row, "service_code"))
+                .serviceName(getStringSafe(row, "service_name"))
+                .skuId(getStringSafe(row, "sku_id"))
+                .skuDescription(getStringSafe(row, "sku_description"))
+                .region(getStringSafe(row, "region"))
+                .location(getStringSafe(row, "location"))
+                .currency(getStringSafe(row, "currency"))
+                .costType(getStringSafe(row, "cost_type"))
+                .usageAmount(getNumericSafe(row, "usage_amount"))
+                .usageUnit(getStringSafe(row, "usage_unit"))
+                .cost(getNumericSafe(row, "cost"))
+                .billingPeriodStart(parseLocalDateTime(row, "billing_period_start"))
+                .billingPeriodEnd(parseLocalDateTime(row, "billing_period_end"))
                 .build();
+    }
+
+    private String getStringSafe(FieldValueList row, String fieldName) {
+        FieldValue field = row.get(fieldName);
+        return field.isNull() ? null : field.getStringValue();
+    }
+
+    private BigDecimal getNumericSafe(FieldValueList row, String fieldName) {
+        FieldValue field = row.get(fieldName);
+        return field.isNull() ? null : field.getNumericValue();
+    }
+
+    private LocalDate parseLocalDate(FieldValueList row, String fieldName) {
+        String value = getStringSafe(row, fieldName);
+        return value != null ? LocalDate.parse(value) : null;
+    }
+
+    private LocalDateTime parseLocalDateTime(FieldValueList row, String fieldName) {
+        String value = getStringSafe(row, fieldName);
+        return value != null ? LocalDateTime.parse(value) : null;
     }
 
 }

@@ -24,11 +24,13 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const",
                 columnNames = {
-                        "usageDate", "payerAccountId", "usageAccountId", "projectTag", "serviceCode", "serviceName",
-                        "skuId", "skuDescription", "region", "location", "currency", "pricingType", "usageType"
+                        "organizationId", "usageDate", "payerAccountId", "usageAccountId", "projectTag",
+                        "serviceCode", "serviceName", "skuId", "skuDescription", "region", "location",
+                        "currency", "pricingType", "usageType"
                 }
         ),
         indexes = {
+                @Index(name = "idx_organization_id", columnList = "organizationId"),
                 @Index(name = "idx_usage_date", columnList = "usageDate"),
                 @Index(name = "idx_payer_account_id", columnList = "payerAccountId"),
                 @Index(name = "idx_usage_account_id", columnList = "usageAccountId"),
@@ -91,7 +93,7 @@ public class AwsBillingDailyCost {
     @Column(length = 128)
     private String usageType;
 
-    @Column(precision = 20, scale = 6)
+    @Column(precision = 30, scale = 6)
     private BigDecimal usageAmount;
 
     @Column(length = 128)

@@ -25,11 +25,13 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_gcp",
                 columnNames = {
-                        "usageDate", "billingAccountId", "projectId", "projectName", "serviceCode", "serviceName",
-                        "skuId", "skuDescription", "region", "location", "currency", "costType", "usageUnit"
+                        "organizationId", "usageDate", "billingAccountId", "projectId", "projectName",
+                        "serviceCode", "serviceName", "skuId", "skuDescription", "region", "location",
+                        "currency", "costType", "usageUnit"
                 }
         ),
         indexes = {
+                @Index(name = "idx_organization_id", columnList = "organizationId"),
                 @Index(name = "idx_usage_date", columnList = "usageDate"),
                 @Index(name = "idx_billing_account_id", columnList = "billingAccountId"),
                 @Index(name = "idx_project_id", columnList = "projectId"),
@@ -83,11 +85,11 @@ public class GcpBillingDailyCost {
     @Column(length = 32)
     private String costType;
 
+    @Column(precision = 30, scale = 6)
+    private BigDecimal usageAmount;
+
     @Column(length = 64)
     private String usageUnit;
-
-    @Column(precision = 20, scale = 6)
-    private BigDecimal usageAmount;
 
     @Column(precision = 20, scale = 6)
     private BigDecimal cost;

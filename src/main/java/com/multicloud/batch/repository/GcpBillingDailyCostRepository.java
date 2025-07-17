@@ -23,9 +23,9 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
         StringBuilder sqlBuilder = new StringBuilder("""
                     INSERT INTO gcp_billing_daily_costs
                     (
-                        usage_date, billing_account_id, project_id, project_name, service_code, service_name,
-                        sku_id, sku_description, region, location, currency, cost_type,
-                        usage_unit, usage_amount, cost, billing_period_start, billing_period_end
+                        organization_id, usage_date, billing_account_id, project_id, project_name,
+                        service_code, service_name, sku_id, sku_description, region, location,
+                        currency, cost_type, usage_unit, usage_amount, cost, billing_period_start, billing_period_end
                     )
                     VALUES
                 """);
@@ -35,8 +35,9 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
             GcpBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', '%s')"
+                    "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', '%s')"
                             .formatted(
+                                    b.getOrganizationId(),
                                     b.getUsageDate(),
                                     escapeSql(b.getBillingAccountId()),
                                     escapeSql(b.getProjectId()),
