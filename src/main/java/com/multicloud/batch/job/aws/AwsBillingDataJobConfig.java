@@ -116,6 +116,7 @@ public class AwsBillingDataJobConfig {
 
                 item.setLastSyncStatus(pair.getFirst());
                 item.setLastSyncMessage(pair.getSecond());
+                item.setLastSyncTime(now);
 
                 cloudConfigRepository.save(item);
 

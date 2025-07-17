@@ -178,11 +178,11 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                             COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
                             line_item_usage_type                                           AS usage_type,
                     
-                            SUM(line_item_usage_amount)                                    AS usage_amount,
+                            COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
                             MAX(pricing_unit)                                              AS usage_unit,
                     
-                            SUM(line_item_unblended_cost)                                  AS unblended_cost,
-                            SUM(line_item_blended_cost)                                    AS blended_cost,
+                            COALESCE(SUM(line_item_unblended_cost), 0)                     AS unblended_cost,
+                            COALESCE(SUM(line_item_blended_cost), 0)                       AS blended_cost,
                             SUM(
                                 COALESCE(reservation_effective_cost, 0) +
                                 COALESCE(savings_plan_savings_plan_effective_cost, 0)
@@ -432,7 +432,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         results.add(bindRecord(record, organizationId));
                         count++;
 
-                        if (results.size() == 2000) {
+                        if (results.size() == 20000) {
                             // Save each batch
                             // Clean before the next
                             log.info("Upserting {} fetched AWS records into DB.", results.size());

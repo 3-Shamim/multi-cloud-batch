@@ -37,7 +37,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, long days) {
 
         LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(days);
+        LocalDate start = end.minusDays(days + 1);
 
         String query = """
                     SELECT
@@ -67,10 +67,10 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                         currency                                    AS currency,
                         cost_type                                   AS cost_type,
                 
-                        SUM(usage.amount)                           AS usage_amount,
+                        COALESCE(SUM(usage.amount), 0)              AS usage_amount,
                         MAX(usage.unit)                             AS usage_unit,
                 
-                        SUM(cost)                                   AS cost,
+                        COALESCE(SUM(cost))                         AS cost,
                 
                         -- Billing period
                         CAST(MIN(usage_start_time) AS DATETIME)     AS billing_period_start,
@@ -99,7 +99,19 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                     .getService();
 
             QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
+
             TableResult result = bigQuery.query(queryConfig);
+
+            // Submit the query and wait for completion
+//            Job queryJob = bigQuery.create(JobInfo.of(queryConfig));
+//            queryJob = queryJob.waitFor();
+//
+//            if (queryJob == null || queryJob.getStatus().getError() != null) {
+//                throw new RuntimeException("GCP Query failed: " + (queryJob != null ? queryJob.getStatus().getError() : "unknown error"));
+//            }
+//
+//            // Query completed — now fetch paginated results
+//            TableResult result = queryJob.getQueryResults(BigQuery.QueryResultsOption.pageSize(10000));
 
             List<GcpBillingDailyCost> billings = new ArrayList<>();
 
@@ -114,13 +126,21 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 billings.add(billing);
                 count++;
 
-                // Save each batch
-                // Clean before the next
-                log.info("Upserting {} fetched GCP records into DB.", billings.size());
-                gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
-                billings.clear();
+                if (billings.size() == 10000) {
+
+                    // Save each batch
+                    // Clean before the next
+                    log.info("Upserting {} fetched GCP records into DB.", billings.size());
+                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+                    billings.clear();
+
+                }
 
             }
+
+            log.info("Upserting {} fetched GCP records into DB.", billings.size());
+            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+            billings.clear();
 
             log.info("GCP billing data fetched and stored successfully. Total results: {}", count);
 

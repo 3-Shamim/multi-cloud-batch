@@ -36,7 +36,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             AwsBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s, '%s')"
+                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s, '%s', '%s')"
                             .formatted(
                                     b.getOrganizationId(),
                                     b.getUsageDate(),
