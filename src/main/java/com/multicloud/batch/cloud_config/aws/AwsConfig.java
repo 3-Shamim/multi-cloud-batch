@@ -2,13 +2,10 @@ package com.multicloud.batch.cloud_config.aws;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.retry.RetryPolicy;
-import software.amazon.awssdk.core.retry.RetryPolicyContext;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
+import software.amazon.awssdk.services.organizations.OrganizationsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 /**
@@ -37,13 +34,8 @@ public class AwsConfig {
     @Bean
     public AthenaClient athenaClient() {
 
-        AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-                "", ""
-        );
-
         return AthenaClient.builder()
-                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-//                .credentialsProvider(awsDynamicCredentialsProvider())
+                .credentialsProvider(awsDynamicCredentialsProvider())
                 .region(Region.EU_WEST_1) // Use the correct region for Athena
                 .build();
     }
@@ -51,16 +43,19 @@ public class AwsConfig {
     @Bean
     public S3Client s3Client() {
 
-        AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-                "", ""
-        );
-
         return S3Client.builder()
                 .region(Region.EU_WEST_1) // Replace it with your AWS region
-                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-//                .credentialsProvider(awsDynamicCredentialsProvider())
+                .credentialsProvider(awsDynamicCredentialsProvider())
                 .build();
     }
 
+    @Bean
+    public OrganizationsClient organizationsClient() {
+
+        return OrganizationsClient.builder()
+                .credentialsProvider(awsDynamicCredentialsProvider())
+                .region(Region.AWS_GLOBAL)
+                .build();
+    }
 
 }

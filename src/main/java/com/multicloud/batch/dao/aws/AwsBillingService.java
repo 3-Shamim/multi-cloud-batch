@@ -15,6 +15,8 @@ public interface AwsBillingService {
             long organizationId, String accessKey, String secretKey, boolean firstSync
     );
 
+    Pair<LastSyncStatus, String> readAllAccounts(long organizationId, String accessKey, String secretKey);
+
     Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(
             long organizationId, String accessKey, String secretKey, long days
     );

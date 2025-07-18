@@ -14,8 +14,12 @@ public interface AthenaService {
 
     void waitForQueryToComplete(String executionId);
 
+    void stopAthenaQuery(String executionId);
+
     GetQueryResultsIterable fetchQueryResults(String executionId);
 
     void printQueryResults(String executionId);
+
+    String wrapQueryWithUnloadCsvGzip(String selectQuery, String outputLocation);
 
 }

@@ -106,6 +106,33 @@ public class AthenaServiceImpl implements AthenaService {
     }
 
     @Override
+    public void stopAthenaQuery(String executionId) {
+
+        try {
+
+            StopQueryExecutionRequest stopRequest = StopQueryExecutionRequest.builder()
+                    .queryExecutionId(executionId)
+                    .build();
+
+            athenaClient.stopQueryExecution(stopRequest);
+
+            GetQueryExecutionRequest getRequest = GetQueryExecutionRequest.builder()
+                    .queryExecutionId(executionId)
+                    .build();
+
+            GetQueryExecutionResponse getResponse = athenaClient.getQueryExecution(getRequest);
+
+            if (getResponse.queryExecution().status().state().equals(QueryExecutionState.CANCELLED)) {
+                log.info("The Athena query has been cancelled!");
+            }
+
+        } catch (AthenaException e) {
+            log.error("Error on cancelling query: [{}]", executionId, e);
+        }
+
+    }
+
+    @Override
     public GetQueryResultsIterable fetchQueryResults(String executionId) {
 
         GetQueryResultsRequest request = GetQueryResultsRequest.builder()
@@ -134,6 +161,22 @@ public class AthenaServiceImpl implements AthenaService {
 
                 }));
 
+    }
+
+    @Override
+    public String wrapQueryWithUnloadCsvGzip(String selectQuery, String outputLocation) {
+
+        return String.format("""
+        UNLOAD (
+            %s
+        )
+        TO '%s'
+        WITH (
+            format = 'TEXTFILE',
+            field_delimiter = ',',
+            compression = 'GZIP'
+        );
+        """, selectQuery.trim(), outputLocation);
     }
 
     private boolean isRetryableAthenaException(AthenaException e) {

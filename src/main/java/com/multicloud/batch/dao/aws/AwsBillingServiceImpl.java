@@ -22,6 +22,10 @@ import software.amazon.awssdk.services.athena.model.Row;
 import software.amazon.awssdk.services.athena.paginators.GetQueryResultsIterable;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
 import software.amazon.awssdk.services.costexplorer.model.*;
+import software.amazon.awssdk.services.organizations.OrganizationsClient;
+import software.amazon.awssdk.services.organizations.model.Account;
+import software.amazon.awssdk.services.organizations.model.ListAccountsRequest;
+import software.amazon.awssdk.services.organizations.model.ListAccountsResponse;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
@@ -35,6 +39,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Created by IntelliJ IDEA.
@@ -47,10 +52,18 @@ import java.util.List;
 @Service
 public class AwsBillingServiceImpl implements AwsBillingService {
 
+    private final static String[] COLS = {
+            "usage_date", "payer_account_id", "usage_account_id", "project_tag", "service_code",
+            "service_name", "sku_id", "sku_description", "region", "location", "currency",
+            "pricing_type", "usage_type", "usage_amount", "usage_unit", "unblended_cost",
+            "blended_cost", "effective_cost", "billing_period_start", "billing_period_end"
+    };
+
     private final EntityManager entityManager;
     private final CostExplorerClient costExplorerClient;
     private final S3Client s3Client;
     private final AthenaService athenaService;
+    private final OrganizationsClient organizationsClient;
     private final CloudDailyBillingRepository cloudDailyBillingRepository;
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
@@ -135,6 +148,45 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
+    public Pair<LastSyncStatus, String> readAllAccounts(long organizationId, String accessKey, String secretKey) {
+
+        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+        AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
+
+        try {
+
+            String nextToken = null;
+
+            do {
+
+                ListAccountsRequest request = ListAccountsRequest.builder()
+                        .nextToken(nextToken)
+                        .build();
+
+                ListAccountsResponse response = organizationsClient.listAccounts(request);
+
+                for (Account account : response.accounts()) {
+                    System.out.printf(
+                            "Account ID: %s, Name: %s, Email: %s, Status: %s%n",
+                            account.id(), account.name(), account.email(), account.status()
+                    );
+                }
+
+                nextToken = response.nextToken();
+
+            } while (nextToken != null);
+
+            return Pair.of(LastSyncStatus.SUCCESS, "Successfully fetched all accounts.");
+        } catch (Exception e) {
+            log.error("AWS billing data fetch error", e);
+            return Pair.of(LastSyncStatus.FAIL, e.getMessage());
+        } finally {
+            AwsDynamicCredentialsProvider.clear();
+        }
+
+    }
+
+    @Override
     public Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey,
                                                                      long days) {
 
@@ -202,20 +254,28 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                              )
                             AND line_item_unblended_cost IS NOT NULL
                         GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-                        ORDER BY 1 DESC;
                     """.formatted("athena", year, year, month, days);
 
             String bucket = "azerion-athena-results";
             String prefix = "azerion_mc";
+
+            // If you use 'unload' -- it required empty folder on S3,
+            // It may generate multiple files
+            prefix = "%s/%s/%s".formatted(prefix, "unloaded_data", System.currentTimeMillis());
+
             String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
             String database = "athenacurcfn_athena";
+
+//            // Wrap query for unload
+            query = athenaService.wrapQueryWithUnloadCsvGzip(query, outputLocation);
 
             String executionId = athenaService.submitAthenaQuery(query, outputLocation, database);
             athenaService.waitForQueryToComplete(executionId);
 
             long totalResults = fetchResultsToUnloadedFileFromS3(organizationId, bucket, prefix, executionId);
-//            long totalResults = fetchQueryResultsAndSaveItIntoDB(organizationId, executionId);
 
+            // This will not be able to read UNLOADED GZIP data
+//            long totalResults = fetchQueryResultsAndSaveItIntoDB(organizationId, executionId);
 //            athenaService.printQueryResults(executionId);
 
             log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
@@ -406,8 +466,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             String key = s3Object.key();
 
-            // Only process files with this execution ID and CSV extension
-            if (key.contains(executionId) && key.endsWith(".csv")) {
+            if (key.endsWith(".gz")) {
 
                 log.info("Processing AWS Athena unloaded file: {}", key);
 
@@ -418,12 +477,11 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         .build();
 
                 try (ResponseInputStream<GetObjectResponse> s3Stream = s3Client.getObject(getRequest);
-                     BufferedReader reader = new BufferedReader(new InputStreamReader(s3Stream))) {
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(s3Stream)))) {
 
                     Iterable<CSVRecord> records = CSVFormat.DEFAULT
                             .builder()
-                            .setHeader()
-                            .setSkipHeaderRecord(true)
+                            .setHeader(COLS)
                             .get()
                             .parse(reader);
 
