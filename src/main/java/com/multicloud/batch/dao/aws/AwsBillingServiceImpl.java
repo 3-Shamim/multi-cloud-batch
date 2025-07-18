@@ -200,60 +200,74 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int month = date.getMonthValue();
 
             String query = """
-                        SELECT date(line_item_usage_start_date)                            AS usage_date,
+                            SELECT date(line_item_usage_start_date)                            AS usage_date,
                     
-                            -- Master/Billing account ID
-                            bill_payer_account_id                                          AS payer_account_id,
+                                -- Master/Billing account ID
+                                bill_payer_account_id                                          AS payer_account_id,
                     
-                            -- Linked/Usage account ID
-                            -- Usage Scope
-                            line_item_usage_account_id                                     AS usage_account_id,
+                                -- Linked/Usage account ID
+                                line_item_usage_account_id                                     AS usage_account_id,
                     
-                            -- Project (from tags)
-                            -- User defined tags
-                            UPPER(resource_tags_user_project)                              AS project_tag,
+                                -- Project (from tags)
+                                IF(
+                                    resource_tags_user_project IS NOT NULL,
+                                    CONCAT('"', UPPER(resource_tags_user_project), '"'),
+                                    NULL
+                                )                                                              AS project_tag,
                     
-                            -- Service
-                            product_servicecode                                            AS service_code,
-                            product_servicename                                            AS service_name,
+                                -- Service
+                                product_servicecode                                            AS service_code,
+                                IF(
+                                    product_servicename IS NOT NULL,
+                                    CONCAT('"', product_servicename, '"'),
+                                    NULL
+                                )                                                              AS service_name,
                     
-                            -- SKU
-                            product_sku                                                    AS sku_id,
-                            product_description                                            AS sku_description,
+                                -- SKU
+                                product_sku                                                    AS sku_id,
+                                IF(
+                                    product_description IS NOT NULL,
+                                    CONCAT('"', product_description, '"'),
+                                    NULL
+                                )                                                              AS sku_description,
                     
-                            -- Region & Location
-                            product_region                                                 AS region,
-                            product_location                                               AS location,
+                                -- Region & Location
+                                product_region                                                 AS region,
+                                IF(
+                                    product_location IS NOT NULL,
+                                    CONCAT('"', product_location, '"'),
+                                    NULL
+                                )                                                              AS location,
                     
-                            -- Currency & Usage & Cost
-                            line_item_currency_code                                        AS currency,
-                            COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
-                            line_item_usage_type                                           AS usage_type,
+                                -- Currency & Usage & Cost
+                                line_item_currency_code                                        AS currency,
+                                COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
+                                line_item_usage_type                                           AS usage_type,
                     
-                            COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
-                            MAX(pricing_unit)                                              AS usage_unit,
+                                COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
+                                MAX(pricing_unit)                                              AS usage_unit,
                     
-                            COALESCE(SUM(line_item_unblended_cost), 0)                     AS unblended_cost,
-                            COALESCE(SUM(line_item_blended_cost), 0)                       AS blended_cost,
-                            SUM(
+                                COALESCE(SUM(line_item_unblended_cost), 0)                     AS unblended_cost,
+                                COALESCE(SUM(line_item_blended_cost), 0)                       AS blended_cost,
+                                SUM(
                                 COALESCE(reservation_effective_cost, 0) +
                                 COALESCE(savings_plan_savings_plan_effective_cost, 0)
-                            )                                                              AS effective_cost,
+                                )                                                              AS effective_cost,
                     
-                            -- Billing period
-                            MIN(bill_billing_period_start_date)                            AS billing_period_start,
-                            MAX(bill_billing_period_end_date)                              AS billing_period_end
+                                -- Billing period
+                                MIN(bill_billing_period_start_date)                            AS billing_period_start,
+                                MAX(bill_billing_period_end_date)                              AS billing_period_end
                     
-                        FROM %s
-                        WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
-                            AND line_item_usage_start_date >= date_add('day', -%d, current_date)
-                            AND line_item_line_item_type IN (
-                                'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
-                                'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
-                                'Credit', 'Fee', 'Rounding'
-                             )
-                            AND line_item_unblended_cost IS NOT NULL
-                        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+                            FROM %s
+                            WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
+                                AND line_item_usage_start_date >= date_add('day', -%d, current_date)
+                                AND line_item_line_item_type IN (
+                                    'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
+                                    'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
+                                    'Credit', 'Fee', 'Rounding'
+                                )
+                                AND line_item_unblended_cost IS NOT NULL
+                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
                     """.formatted("athena", year, year, month, days);
 
             String bucket = "azerion-athena-results";
