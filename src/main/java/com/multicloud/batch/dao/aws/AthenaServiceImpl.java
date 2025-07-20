@@ -157,7 +157,7 @@ public class AthenaServiceImpl implements AthenaService {
                     rowData.deleteCharAt(rowData.length() - 1);
                     rowData.append("\n");
 
-                    log.info(rowData.toString());
+                    System.out.println(rowData);
 
                 }));
 

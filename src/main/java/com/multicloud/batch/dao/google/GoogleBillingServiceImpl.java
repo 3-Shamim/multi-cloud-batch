@@ -87,6 +87,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
         query = query
                 .replace(":start_date", start.format(DateTimeFormatter.ISO_DATE))
                 .replace(":end_date", end.format(DateTimeFormatter.ISO_DATE));
+
         try {
 
             GoogleCredentials credentials = GoogleCredentials.fromStream(
