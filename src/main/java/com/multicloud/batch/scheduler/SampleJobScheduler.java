@@ -22,15 +22,18 @@ public class SampleJobScheduler {
 
     private final JobLauncher jobLauncher;
     private final Job sampleJob;
+    private final Job partitionJob;
 
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES) // every minute
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
     public void runJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
+                .addLong("orgId", 1L)
+                .addLong("days", 365L)
                 .toJobParameters();
 
-        jobLauncher.run(sampleJob, jobParameters);
+        jobLauncher.run(partitionJob, jobParameters);
 
     }
 
