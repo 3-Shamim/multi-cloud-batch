@@ -32,11 +32,6 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
     @Override
     public String login() {
 
-
-        if (true) {
-            throw new RuntimeException("For testing purpose only");
-        }
-
         // IAM user
         String username = "";
         String password = "";

@@ -52,9 +52,12 @@ public class GcpBillingDailyCost {
 
     private LocalDate usageDate;
 
+    // Master/Billing Account ID
     @Column(length = 32)
     private String billingAccountId;
 
+    // GCP gives per project billing
+    // Usage scope
     @Column(length = 128)
     private String projectId;
 
