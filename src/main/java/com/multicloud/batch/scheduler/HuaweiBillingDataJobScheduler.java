@@ -31,7 +31,6 @@ public class HuaweiBillingDataJobScheduler {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
                 .addLong("orgId", 1L)
-                .addLong("days", 7L)
                 .toJobParameters();
 
         jobLauncher.run(huaweiBillingDataJob, jobParameters);

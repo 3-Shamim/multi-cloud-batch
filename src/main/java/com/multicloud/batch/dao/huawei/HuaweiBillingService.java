@@ -1,6 +1,8 @@
 package com.multicloud.batch.dao.huawei;
 
+import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
+import org.springframework.data.util.Pair;
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,6 +12,6 @@ import com.multicloud.batch.job.CustomDateRange;
 
 public interface HuaweiBillingService {
 
-    void fetchDailyServiceCostUsage(long organizationId, CustomDateRange customDateRange, String token);
+    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, CustomDateRange customDateRange, String token);
 
 }
