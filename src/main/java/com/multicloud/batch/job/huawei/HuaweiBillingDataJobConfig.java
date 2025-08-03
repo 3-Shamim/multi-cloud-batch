@@ -12,10 +12,8 @@ import com.multicloud.batch.repository.DataSyncHistoryRepository;
 import com.multicloud.batch.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.StepExecution;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.batch.core.*;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
@@ -25,13 +23,10 @@ import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.util.Pair;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static java.util.Objects.requireNonNull;
 
@@ -122,6 +117,7 @@ public class HuaweiBillingDataJobConfig {
 
             List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
 
+            Set<CustomDateRange> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
 
             int i = 1;
@@ -143,8 +139,16 @@ public class HuaweiBillingDataJobConfig {
 
             for (DataSyncHistory item : failList) {
 
+                CustomDateRange dateRange = new CustomDateRange(item.getStart(), item.getEnd(), item.getYear());
+
+                if (unique.contains(dateRange)) {
+                    continue;
+                }
+
+                unique.add(dateRange);
+
                 ExecutionContext executionContext = new ExecutionContext();
-                executionContext.put("range", new CustomDateRange(item.getStart(), item.getEnd(), item.getYear()));
+                executionContext.put("range", dateRange);
                 executionContext.put("org", org);
 
                 partitions.put("partition" + i, executionContext);
@@ -167,32 +171,81 @@ public class HuaweiBillingDataJobConfig {
 
                     if (range != null && org != null) {
 
-                        log.info("Processing partition... {} - [{} - {}]", range.year(), range.start(), range.end());
-
-                        DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                                org.getId(), CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
-                        ).orElse(new DataSyncHistory(
-                                org, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
-                        ));
-
-                        String token = huaweiAuthService.login();
-                        Pair<LastSyncStatus, String> pair = huaweiBillingService.fetchDailyServiceCostUsage(
-                                org.getId(), range, token
+                        log.info(
+                                "Processing huawei billing for partition {} and organization {}",
+                                range, org.getId()
                         );
 
-                        sync.setLastSyncStatus(pair.getFirst());
-
-                        if (pair.getFirst().equals(LastSyncStatus.FAIL)) {
-                            sync.setFailCount(sync.getFailCount() + 1);
-                        }
-
-                        dataSyncHistoryRepository.save(sync);
+                        String token = huaweiAuthService.login();
+                        huaweiBillingService.fetchDailyServiceCostUsage(
+                                org.getId(), range, token
+                        );
 
                     }
 
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
+                .listener(huaweiBillingDataStepListener())
                 .build();
+    }
+
+    @Bean
+    public StepExecutionListener huaweiBillingDataStepListener() {
+
+        return new StepExecutionListener() {
+
+            @Override
+            public void beforeStep(@NotNull StepExecution stepExecution) {
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    log.info(
+                            "Starting step: {} for partition {} and organization {}",
+                            stepExecution.getStepName(), range, org.getId()
+                    );
+
+                }
+            }
+
+            @Override
+            public ExitStatus afterStep(@NotNull StepExecution stepExecution) {
+
+                String partitionName = stepExecution.getStepName();
+                BatchStatus status = stepExecution.getStatus();
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
+                            org.getId(), CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
+                    ).orElse(new DataSyncHistory(
+                            org, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
+                    ));
+
+                    if (status.equals(BatchStatus.COMPLETED)) {
+                        sync.setLastSyncStatus(LastSyncStatus.SUCCESS);
+                    } else {
+                        sync.setLastSyncStatus(LastSyncStatus.FAIL);
+                        sync.setFailCount(sync.getFailCount() + 1);
+                    }
+
+                    dataSyncHistoryRepository.save(sync);
+
+                }
+
+                log.info(
+                        "Step completed: {} with status: {} for partition {} and organization {}",
+                        partitionName, status, range, org == null ? 0 : org.getId()
+                );
+
+                return stepExecution.getExitStatus();
+            }
+        };
     }
 
 }

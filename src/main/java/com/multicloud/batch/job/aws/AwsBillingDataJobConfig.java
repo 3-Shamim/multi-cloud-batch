@@ -3,29 +3,32 @@ package com.multicloud.batch.job.aws;
 import com.multicloud.batch.dao.aws.AwsBillingService;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
+import com.multicloud.batch.job.CustomDateRange;
+import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.CloudConfig;
+import com.multicloud.batch.model.DataSyncHistory;
+import com.multicloud.batch.model.Organization;
 import com.multicloud.batch.repository.CloudConfigRepository;
+import com.multicloud.batch.repository.DataSyncHistoryRepository;
+import com.multicloud.batch.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.batch.core.*;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.util.Pair;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Created by IntelliJ IDEA.
@@ -39,89 +42,189 @@ import java.util.List;
 public class AwsBillingDataJobConfig {
 
     private final JobRepository jobRepository;
-    private final CloudConfigRepository cloudConfigRepository;
     private final PlatformTransactionManager platformTransactionManager;
+
+    private final OrganizationRepository organizationRepository;
+    private final CloudConfigRepository cloudConfigRepository;
+    private final DataSyncHistoryRepository dataSyncHistoryRepository;
     private final AwsBillingService awsBillingService;
 
     @Bean
     public Job awsBillingDataJob() {
         return new JobBuilder("awsBillingDataJob", jobRepository)
-                .start(awsBillingDataStep())
+                .start(awsBillingDataMasterStep())
+                .build();
+    }
+
+    // Using a single thread and fetched 3-day of data at once.
+    // There is a lot of data aiming to store it slowly.
+    @Bean
+    public Step awsBillingDataMasterStep() {
+        return new StepBuilder("awsBillingDataMasterStep", jobRepository)
+                .partitioner(awsBillingDataSlaveStep().getName(), awsBillingDataPartitioner())
+                .step(awsBillingDataSlaveStep())
+                .gridSize(1)
                 .build();
     }
 
     @Bean
-    public Step awsBillingDataStep() {
-        return new StepBuilder("awsBillingDataStep", jobRepository)
-                .<CloudConfig, CloudConfig>chunk(10, platformTransactionManager)
-                .reader(awsActiveAccountReader())
-                .processor(awsBillingDataProcessor())
-                .writer(awsBillingDataWriter())
-                .build();
-    }
+    public Partitioner awsBillingDataPartitioner() {
 
-    @Bean
-    public ItemReader<CloudConfig> awsActiveAccountReader() {
+        return gridSize -> {
 
-        RepositoryItemReader<CloudConfig> itemReader = new RepositoryItemReader<>();
-        itemReader.setRepository(cloudConfigRepository);
-        itemReader.setMethodName("findAllByCloudProviderAndDisabledFalse");
-        itemReader.setArguments(List.of(CloudProvider.AWS));
-        itemReader.setPageSize(100);
-        itemReader.setSort(Collections.singletonMap("id", Sort.Direction.ASC));
+            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
 
-        return itemReader;
-    }
+            JobParameters jobParameters = stepExecution.getJobParameters();
+            Long orgId = jobParameters.getLong("orgId");
 
-    @Bean
-    public ItemProcessor<CloudConfig, CloudConfig> awsBillingDataProcessor() {
-        return item -> {
+            if (orgId == null || orgId < 1) {
+                throw new RuntimeException("Invalid organization id...");
+            }
 
-            log.info("Processing AWS billing data for account: {}", item);
+            Organization org = organizationRepository.findById(orgId)
+                    .orElseThrow(() -> new RuntimeException("Organization not found by ID: " + orgId));
 
-            return item;
+            boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.AWS);
+
+            long days = 365;
+
+            if (exist) {
+                days = 7;
+            }
+
+            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
+
+            Set<CustomDateRange> unique = new HashSet<>();
+            Map<String, ExecutionContext> partitions = new HashMap<>();
+
+            int i = 1;
+
+            for (CustomDateRange dateRange : dateRanges) {
+
+                ExecutionContext executionContext = new ExecutionContext();
+                executionContext.put("range", dateRange);
+                executionContext.put("org", org);
+
+                partitions.put("partition" + i, executionContext);
+
+                i++;
+            }
+
+            List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
+                    orgId, CloudProvider.AWS, LastSyncStatus.FAIL, 3
+            );
+
+            for (DataSyncHistory item : failList) {
+
+                CustomDateRange dateRange = new CustomDateRange(item.getStart(), item.getEnd(), item.getYear());
+
+                if (unique.contains(dateRange)) {
+                    continue;
+                }
+
+                unique.add(dateRange);
+
+                ExecutionContext executionContext = new ExecutionContext();
+                executionContext.put("range", dateRange);
+                executionContext.put("org", org);
+
+                partitions.put("partition" + i, executionContext);
+
+                i++;
+            }
+
+            return partitions;
         };
     }
 
     @Bean
-    public ItemWriter<CloudConfig> awsBillingDataWriter() {
-        return items -> {
+    public Step awsBillingDataSlaveStep() {
+        return new StepBuilder("awsBillingDataSlaveStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
 
-            for (CloudConfig item : items) {
+                    StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+                    CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                    Organization org = (Organization) stepExecution.getExecutionContext().get("org");
 
-                log.info("Writing AWS billing data: {}", item);
+                    if (range != null && org != null) {
 
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime successSyncTime = item.getLastSuccessSyncTime();
+                        log.info(
+                                "Processing huawei billing for partition {} and organization {}",
+                                range, org.getId()
+                        );
 
-                long days = 365;
+                        CloudConfig awsConfig = cloudConfigRepository.findByOrganizationIdAndCloudProvider(
+                                org.getId(), CloudProvider.AWS
+                        ).orElseThrow(() -> new RuntimeException("AWS config not found for organization: " + org.getId()));
 
-                if (successSyncTime != null) {
+                        awsBillingService.syncDailyCostUsageFromAthena(
+                                org.getId(), awsConfig.getAccessKey(), awsConfig.getSecretKey(), range.start(), range.end()
+                        );
 
-                    days = Duration.between(item.getLastSuccessSyncTime(), now).toDays();
-
-                    if (days < 7) {
-                        days = 7;
                     }
 
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .listener(awsBillingDataStepListener())
+                .build();
+    }
+
+    @Bean
+    public StepExecutionListener awsBillingDataStepListener() {
+
+        return new StepExecutionListener() {
+
+            @Override
+            public void beforeStep(@NotNull StepExecution stepExecution) {
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    log.info(
+                            "Starting step: {} for partition {} and organization {}",
+                            stepExecution.getStepName(), range, org.getId()
+                    );
+
                 }
-
-                Pair<LastSyncStatus, String> pair = awsBillingService.syncDailyCostUsageFromAthena(
-                        item.getOrganizationId(), item.getAccessKey(), item.getSecretKey(), days
-                );
-
-                if (pair.getFirst().equals(LastSyncStatus.SUCCESS)) {
-                    item.setLastSuccessSyncTime(now);
-                }
-
-                item.setLastSyncStatus(pair.getFirst());
-                item.setLastSyncMessage(pair.getSecond());
-                item.setLastSyncTime(now);
-
-                cloudConfigRepository.save(item);
-
             }
 
+            @Override
+            public ExitStatus afterStep(@NotNull StepExecution stepExecution) {
+
+                String partitionName = stepExecution.getStepName();
+                BatchStatus status = stepExecution.getStatus();
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
+                            org.getId(), CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
+                    ).orElse(new DataSyncHistory(
+                            org, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
+                    ));
+
+                    if (status.equals(BatchStatus.COMPLETED)) {
+                        sync.setLastSyncStatus(LastSyncStatus.SUCCESS);
+                    } else {
+                        sync.setLastSyncStatus(LastSyncStatus.FAIL);
+                        sync.setFailCount(sync.getFailCount() + 1);
+                    }
+
+                    dataSyncHistoryRepository.save(sync);
+
+                }
+
+                log.info(
+                        "Step completed: {} with status: {} for partition {} and organization {}",
+                        partitionName, status, range, org == null ? 0 : org.getId()
+                );
+
+                return stepExecution.getExitStatus();
+            }
         };
     }
 

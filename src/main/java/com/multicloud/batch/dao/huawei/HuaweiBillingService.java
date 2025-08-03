@@ -12,6 +12,6 @@ import org.springframework.data.util.Pair;
 
 public interface HuaweiBillingService {
 
-    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, CustomDateRange customDateRange, String token);
+    void fetchDailyServiceCostUsage(long organizationId, CustomDateRange customDateRange, String token);
 
 }

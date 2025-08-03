@@ -24,14 +24,15 @@ public class AwsBillingDataJobScheduler {
     private final JobLauncher jobLauncher;
     private final Job awsBillingDataJob;
 
-//    @Async
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Async
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runJob() throws Exception {
 
-//        Thread.sleep(10000);
+        Thread.sleep(5000);
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
+                .addLong("orgId", 1L)
                 .toJobParameters();
 
         jobLauncher.run(awsBillingDataJob, jobParameters);

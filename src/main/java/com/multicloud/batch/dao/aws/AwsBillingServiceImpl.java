@@ -39,6 +39,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -187,17 +188,16 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
-    public Pair<LastSyncStatus, String> syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey,
-                                                                     long days) {
+    public void syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey,
+                                             LocalDate start, LocalDate end) {
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
 
         try {
 
-            LocalDate date = LocalDate.now().minusDays(days + 1);
-            int year = date.getYear();
-            int month = date.getMonthValue();
+            int year = start.getYear();
+            int month = start.getMonthValue();
 
             String query = """
                             SELECT date(line_item_usage_start_date)                            AS usage_date,
@@ -250,8 +250,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 COALESCE(SUM(line_item_unblended_cost), 0)                     AS unblended_cost,
                                 COALESCE(SUM(line_item_blended_cost), 0)                       AS blended_cost,
                                 SUM(
-                                COALESCE(reservation_effective_cost, 0) +
-                                COALESCE(savings_plan_savings_plan_effective_cost, 0)
+                                    COALESCE(reservation_effective_cost, 0) +
+                                    COALESCE(savings_plan_savings_plan_effective_cost, 0)
                                 )                                                              AS effective_cost,
                     
                                 -- Billing period
@@ -260,7 +260,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     
                             FROM %s
                             WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
-                                AND line_item_usage_start_date >= date_add('day', -%d, current_date)
+                                AND date(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
                                 AND line_item_line_item_type IN (
                                     'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
                                     'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
@@ -268,14 +268,14 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 )
                                 AND line_item_unblended_cost IS NOT NULL
                             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-                    """.formatted("athena", year, year, month, days);
+                    """.formatted("athena", year, year, month, start, end);
 
             String bucket = "azerion-athena-results";
             String prefix = "azerion_mc";
 
             // If you use 'unload' -- it required empty folder on S3,
             // It may generate multiple files
-            prefix = "%s/%s/%s".formatted(prefix, "unloaded_data", System.currentTimeMillis());
+            prefix = "%s/%s/%s".formatted(prefix, "unloaded_data", UUID.randomUUID().toString());
 
             String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
             String database = "athenacurcfn_athena";
@@ -294,10 +294,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
 
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(totalResults));
-        } catch (Exception e) {
-            log.error("AWS billing data fetch error", e);
-            return Pair.of(LastSyncStatus.FAIL, e.getMessage());
         } finally {
             AwsDynamicCredentialsProvider.clear();
         }
@@ -504,7 +500,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         results.add(bindRecord(record, organizationId));
                         count++;
 
-                        if (results.size() == 20000) {
+                        if (results.size() == 5000) {
                             // Save each batch
                             // Clean before the next
                             log.info("Upserting {} fetched AWS records into DB.", results.size());
