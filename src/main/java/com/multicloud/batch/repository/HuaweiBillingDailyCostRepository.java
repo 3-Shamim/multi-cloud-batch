@@ -5,8 +5,9 @@ import jakarta.persistence.EntityManager;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -19,7 +20,9 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
 
     default void upsertHuaweiBillingDailyCosts(Collection<HuaweiBillingDailyCost> bills, EntityManager entityManager) {
 
-        if (bills == null || bills.isEmpty()) return;
+        if (bills == null || bills.isEmpty()) {
+            return;
+        }
 
         StringBuilder sqlBuilder = new StringBuilder("""
                     INSERT INTO huawei_billing_daily_costs (
@@ -35,36 +38,31 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
 
         for (HuaweiBillingDailyCost b : bills) {
 
-            sqlBuilder.append(
-                    "(%d, '%s', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                            .formatted(
-                                    b.getOrganizationId(),
-                                    b.getBillDate(),
-                                    escapeSql(b.getPayerAccountId()),
-                                    escapeSql(b.getCustomerId()),
-                                    escapeSql(b.getEnterpriseProjectId()),
-                                    escapeSql(b.getEnterpriseProjectName()),
-                                    escapeSql(b.getCloudServiceType()),
-                                    escapeSql(b.getCloudServiceTypeName()),
-                                    escapeSql(b.getSkuCode()),
-                                    escapeSql(b.getProductSpecDesc()),
-                                    escapeSql(b.getResourceTypeCode()),
-                                    escapeSql(b.getResourceTypeName()),
-                                    escapeSql(b.getResourceName()),
-                                    escapeSql(b.getRegion()),
-                                    escapeSql(b.getRegionName()),
-                                    b.getChargeMode() != null ? b.getChargeMode() : "NULL",
-                                    b.getUsageAmount() != null ? b.getUsageAmount().toPlainString() : "NULL",
-                                    b.getConsumeAmount() != null ? b.getConsumeAmount().toPlainString() : "NULL",
-                                    b.getOfficialAmount() != null ? b.getOfficialAmount().toPlainString() : "NULL",
-                                    b.getDiscountAmount() != null ? b.getDiscountAmount().toPlainString() : "NULL",
-                                    b.getCouponAmount() != null ? b.getCouponAmount().toPlainString() : "NULL"
-                            )
-            );
+            sqlBuilder.append("(")
+                    .append(b.getOrganizationId()).append(", ")
+                    .append(toSqlDate(b.getBillDate())).append(", ")
+                    .append(toSqlStr(b.getPayerAccountId())).append(", ")
+                    .append(toSqlStr(b.getCustomerId())).append(", ")
+                    .append(toSqlStr(b.getEnterpriseProjectId())).append(", ")
+                    .append(toSqlStr(b.getEnterpriseProjectName())).append(", ")
+                    .append(toSqlStr(b.getCloudServiceType())).append(", ")
+                    .append(toSqlStr(b.getCloudServiceTypeName())).append(", ")
+                    .append(toSqlStr(b.getSkuCode())).append(", ")
+                    .append(toSqlStr(b.getProductSpecDesc())).append(", ")
+                    .append(toSqlStr(b.getResourceTypeCode())).append(", ")
+                    .append(toSqlStr(b.getResourceTypeName())).append(", ")
+                    .append(toSqlStr(b.getResourceName())).append(", ")
+                    .append(toSqlStr(b.getRegion())).append(", ")
+                    .append(toSqlStr(b.getRegionName())).append(", ")
+                    .append(toSqlInt(b.getChargeMode())).append(", ")
+                    .append(toSqlDecimal(b.getUsageAmount())).append(", ")
+                    .append(toSqlDecimal(b.getConsumeAmount())).append(", ")
+                    .append(toSqlDecimal(b.getOfficialAmount())).append(", ")
+                    .append(toSqlDecimal(b.getDiscountAmount())).append(", ")
+                    .append(toSqlDecimal(b.getCouponAmount()))
+                    .append(")");
 
-            i++;
-
-            if (i < bills.size()) {
+            if (++i < bills.size()) {
                 sqlBuilder.append(", ");
             }
 
@@ -82,8 +80,20 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
         entityManager.createNativeQuery(sqlBuilder.toString()).executeUpdate();
     }
 
-    private static String escapeSql(String value) {
-        return value == null ? "" : value.replace("'", "''");
+    private static String toSqlStr(String value) {
+        return value == null ? "NULL" : "'" + value.replace("'", "''") + "'";
+    }
+
+    private static String toSqlDate(LocalDate date) {
+        return date == null ? "NULL" : "'" + date + "'";
+    }
+
+    private static String toSqlDecimal(BigDecimal value) {
+        return value == null ? "NULL" : value.toPlainString();
+    }
+
+    private static String toSqlInt(Integer value) {
+        return value == null ? "NULL" : value.toString();
     }
 
 }

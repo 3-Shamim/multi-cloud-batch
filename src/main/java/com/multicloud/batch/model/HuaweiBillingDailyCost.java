@@ -26,18 +26,18 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_huawei",
                 columnNames = {
-                        "organizationId", "billDate", "payerAccountId", "customerId", "cloudServiceType", "skuCode",
-                        "resourceTypeCode", "region", "chargeMode"
+                        "organization_id", "bill_date", "payer_account_id", "customer_id", "cloud_service_type", "sku_code",
+                        "resource_type_code", "region", "charge_mode"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organizationId"),
-                @Index(name = "idx_bill_date", columnList = "billDate"),
-                @Index(name = "idx_payer_account_id", columnList = "payerAccountId"),
-                @Index(name = "idx_customer_id", columnList = "customerId"),
-                @Index(name = "idx_cloud_service_type", columnList = "cloudServiceType"),
-                @Index(name = "idx_sku_code", columnList = "skuCode"),
-                @Index(name = "idx_project_service", columnList = "billDate, customerId, cloudServiceType")
+                @Index(name = "idx_organization_id", columnList = "organization_id"),
+                @Index(name = "idx_bill_date", columnList = "bill_date"),
+                @Index(name = "idx_payer_account_id", columnList = "payer_account_id"),
+                @Index(name = "idx_customer_id", columnList = "customer_id"),
+                @Index(name = "idx_cloud_service_type", columnList = "cloud_service_type"),
+                @Index(name = "idx_sku_code", columnList = "sku_code"),
+                @Index(name = "idx_project_service", columnList = "bill_date, customer_id, cloud_service_type")
         }
 )
 public class HuaweiBillingDailyCost {
@@ -50,31 +50,32 @@ public class HuaweiBillingDailyCost {
     @Column(nullable = false)
     private long organizationId;
 
+    @Column(nullable = false)
     private LocalDate billDate;
 
     // Master/Billing Account ID
-    @Column(length = 64)
+    @Column(length = 64, nullable = false)
     private String payerAccountId;
 
     // Usage Account ID
     // Usage scope
-    @Column(length = 64)
+    @Column(length = 64, nullable = false)
     private String customerId;
 
     // Optional
     private String enterpriseProjectId;
     private String enterpriseProjectName;
 
-    @Column(length = 256)
+    @Column(length = 256, nullable = false)
     private String cloudServiceType;
     @Column(length = 200)
     private String cloudServiceTypeName;
 
-    @Column(length = 64)
+    @Column(length = 64, nullable = false)
     private String skuCode;
     private String productSpecDesc;
 
-    @Column(length = 64)
+    @Column(length = 64, nullable = false)
     private String resourceTypeCode;
     @Column(length = 200)
     private String resourceTypeName;
@@ -82,7 +83,7 @@ public class HuaweiBillingDailyCost {
     // Optional
     private String resourceName;
 
-    @Column(length = 64)
+    @Column(length = 64, nullable = false)
     private String region;
     @Column(length = 64)
     private String regionName;
@@ -104,10 +105,10 @@ public class HuaweiBillingDailyCost {
     @Column(precision = 20, scale = 8)
     private BigDecimal couponAmount;
 
-    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record, long organizationId) {
+    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record, long orgId) {
 
         return HuaweiBillingDailyCost.builder()
-                .organizationId(organizationId)
+                .organizationId(orgId)
                 .billDate(LocalDate.parse(record.bill_date()))
                 .payerAccountId(record.payer_account_id())
                 .customerId(record.customer_id())
@@ -115,7 +116,7 @@ public class HuaweiBillingDailyCost {
                 .enterpriseProjectName(record.enterprise_project_name())
                 .cloudServiceType(record.cloud_service_type())
                 .cloudServiceTypeName(record.cloud_service_type_name())
-                .skuCode(record.sku_code())
+                .skuCode(record.sku_code() == null ? "UNKNOWN" : record.sku_code())
                 .productSpecDesc(record.product_spec_desc())
                 .resourceTypeCode(record.resource_Type_code())
                 .resourceTypeName(record.resource_type_name())

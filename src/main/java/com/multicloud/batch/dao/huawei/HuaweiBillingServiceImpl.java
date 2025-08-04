@@ -29,8 +29,8 @@ import java.util.Map;
 public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
     private final EntityManager entityManager;
-
     private final RestTemplate restTemplate;
+
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
 
     @Override

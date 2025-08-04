@@ -1,6 +1,9 @@
 package com.multicloud.batch.dao.huawei.payload;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.time.LocalDate;
+import java.util.Comparator;
 
 /**
  * Created by IntelliJ IDEA.
@@ -17,5 +20,20 @@ public record HuaweiBillingGroup(
         String resourceTypeCode,
         String region,
         Integer chargeMode
-) {
+) implements Comparable<HuaweiBillingGroup> {
+
+    @Override
+    public int compareTo(@NotNull HuaweiBillingGroup o) {
+        return Comparator
+                .comparing(HuaweiBillingGroup::billDate)
+                .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::customerId, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::cloudServiceType, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::skuCode, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::resourceTypeCode, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::region, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::chargeMode, Comparator.nullsFirst(Integer::compareTo))
+                .compare(this, o);
+    }
+
 }
