@@ -111,7 +111,7 @@ public class AwsBillingDataJobConfig {
             }
 
             List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.AWS, LastSyncStatus.FAIL, 3
+                    orgId, CloudProvider.AWS, LastSyncStatus.FAIL, 5
             );
 
             for (DataSyncHistory item : failList) {

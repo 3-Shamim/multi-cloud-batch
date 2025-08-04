@@ -119,7 +119,7 @@ public class HuaweiBillingDataJobConfig {
             }
 
             List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.HWC, LastSyncStatus.FAIL, 3
+                    orgId, CloudProvider.HWC, LastSyncStatus.FAIL, 5
             );
 
             for (DataSyncHistory item : failList) {

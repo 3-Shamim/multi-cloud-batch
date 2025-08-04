@@ -111,7 +111,7 @@ public class GoogleBillingDataJobConfig {
             }
 
             List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.GCP, LastSyncStatus.FAIL, 3
+                    orgId, CloudProvider.GCP, LastSyncStatus.FAIL, 5
             );
 
             for (DataSyncHistory item : failList) {
