@@ -1,9 +1,12 @@
 package com.multicloud.batch.scheduler;
 
+import com.multicloud.batch.service.JobService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class AwsBillingDataJobScheduler {
 
     private final JobLauncher jobLauncher;
+    private final JobService jobService;
     private final Job awsBillingDataJob;
 
     @Async
@@ -29,6 +33,10 @@ public class AwsBillingDataJobScheduler {
     public void runJob() throws Exception {
 
         Thread.sleep(5000);
+
+        if (jobService.isJobTrulyRunning(awsBillingDataJob.getName())) {
+            return;
+        }
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())

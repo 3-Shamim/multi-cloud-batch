@@ -3,29 +3,32 @@ package com.multicloud.batch.job.gcp;
 import com.multicloud.batch.dao.google.GoogleBillingService;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
+import com.multicloud.batch.job.CustomDateRange;
+import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.CloudConfig;
+import com.multicloud.batch.model.DataSyncHistory;
+import com.multicloud.batch.model.Organization;
 import com.multicloud.batch.repository.CloudConfigRepository;
+import com.multicloud.batch.repository.DataSyncHistoryRepository;
+import com.multicloud.batch.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.batch.core.*;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.util.Pair;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Created by IntelliJ IDEA.
@@ -39,90 +42,189 @@ import java.util.List;
 public class GoogleBillingDataJobConfig {
 
     private final JobRepository jobRepository;
-    private final CloudConfigRepository cloudConfigRepository;
     private final PlatformTransactionManager platformTransactionManager;
+
+    private final OrganizationRepository organizationRepository;
+    private final CloudConfigRepository cloudConfigRepository;
+    private final DataSyncHistoryRepository dataSyncHistoryRepository;
     private final GoogleBillingService googleBillingService;
 
     @Bean
-    public Job googleBillingDataJob() {
-        return new JobBuilder("googleBillingDataJob", jobRepository)
-                .start(googleBillingDataStep())
+    public Job gcpBillingDataJob() {
+        return new JobBuilder("gcpBillingDataJob", jobRepository)
+                .start(gcpBillingDataMasterStep())
+                .build();
+    }
+
+    // Using a single thread and fetched 3-day of data at once.
+    // There is a lot of data aiming to store it slowly.
+    @Bean
+    public Step gcpBillingDataMasterStep() {
+        return new StepBuilder("gcpBillingDataMasterStep", jobRepository)
+                .partitioner(gcpBillingDataSlaveStep().getName(), gcpBillingDataPartitioner())
+                .step(gcpBillingDataSlaveStep())
+                .gridSize(1)
                 .build();
     }
 
     @Bean
-    public Step googleBillingDataStep() {
-        return new StepBuilder("googleBillingDataStep", jobRepository)
-                .<CloudConfig, CloudConfig>chunk(10, platformTransactionManager)
-                .reader(googleActiveAccountReader())
-                .processor(googleBillingDataProcessor())
-                .writer(googleBillingDataWriter())
-                .build();
-    }
+    public Partitioner gcpBillingDataPartitioner() {
 
-    @Bean
-    public ItemReader<CloudConfig> googleActiveAccountReader() {
+        return gridSize -> {
 
-        RepositoryItemReader<CloudConfig> itemReader = new RepositoryItemReader<>();
-        itemReader.setRepository(cloudConfigRepository);
-        itemReader.setMethodName("findAllByCloudProviderAndDisabledFalse");
-        itemReader.setArguments(List.of(CloudProvider.GCP));
-        itemReader.setPageSize(100);
-        itemReader.setSort(Collections.singletonMap("id", Sort.Direction.ASC));
+            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
 
-        return itemReader;
-    }
+            JobParameters jobParameters = stepExecution.getJobParameters();
+            Long orgId = jobParameters.getLong("orgId");
 
-    @Bean
-    public ItemProcessor<CloudConfig, CloudConfig> googleBillingDataProcessor() {
-        return item -> {
+            if (orgId == null || orgId < 1) {
+                throw new RuntimeException("Invalid organization id...");
+            }
 
-            log.info("Processing google billing data for account: {}", item);
+            Organization org = organizationRepository.findById(orgId)
+                    .orElseThrow(() -> new RuntimeException("Organization not found by ID: " + orgId));
 
-            return item;
+            boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.GCP);
+
+            long days = 365;
+
+            if (exist) {
+                days = 7;
+            }
+
+            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
+
+            Set<CustomDateRange> unique = new HashSet<>();
+            Map<String, ExecutionContext> partitions = new HashMap<>();
+
+            int i = 1;
+
+            for (CustomDateRange dateRange : dateRanges) {
+
+                ExecutionContext executionContext = new ExecutionContext();
+                executionContext.put("range", dateRange);
+                executionContext.put("org", org);
+
+                partitions.put("partition" + i, executionContext);
+
+                i++;
+            }
+
+            List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
+                    orgId, CloudProvider.GCP, LastSyncStatus.FAIL, 3
+            );
+
+            for (DataSyncHistory item : failList) {
+
+                CustomDateRange dateRange = new CustomDateRange(item.getStart(), item.getEnd(), item.getYear());
+
+                if (unique.contains(dateRange)) {
+                    continue;
+                }
+
+                unique.add(dateRange);
+
+                ExecutionContext executionContext = new ExecutionContext();
+                executionContext.put("range", dateRange);
+                executionContext.put("org", org);
+
+                partitions.put("partition" + i, executionContext);
+
+                i++;
+            }
+
+            return partitions;
         };
     }
 
     @Bean
-    public ItemWriter<CloudConfig> googleBillingDataWriter() {
-        return items -> {
+    public Step gcpBillingDataSlaveStep() {
+        return new StepBuilder("gcpBillingDataSlaveStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
 
-            for (CloudConfig item : items) {
+                    StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+                    CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                    Organization org = (Organization) stepExecution.getExecutionContext().get("org");
 
-                log.info("Writing google billing data: {}", item);
+                    if (range != null && org != null) {
 
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime successSyncTime = item.getLastSuccessSyncTime();
+                        log.info(
+                                "Processing gcp billing for partition {} and organization {}",
+                                range, org.getId()
+                        );
 
-                long days = 365;
+                        CloudConfig gcpConfig = cloudConfigRepository.findByOrganizationIdAndCloudProvider(
+                                org.getId(), CloudProvider.GCP
+                        ).orElseThrow(() -> new RuntimeException("GCP config not found for organization: " + org.getId()));
 
-                if (successSyncTime != null) {
+                        googleBillingService.fetchDailyServiceCostUsage(
+                                org.getId(), gcpConfig.getFile(), range.start(), range.end()
+                        );
 
-                    days = Duration.between(item.getLastSuccessSyncTime(), now).toDays();
-
-                    if (days < 7) {
-                        days = 7;
                     }
 
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .listener(gcpBillingDataStepListener())
+                .build();
+    }
+
+    @Bean
+    public StepExecutionListener gcpBillingDataStepListener() {
+
+        return new StepExecutionListener() {
+
+            @Override
+            public void beforeStep(@NotNull StepExecution stepExecution) {
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    log.info(
+                            "Starting step: {} for partition {} and organization {}",
+                            stepExecution.getStepName(), range, org.getId()
+                    );
+
                 }
-
-                Pair<LastSyncStatus, String> pair = googleBillingService.fetchDailyServiceCostUsage(
-                        item.getOrganizationId(), item.getFile(), days
-                );
-
-
-                if (pair.getFirst().equals(LastSyncStatus.SUCCESS)) {
-                    item.setLastSuccessSyncTime(now);
-                }
-
-                item.setLastSyncStatus(pair.getFirst());
-                item.setLastSyncMessage(pair.getSecond());
-                item.setLastSyncTime(now);
-
-                cloudConfigRepository.save(item);
-
             }
 
+            @Override
+            public ExitStatus afterStep(@NotNull StepExecution stepExecution) {
+
+                String partitionName = stepExecution.getStepName();
+                BatchStatus status = stepExecution.getStatus();
+
+                CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+
+                if (range != null && org != null) {
+
+                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
+                            org.getId(), CloudProvider.GCP, "gcpBillingDataJob", range.start(), range.end()
+                    ).orElse(new DataSyncHistory(
+                            org, CloudProvider.GCP, "gcpBillingDataJob", range.start(), range.end()
+                    ));
+
+                    if (status.equals(BatchStatus.COMPLETED)) {
+                        sync.setLastSyncStatus(LastSyncStatus.SUCCESS);
+                    } else {
+                        sync.setLastSyncStatus(LastSyncStatus.FAIL);
+                        sync.setFailCount(sync.getFailCount() + 1);
+                    }
+
+                    dataSyncHistoryRepository.save(sync);
+
+                }
+
+                log.info(
+                        "Step completed: {} with status: {} for partition {} and organization {}",
+                        partitionName, status, range, org == null ? 0 : org.getId()
+                );
+
+                return stepExecution.getExitStatus();
+            }
         };
     }
 

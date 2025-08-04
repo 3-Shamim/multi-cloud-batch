@@ -64,6 +64,15 @@ public class JobService {
 
         Job job = jobRegistry.getJob(jobName);
 
+        boolean isRunning = jobExplorer.findRunningJobExecutions(jobName).stream()
+                .anyMatch(JobExecution::isRunning);
+
+        if (isRunning) {
+            throw new RuntimeException(
+                    "Job is already running. Please stop it first before starting it again. Job name: %s".formatted(jobName)
+            );
+        }
+
         CompletableFuture.runAsync(() -> startJob(job));
 
         holdForAMoment();
@@ -123,6 +132,27 @@ public class JobService {
             }
         }
 
+    }
+
+    public boolean isJobTrulyRunning(String jobName) {
+
+        List<JobInstance> instances = jobExplorer.findJobInstancesByJobName(jobName, 0, 1);
+
+        if (!instances.isEmpty()) {
+
+            List<JobExecution> executions = jobExplorer.getJobExecutions(instances.getFirst());
+
+            for (JobExecution execution : executions) {
+
+                if (execution.isRunning()) {
+                    return true;
+                }
+
+            }
+
+        }
+
+        return false;
     }
 
     private static void holdForAMoment() {

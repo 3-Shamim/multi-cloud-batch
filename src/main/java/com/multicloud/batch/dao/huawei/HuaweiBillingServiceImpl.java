@@ -6,6 +6,7 @@ import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.model.HuaweiBillingDailyCost;
 import com.multicloud.batch.repository.HuaweiBillingDailyCostRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -27,6 +28,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
+    private final EntityManager entityManager;
+
     private final RestTemplate restTemplate;
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
 
@@ -35,7 +38,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
         doRequest(range, token, 0, data);
-        huaweiBillingDailyCostRepository.saveAll(data.values());
+        huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), entityManager);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 

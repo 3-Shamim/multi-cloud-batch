@@ -1,7 +1,6 @@
 package com.multicloud.batch.dao.google;
 
-import com.multicloud.batch.enums.LastSyncStatus;
-import org.springframework.data.util.Pair;
+import java.time.LocalDate;
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,7 +10,7 @@ import org.springframework.data.util.Pair;
 
 public interface GoogleBillingService {
 
-    Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, long days);
+    void fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LocalDate start, LocalDate end);
 
     boolean checkGoogleBigQueryConnection(byte[] jsonKey);
 

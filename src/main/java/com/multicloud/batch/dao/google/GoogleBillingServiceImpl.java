@@ -2,13 +2,11 @@ package com.multicloud.batch.dao.google;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.*;
-import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.model.GcpBillingDailyCost;
 import com.multicloud.batch.repository.GcpBillingDailyCostRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -34,10 +32,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     private final GcpBillingDailyCostRepository gcpBillingDailyCostRepository;
 
     @Override
-    public Pair<LastSyncStatus, String> fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, long days) {
-
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(days + 1);
+    public void fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LocalDate start, LocalDate end) {
 
         String query = """
                     SELECT
@@ -127,7 +122,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 billings.add(billing);
                 count++;
 
-                if (billings.size() == 10000) {
+                if (billings.size() == 5000) {
 
                     // Save each batch
                     // Clean before the next
@@ -145,10 +140,9 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
             log.info("GCP billing data fetched and stored successfully. Total results: {}", count);
 
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(count));
         } catch (Exception e) {
             log.error("GCP billing data fetch error", e);
-            return Pair.of(LastSyncStatus.FAIL, e.getMessage());
+            throw new RuntimeException("GCP billing data fetch error", e);
         }
 
     }

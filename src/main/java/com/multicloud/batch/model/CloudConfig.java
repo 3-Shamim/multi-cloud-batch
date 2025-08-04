@@ -1,17 +1,13 @@
 package com.multicloud.batch.model;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.multicloud.batch.enums.CloudProvider;
-import com.multicloud.batch.enums.LastSyncStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -35,9 +31,10 @@ public class CloudConfig implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Positive(message = "Organization ID must be a positive number")
-    @Column(nullable = false)
-    private long organizationId;
+    @NotNull(message = "Organization ID must not be null")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
 
     @NotNull(message = "Cloud provider must not be null")
     @Enumerated(EnumType.STRING)
@@ -65,18 +62,5 @@ public class CloudConfig implements Serializable {
 
     @Column(columnDefinition = "boolean default false")
     private boolean connected;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime lastSuccessSyncTime;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime lastSyncTime;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 50)
-    private LastSyncStatus lastSyncStatus;
-
-    @Column(length = 1000, columnDefinition = "TEXT")
-    private String lastSyncMessage;
 
 }

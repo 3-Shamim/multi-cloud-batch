@@ -149,7 +149,7 @@ public class AwsBillingDataJobConfig {
                     if (range != null && org != null) {
 
                         log.info(
-                                "Processing huawei billing for partition {} and organization {}",
+                                "Processing aws billing for partition {} and organization {}",
                                 range, org.getId()
                         );
 

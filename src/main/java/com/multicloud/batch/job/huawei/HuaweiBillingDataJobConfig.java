@@ -23,7 +23,6 @@ import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.*;
@@ -72,22 +71,8 @@ public class HuaweiBillingDataJobConfig {
         return new StepBuilder("huaweiBillingDataMasterStep", jobRepository)
                 .partitioner(huaweiBillingDataSlaveStep().getName(), huaweiBillingDataPartitioner())
                 .step(huaweiBillingDataSlaveStep())
-                .gridSize(5)
-                .taskExecutor(huaweiBillingDataTaskExecutor())
+                .gridSize(1)
                 .build();
-    }
-
-    @Bean
-    public ThreadPoolTaskExecutor huaweiBillingDataTaskExecutor() {
-
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("BatchWorker-");
-        executor.initialize();
-
-        return executor;
     }
 
     @Bean
@@ -115,7 +100,7 @@ public class HuaweiBillingDataJobConfig {
                 days = 7;
             }
 
-            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
+            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
 
             Set<CustomDateRange> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
