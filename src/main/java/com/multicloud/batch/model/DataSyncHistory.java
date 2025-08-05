@@ -50,11 +50,11 @@ public class DataSyncHistory {
     @Column(name = "job_name", nullable = false, length = 150)
     private String jobName;
 
+    @Column(nullable = false)
     private LocalDate start;
 
+    @Column(nullable = false)
     private LocalDate end;
-
-    private int year;
 
     @Enumerated(EnumType.STRING)
     private LastSyncStatus lastSyncStatus;

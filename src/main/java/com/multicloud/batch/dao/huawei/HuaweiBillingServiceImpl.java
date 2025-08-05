@@ -1,5 +1,6 @@
 package com.multicloud.batch.dao.huawei;
 
+import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
 import com.multicloud.batch.dao.huawei.payload.HuaweiBillingGroup;
 import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingRequest;
 import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
@@ -34,17 +35,17 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
 
     @Override
-    public void fetchDailyServiceCostUsage(long orgId, CustomDateRange range, String token) {
+    public void fetchDailyServiceCostUsage(long orgId, CustomDateRange range, HuaweiAuthDetails authDetails) {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
-        doRequest(orgId, range, token, 0, data);
+        doRequest(orgId, range, authDetails, 0, data);
         huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), entityManager);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 
     }
 
-    private void doRequest(long orgId, CustomDateRange range, String token, int offset,
+    private void doRequest(long orgId, CustomDateRange range, HuaweiAuthDetails authDetails, int offset,
                            Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data) {
 
         HuaweiResourceBillingRequest request = new HuaweiResourceBillingRequest(
@@ -65,7 +66,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Auth-Token", token);
+        headers.set("X-Auth-Token", authDetails.token());
         headers.set("X-Language", "en_US");
 
         HttpEntity<HuaweiResourceBillingRequest> entity = new HttpEntity<>(request, headers);
@@ -112,7 +113,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
             });
 
             if (!response.getBody().monthly_records().isEmpty()) {
-                doRequest(orgId, range, token, offset + 1000, data);
+                doRequest(orgId, range, authDetails, offset + 1000, data);
             }
 
         } else {
@@ -120,5 +121,80 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
         }
 
     }
+
+//    private void doRequest(long orgId, CustomDateRange range, HuaweiAuthDetails authDetails, int offset,
+//                           Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data) {
+//
+//        String baseUrl = "https://bss.myhuaweicloud.eu/v2/bills/customer-bills/res-fee-records";
+//
+//        URI uri = UriComponentsBuilder.fromUriString(baseUrl)
+//                .queryParam("cycle", String.format("%d-%02d", range.year(), range.month()))
+//                .queryParam("include_zero_record", "false")
+//                .queryParam("statistic_type", "3")
+//                .queryParam("bill_date_begin", range.start().toString())
+//                .queryParam("bill_date_end", range.end().toString())
+//                .queryParam("offset", offset)
+//                .queryParam("limit", 1000)
+//                .build()
+//                .encode()
+//                .toUri();
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("X-Auth-Token", authDetails.token());
+//        headers.set("X-Language", "en_US");
+//
+//        HttpEntity<Void> entity = new HttpEntity<>(headers);
+//
+//        ResponseEntity<HuaweiBillingExpenseResponse> response = restTemplate.exchange(
+//                uri,
+//                HttpMethod.GET,
+//                entity,
+//                HuaweiBillingExpenseResponse.class
+//        );
+//
+//        if (response.getBody() != null) {
+//
+//            response.getBody().fee_records().forEach(row -> {
+//
+//                HuaweiBillingGroup group = new HuaweiBillingGroup(
+//                        LocalDate.parse(row.bill_date()),
+//                        authDetails.payerAccountId(),
+//                        row.customer_id(),
+//                        row.cloud_service_type(),
+//                        row.sku_code(),
+//                        row.resource_type(),
+//                        row.region(),
+//                        row.charge_mode()
+//                );
+//
+//                HuaweiBillingDailyCost cost = data.get(group);
+//
+//                if (cost == null) {
+//
+//                    HuaweiBillingDailyCost newCost = HuaweiBillingDailyCost.from(row, authDetails.payerAccountId(), orgId);
+//                    data.put(group, newCost);
+//
+//                } else {
+//
+//                    cost.setConsumeAmount(cost.getConsumeAmount().add(row.amount()));
+//                    cost.setOfficialAmount(cost.getOfficialAmount().add(row.official_amount()));
+//                    cost.setDiscountAmount(cost.getDiscountAmount().add(row.discount_amount()));
+//                    cost.setCouponAmount(cost.getCouponAmount().add(row.coupon_amount()));
+//
+//                    data.put(group, cost);
+//                }
+//
+//            });
+//
+//            if (!response.getBody().fee_records().isEmpty()) {
+//                doRequest(orgId, range, authDetails, offset + 1000, data);
+//            }
+//
+//        } else {
+//            throw new RuntimeException("Failed to fetch daily service cost usage, response body is null");
+//        }
+//
+//    }
 
 }

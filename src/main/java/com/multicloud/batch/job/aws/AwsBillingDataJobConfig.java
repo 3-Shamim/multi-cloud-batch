@@ -116,7 +116,9 @@ public class AwsBillingDataJobConfig {
 
             for (DataSyncHistory item : failList) {
 
-                CustomDateRange dateRange = new CustomDateRange(item.getStart(), item.getEnd(), item.getYear());
+                CustomDateRange dateRange = new CustomDateRange(
+                        item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
+                );
 
                 if (unique.contains(dateRange)) {
                     continue;

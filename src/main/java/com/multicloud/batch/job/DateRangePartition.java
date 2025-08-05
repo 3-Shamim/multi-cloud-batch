@@ -13,6 +13,7 @@ import java.util.List;
 
 public class DateRangePartition {
 
+    // Partition must be under a month
     public static List<CustomDateRange> getPartitions(long remainingDays, long interval) {
 
         List<CustomDateRange> partitions = new ArrayList<>();
@@ -49,7 +50,7 @@ public class DateRangePartition {
 
             LocalDate start = endDate.minusDays(min - 1);
 
-            partitions.add(new CustomDateRange(start, endDate, endDate.getYear()));
+            partitions.add(new CustomDateRange(start, endDate, endDate.getYear(), endDate.getMonthValue()));
 
             len -= min;
             endDate = start.minusDays(1);

@@ -2,11 +2,11 @@ package com.multicloud.batch.dao.huawei;
 
 import com.multicloud.batch.dao.huawei.payload.HuaweiAuthRequest;
 import com.multicloud.batch.dao.huawei.payload.HuaweiAuthResponse;
+import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
@@ -25,12 +25,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
-    private final Map<HuaweiAuthRequest, HuaweiAuthResponse> MAP = new HashMap<>();
+    private final Map<HuaweiAuthRequest, HuaweiAuthDetails> MAP = new HashMap<>();
 
     private final RestTemplate restTemplate;
 
     @Override
-    public String login() {
+    public HuaweiAuthDetails login() {
 
         // IAM user
         String username = "";
@@ -47,7 +47,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
                 region, domain, username, password
         );
 
-        HuaweiAuthResponse cachedResponse = MAP.get(request);
+        HuaweiAuthDetails cachedResponse = MAP.get(request);
 
         if (cachedResponse != null) {
 
@@ -55,7 +55,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
                 log.info("Serve token from cache: {}", cachedResponse.token());
 
-                return cachedResponse.token();
+                return cachedResponse;
             }
 
             MAP.remove(request);
@@ -69,45 +69,29 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
         HttpEntity<HuaweiAuthRequest> entity = new HttpEntity<>(request, headers);
 
-        try {
+        ResponseEntity<HuaweiAuthResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                HuaweiAuthResponse.class
+        );
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    String.class
-            );
+        // Get token from the header
+        List<String> tokenHeader = response.getHeaders().get("X-Subject-Token");
 
-            if (response.getStatusCode() == HttpStatus.CREATED) {
-
-                // Get token from the header
-                List<String> tokenHeader = response.getHeaders().get("X-Subject-Token");
-
-                if (tokenHeader != null && !tokenHeader.isEmpty()) {
-
-                    String token = tokenHeader.getFirst();
-                    MAP.put(request, new HuaweiAuthResponse(token, LocalDate.now()));
-
-                    log.info("Serve token from API request: {}", token);
-
-                    return token;
-
-                } else {
-                    log.error("Token header missing in response");
-                    return null;
-                }
-
-            } else {
-                log.error("Failed to fetch token, status: {}", response.getStatusCode());
-                return null;
-            }
-
-
-        } catch (RestClientResponseException ex) {
-            log.error("Error on fetching daily service cost usage", ex);
-            return null;
+        if (tokenHeader == null || tokenHeader.isEmpty() || response.getBody() == null) {
+            throw new RuntimeException("Failed to get token from API response");
         }
 
+        String payerAccountId = response.getBody().token().user().domain().id();
+
+        HuaweiAuthDetails huaweiAuthDetails = new HuaweiAuthDetails(payerAccountId, tokenHeader.getFirst(), LocalDate.now());
+
+        MAP.put(request, huaweiAuthDetails);
+
+        log.info("Serve token from API request: {}", huaweiAuthDetails.token());
+
+        return huaweiAuthDetails;
     }
 
 }

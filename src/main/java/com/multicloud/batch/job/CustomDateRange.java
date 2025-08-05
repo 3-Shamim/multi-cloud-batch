@@ -9,5 +9,5 @@ import java.time.LocalDate;
  * Email: shamim.molla@vivasoftltd.com
  */
 
-public record CustomDateRange(LocalDate start, LocalDate end, int year) implements Serializable {
+public record CustomDateRange(LocalDate start, LocalDate end, int year, int month) implements Serializable {
 }

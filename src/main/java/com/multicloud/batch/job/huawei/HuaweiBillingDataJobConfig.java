@@ -2,6 +2,7 @@ package com.multicloud.batch.job.huawei;
 
 import com.multicloud.batch.dao.huawei.HuaweiAuthService;
 import com.multicloud.batch.dao.huawei.HuaweiBillingService;
+import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
@@ -124,7 +125,9 @@ public class HuaweiBillingDataJobConfig {
 
             for (DataSyncHistory item : failList) {
 
-                CustomDateRange dateRange = new CustomDateRange(item.getStart(), item.getEnd(), item.getYear());
+                CustomDateRange dateRange = new CustomDateRange(
+                        item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
+                );
 
                 if (unique.contains(dateRange)) {
                     continue;
@@ -161,7 +164,7 @@ public class HuaweiBillingDataJobConfig {
                                 range, org.getId()
                         );
 
-                        String token = huaweiAuthService.login();
+                        HuaweiAuthDetails token = huaweiAuthService.login();
                         huaweiBillingService.fetchDailyServiceCostUsage(
                                 org.getId(), range, token
                         );

@@ -1,6 +1,6 @@
 package com.multicloud.batch.dao.huawei.payload;
 
-import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Created by IntelliJ IDEA.
@@ -8,6 +8,32 @@ import java.time.LocalDate;
  * Email: shamim.molla@vivasoftltd.com
  */
 
-public record HuaweiAuthResponse(String token, LocalDate date) {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record HuaweiAuthResponse(
+        Token token
+) {
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Token(
+            User user
+    ) {
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public record User(
+                Domain domain,
+                String id,
+                String name
+        ) {
+
+            @JsonIgnoreProperties(ignoreUnknown = true)
+            public record Domain(
+                    String id,
+                    String name
+            ) {
+            }
+
+        }
+
+    }
 
 }

@@ -1,5 +1,6 @@
 package com.multicloud.batch.model;
 
+import com.multicloud.batch.dao.huawei.payload.HuaweiBillingExpenseResponse;
 import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
 import jakarta.persistence.*;
 import lombok.*;
@@ -125,6 +126,33 @@ public class HuaweiBillingDailyCost {
                 .regionName(record.region_name())
                 .chargeMode(record.charge_mode())
                 .consumeAmount(record.consume_amount())
+                .officialAmount(record.official_amount())
+                .discountAmount(record.discount_amount())
+                .couponAmount(record.coupon_amount())
+                .build();
+    }
+
+
+    public static HuaweiBillingDailyCost from(HuaweiBillingExpenseResponse.FeeRecord record, String payerAccountId, long orgId) {
+
+        return HuaweiBillingDailyCost.builder()
+                .organizationId(orgId)
+                .billDate(LocalDate.parse(record.bill_date()))
+                .payerAccountId(payerAccountId)
+                .customerId(record.customer_id())
+                .enterpriseProjectId(record.enterprise_project_id())
+                .enterpriseProjectName(record.enterprise_project_name())
+                .cloudServiceType(record.cloud_service_type())
+                .cloudServiceTypeName(record.cloud_service_type_name())
+                .skuCode(record.sku_code() == null ? "UNKNOWN" : record.sku_code())
+                .productSpecDesc(record.product_spec_desc())
+                .resourceTypeCode(record.resource_type())
+                .resourceTypeName(record.resource_type_name())
+                .resourceName(record.resource_name())
+                .region(record.region())
+                .regionName(record.region_name())
+                .chargeMode(Integer.valueOf(record.charge_mode()))
+                .consumeAmount(record.amount())
                 .officialAmount(record.official_amount())
                 .discountAmount(record.discount_amount())
                 .couponAmount(record.coupon_amount())

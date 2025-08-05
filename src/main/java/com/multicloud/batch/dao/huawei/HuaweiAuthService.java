@@ -1,5 +1,7 @@
 package com.multicloud.batch.dao.huawei;
 
+import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
+
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -8,6 +10,6 @@ package com.multicloud.batch.dao.huawei;
 
 public interface HuaweiAuthService {
 
-    String login();
+    HuaweiAuthDetails login();
 
 }
