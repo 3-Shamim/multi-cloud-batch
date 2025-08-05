@@ -15,11 +15,11 @@ public record HuaweiBillingGroup(
         LocalDate billDate,
         String payerAccountId,
         String customerId,
+        String enterpriseProjectId,
         String cloudServiceType,
         String skuCode,
         String resourceTypeCode,
-        String region,
-        Integer chargeMode
+        String region
 ) implements Comparable<HuaweiBillingGroup> {
 
     @Override
@@ -28,11 +28,11 @@ public record HuaweiBillingGroup(
                 .comparing(HuaweiBillingGroup::billDate)
                 .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::customerId, Comparator.nullsFirst(String::compareTo))
+                .thenComparing(HuaweiBillingGroup::enterpriseProjectId, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::cloudServiceType, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::skuCode, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::resourceTypeCode, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::region, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::chargeMode, Comparator.nullsFirst(Integer::compareTo))
                 .compare(this, o);
     }
 

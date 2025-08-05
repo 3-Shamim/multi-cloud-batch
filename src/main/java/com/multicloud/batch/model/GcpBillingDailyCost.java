@@ -5,7 +5,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -25,19 +24,18 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_gcp",
                 columnNames = {
-                        "organizationId", "usageDate", "billingAccountId", "projectId", "projectName",
-                        "serviceCode", "serviceName", "skuId", "skuDescription", "region", "location",
-                        "currency", "costType", "usageUnit"
+                        "organization_id", "usage_date", "billing_account_id", "project_id", "project_name",
+                        "service_code", "service_name", "sku_id", "sku_description", "region", "location", "cost_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organizationId"),
-                @Index(name = "idx_usage_date", columnList = "usageDate"),
-                @Index(name = "idx_billing_account_id", columnList = "billingAccountId"),
-                @Index(name = "idx_project_id", columnList = "projectId"),
-                @Index(name = "idx_service_code", columnList = "serviceCode"),
-                @Index(name = "idx_sku_id", columnList = "skuId"),
-                @Index(name = "idx_project_service", columnList = "usageDate, billingAccountId, serviceCode")
+                @Index(name = "idx_organization_id", columnList = "organization_id"),
+                @Index(name = "idx_usage_date", columnList = "usage_date"),
+                @Index(name = "idx_billing_account_id", columnList = "billing_account_id"),
+                @Index(name = "idx_project_id", columnList = "project_id"),
+                @Index(name = "idx_service_code", columnList = "service_code"),
+                @Index(name = "idx_sku_id", columnList = "sku_id"),
+                @Index(name = "idx_project_service", columnList = "usage_date, billing_account_id, service_code")
         }
 )
 public class GcpBillingDailyCost {
@@ -47,60 +45,55 @@ public class GcpBillingDailyCost {
     private Long id;
 
     // Multicloud organization ID
-    @Column(nullable = false)
+    @Column(name = "organization_id", nullable = false)
     private long organizationId;
 
+    @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
 
     // Master/Billing Account ID
-    @Column(length = 32)
+    @Column(name = "billing_account_id", nullable = false, length = 32)
     private String billingAccountId;
 
     // GCP gives per project billing
     // Usage scope
-    @Column(length = 128)
+    @Column(name = "project_id", nullable = false, length = 128)
     private String projectId;
 
-    @Column(length = 128)
+    @Column(name = "project_name", nullable = false, length = 128)
     private String projectName;
 
-    @Column(length = 64)
+    @Column(name = "service_code", nullable = false, length = 64)
     private String serviceCode;
 
-    @Column(length = 128)
+    @Column(name = "service_name", nullable = false, length = 128)
     private String serviceName;
 
-    @Column(length = 64)
+    @Column(name = "sku_id", nullable = false, length = 64)
     private String skuId;
 
-    @Column(length = 512)
+    @Column(name = "sku_description", nullable = false, length = 512)
     private String skuDescription;
 
-    @Column(length = 64)
+    @Column(nullable = false, length = 64)
     private String region;
 
-    @Column(length = 128)
+    @Column(nullable = false, length = 128)
     private String location;
 
     @Column(length = 3)
     private String currency;
 
-    @Column(length = 32)
+    @Column(name = "cost_type", nullable = false, length = 32)
     private String costType;
 
-    @Column(precision = 30, scale = 6)
+    @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
-    @Column(length = 64)
+    @Column(name = "usage_unit", length = 64)
     private String usageUnit;
 
-    @Column(precision = 20, scale = 6)
+    @Column(precision = 20, scale = 8)
     private BigDecimal cost;
-
-    @Column(columnDefinition = "DATETIME(0)")
-    private LocalDateTime billingPeriodStart;
-
-    @Column(columnDefinition = "DATETIME(0)")
-    private LocalDateTime billingPeriodEnd;
 
 }

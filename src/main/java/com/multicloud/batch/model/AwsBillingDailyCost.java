@@ -5,7 +5,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,24 +19,23 @@ import java.time.LocalDateTime;
 @Builder
 @ToString
 @Entity
-@Table(name = "aws_billing_daily_costs",
+@Table(
+        name = "aws_billing_daily_costs",
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const",
                 columnNames = {
-                        "organizationId", "usageDate", "payerAccountId", "usageAccountId", "projectTag",
-                        "serviceCode", "serviceName", "skuId", "skuDescription", "region", "location",
-                        "currency", "pricingType", "usageType"
+                        "organization_id", "usage_date", "payer_account_id", "usage_account_id", "service_code",
+                        "service_name", "sku_id", "sku_description", "region", "location", "usage_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organizationId"),
-                @Index(name = "idx_usage_date", columnList = "usageDate"),
-                @Index(name = "idx_payer_account_id", columnList = "payerAccountId"),
-                @Index(name = "idx_usage_account_id", columnList = "usageAccountId"),
-                @Index(name = "idx_service_code", columnList = "serviceCode"),
-                @Index(name = "idx_sku_id", columnList = "skuId"),
-                @Index(name = "idx_project_id", columnList = "projectTag"),
-                @Index(name = "idx_service_level", columnList = "usageDate, payerAccountId, serviceCode")
+                @Index(name = "idx_organization_id", columnList = "organization_id"),
+                @Index(name = "idx_usage_date", columnList = "usage_date"),
+                @Index(name = "idx_payer_account_id", columnList = "payer_account_id"),
+                @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
+                @Index(name = "idx_service_code", columnList = "service_code"),
+                @Index(name = "idx_sku_id", columnList = "sku_id"),
+                @Index(name = "idx_service_level", columnList = "usage_date, payer_account_id, service_code")
         }
 )
 public class AwsBillingDailyCost {
@@ -47,71 +45,61 @@ public class AwsBillingDailyCost {
     private Long id;
 
     // Multicloud organization ID
-    @Column(nullable = false)
+    @Column(name = "organization_id", nullable = false)
     private long organizationId;
 
+    @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
 
     // Master/Billing Account ID
-    @Column(length = 12)
+    @Column(name = "payer_account_id", nullable = false, length = 12)
     private String payerAccountId;
 
     // Linked/Usage Account ID
     // Usage scope
-    @Column(length = 12)
+    @Column(name = "usage_account_id", nullable = false, length = 12)
     private String usageAccountId;
 
-    // Project (from tags)
-    // This represents the project ID and name
-    @Column
-    private String projectTag;
-
-    @Column(length = 32)
+    @Column(name = "service_code", nullable = false, length = 32)
     private String serviceCode;
 
-    @Column(length = 128)
+    @Column(name = "service_name", nullable = false, length = 128)
     private String serviceName;
 
-    @Column(length = 32)
+    @Column(name = "sku_id", nullable = false, length = 32)
     private String skuId;
 
-    @Column(length = 512)
+    @Column(name = "sku_description", nullable = false, length = 512)
     private String skuDescription;
 
-    @Column(length = 32)
+    @Column(nullable = false, length = 32)
     private String region;
 
-    @Column(length = 128)
+    @Column(nullable = false, length = 128)
     private String location;
 
     @Column(length = 3)
     private String currency;
 
-    @Column(length = 16)
+    @Column(name = "pricing_type", length = 16)
     private String pricingType;
 
-    @Column(length = 128)
+    @Column(name = "usage_type", nullable = false, length = 128)
     private String usageType;
 
-    @Column(precision = 30, scale = 6)
+    @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
-    @Column(length = 128)
+    @Column(name = "usage_unit", length = 128)
     private String usageUnit;
 
-    @Column(precision = 20, scale = 6)
+    @Column(name = "unblended_cost", precision = 20, scale = 8)
     private BigDecimal unblendedCost;
 
-    @Column(precision = 20, scale = 6)
+    @Column(name = "blended_cost", precision = 20, scale = 8)
     private BigDecimal blendedCost;
 
-    @Column(precision = 20, scale = 6)
+    @Column(name = "effective_cost", precision = 20, scale = 8)
     private BigDecimal effectiveCost;
-
-    @Column(columnDefinition = "DATETIME(0)")
-    private LocalDateTime billingPeriodStart;
-
-    @Column(columnDefinition = "DATETIME(0)")
-    private LocalDateTime billingPeriodEnd;
 
 }

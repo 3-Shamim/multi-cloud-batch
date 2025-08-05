@@ -43,40 +43,35 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 
                         -- Project Info
                         -- Usage Scop
-                        project.id                                  AS project_id,
-                        project.name                                AS project_name,
+                        COALESCE(project.id, 'UNKNOWN')             AS project_id,
+                        COALESCE(project.name, 'UNKNOWN')           AS project_name,
                 
                         -- Service
-                        service.id                                  AS service_code,
-                        service.description                         AS service_name,
+                        COALESCE(service.id, 'UNKNOWN')             AS service_code,
+                        COALESCE(service.description, 'UNKNOWN')    AS service_name,
                 
                         -- SKU
-                        sku.id                                      AS sku_id,
-                        sku.description                             AS sku_description,
+                        COALESCE(sku.id, 'UNKNOWN')                 AS sku_id,
+                        COALESCE(sku.description, 'UNKNOWN')        AS sku_description,
                 
                         -- Region & Location
-                        location.region                             AS region,
-                        location.location                           AS location,
+                        COALESCE(location.region, 'UNKNOWN')        AS region,
+                        COALESCE(location.location, 'UNKNOWN')      AS location,
                 
                         -- Currency & Usage & Cost
-                        currency                                    AS currency,
-                        cost_type                                   AS cost_type,
+                        COALESCE(MAX(currency), 'UNKNOWN')          AS currency,
+                        COALESCE(cost_type, 'UNKNOWN')              AS cost_type,
                 
                         COALESCE(SUM(usage.amount), 0)              AS usage_amount,
-                        MAX(usage.unit)                             AS usage_unit,
+                        COALESCE(MAX(usage.unit), 'UNKNOWN')        AS usage_unit,
                 
-                        COALESCE(SUM(cost))                         AS cost,
-                
-                        -- Billing period
-                        CAST(MIN(usage_start_time) AS DATETIME)     AS billing_period_start,
-                        CAST(MAX(usage_start_time) AS DATETIME)     AS billing_period_end
+                        COALESCE(SUM(cost), 0)                      AS cost
                 
                     FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
                     WHERE usage_start_time >= ':start_date' AND usage_start_time <= ':end_date'
                         AND cost IS NOT NULL
                         AND cost_type IN ('regular', 'commitment', 'overcommit', 'adjustment', 'discount', 'support', 'tax')
-                    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
-                    ORDER BY 1 DESC;
+                    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12
                 """;
 
         query = query
@@ -285,8 +280,6 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 .usageAmount(getNumericSafe(row, "usage_amount"))
                 .usageUnit(getStringSafe(row, "usage_unit"))
                 .cost(getNumericSafe(row, "cost"))
-                .billingPeriodStart(parseLocalDateTime(row, "billing_period_start"))
-                .billingPeriodEnd(parseLocalDateTime(row, "billing_period_end"))
                 .build();
     }
 

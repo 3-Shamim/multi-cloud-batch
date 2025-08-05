@@ -86,11 +86,11 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
                         LocalDate.parse(row.bill_date()),
                         row.payer_account_id(),
                         row.customer_id(),
+                        row.enterprise_project_id(),
                         row.cloud_service_type(),
                         row.sku_code(),
                         row.resource_Type_code(),
-                        row.region(),
-                        row.charge_mode()
+                        row.region()
                 );
 
                 HuaweiBillingDailyCost cost = data.get(group);

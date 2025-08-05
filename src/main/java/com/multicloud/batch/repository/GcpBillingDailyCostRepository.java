@@ -25,7 +25,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                     (
                         organization_id, usage_date, billing_account_id, project_id, project_name,
                         service_code, service_name, sku_id, sku_description, region, location,
-                        currency, cost_type, usage_amount, usage_unit, cost, billing_period_start, billing_period_end
+                        currency, cost_type, usage_amount, usage_unit, cost
                     )
                     VALUES
                 """);
@@ -35,7 +35,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
             GcpBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, '%s', '%s')"
+                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s)"
                             .formatted(
                                     b.getOrganizationId(),
                                     b.getUsageDate(),
@@ -52,9 +52,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                                     escapeSql(b.getCostType()),
                                     b.getUsageAmount() != null ? b.getUsageAmount().toPlainString() : "NULL",
                                     escapeSql(b.getUsageUnit()),
-                                    b.getCost() != null ? b.getCost().toPlainString() : "NULL",
-                                    b.getBillingPeriodStart(),
-                                    b.getBillingPeriodEnd()
+                                    b.getCost() != null ? b.getCost().toPlainString() : "NULL"
                             )
             );
 
@@ -68,9 +66,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                     ON DUPLICATE KEY UPDATE
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
-                        cost = VALUES(cost),
-                        billing_period_start = VALUES(billing_period_start),
-                        billing_period_end = VALUES(billing_period_end)
+                        cost = VALUES(cost)
                 """);
 
         entityManager.createNativeQuery(sqlBuilder.toString()).executeUpdate();

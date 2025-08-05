@@ -18,15 +18,17 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
 
     default void upsertAwsBillingDailyCosts(List<AwsBillingDailyCost> bills, EntityManager entityManager) {
 
-        if (bills == null || bills.isEmpty()) return;
+        if (bills == null || bills.isEmpty()) {
+            return;
+        }
 
         StringBuilder sqlBuilder = new StringBuilder("""
                     INSERT INTO aws_billing_daily_costs
                     (
-                        organization_id, usage_date, payer_account_id, usage_account_id, project_tag,
+                        organization_id, usage_date, payer_account_id, usage_account_id,
                         service_code, service_name, sku_id, sku_description, region, location,
                         currency, pricing_type, usage_type, usage_amount, usage_unit,
-                        unblended_cost, blended_cost, effective_cost, billing_period_start, billing_period_end
+                        unblended_cost, blended_cost, effective_cost
                     )
                     VALUES
                 """);
@@ -36,13 +38,12 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             AwsBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s, '%s', '%s')"
+                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s)"
                             .formatted(
                                     b.getOrganizationId(),
                                     b.getUsageDate(),
                                     escapeSql(b.getPayerAccountId()),
                                     escapeSql(b.getUsageAccountId()),
-                                    escapeSql(b.getProjectTag()),
                                     escapeSql(b.getServiceCode()),
                                     escapeSql(b.getServiceName()),
                                     escapeSql(b.getSkuId()),
@@ -56,9 +57,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                                     escapeSql(b.getUsageUnit()),
                                     b.getUnblendedCost() != null ? b.getUnblendedCost().toPlainString() : "NULL",
                                     b.getBlendedCost() != null ? b.getBlendedCost().toPlainString() : "NULL",
-                                    b.getEffectiveCost() != null ? b.getEffectiveCost().toPlainString() : "NULL",
-                                    b.getBillingPeriodStart(),
-                                    b.getBillingPeriodEnd()
+                                    b.getEffectiveCost() != null ? b.getEffectiveCost().toPlainString() : "NULL"
                             )
             );
 
@@ -74,9 +73,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                         usage_unit = VALUES(usage_unit),
                         unblended_cost = VALUES(unblended_cost),
                         blended_cost = VALUES(blended_cost),
-                        effective_cost = VALUES(effective_cost),
-                        billing_period_start = VALUES(billing_period_start),
-                        billing_period_end = VALUES(billing_period_end)
+                        effective_cost = VALUES(effective_cost)
                 """);
 
         entityManager.createNativeQuery(sqlBuilder.toString()).executeUpdate();

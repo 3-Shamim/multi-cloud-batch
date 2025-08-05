@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -54,10 +53,10 @@ import java.util.zip.GZIPInputStream;
 public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final static String[] COLS = {
-            "usage_date", "payer_account_id", "usage_account_id", "project_tag", "service_code",
+            "usage_date", "payer_account_id", "usage_account_id", "service_code",
             "service_name", "sku_id", "sku_description", "region", "location", "currency",
             "pricing_type", "usage_type", "usage_amount", "usage_unit", "unblended_cost",
-            "blended_cost", "effective_cost", "billing_period_start", "billing_period_end"
+            "blended_cost", "effective_cost"
     };
 
     private final EntityManager entityManager;
@@ -208,41 +207,34 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 -- Linked/Usage account ID
                                 line_item_usage_account_id                                     AS usage_account_id,
                     
-                                -- Project (from tags)
-                                IF(
-                                    resource_tags_user_project IS NOT NULL,
-                                    CONCAT('"', UPPER(resource_tags_user_project), '"'),
-                                    NULL
-                                )                                                              AS project_tag,
-                    
                                 -- Service
-                                product_servicecode                                            AS service_code,
+                                COALESCE(product_servicecode, 'UNKNOWN')                       AS service_code,
                                 IF(
                                     product_servicename IS NOT NULL,
                                     CONCAT('"', product_servicename, '"'),
-                                    NULL
+                                    'UNKNOWN'
                                 )                                                              AS service_name,
                     
                                 -- SKU
-                                product_sku                                                    AS sku_id,
+                                COALESCE(product_sku, 'UNKNOWN')                               AS sku_id,
                                 IF(
                                     product_description IS NOT NULL,
                                     CONCAT('"', product_description, '"'),
-                                    NULL
+                                    'UNKNOWN'
                                 )                                                              AS sku_description,
                     
                                 -- Region & Location
-                                product_region                                                 AS region,
+                                COALESCE(product_region, 'UNKNOWN')                            AS region,
                                 IF(
                                     product_location IS NOT NULL,
                                     CONCAT('"', product_location, '"'),
-                                    NULL
+                                    'UNKNOWN'
                                 )                                                              AS location,
                     
                                 -- Currency & Usage & Cost
-                                line_item_currency_code                                        AS currency,
-                                COALESCE(pricing_term, 'OnDemand')                             AS pricing_type,
-                                line_item_usage_type                                           AS usage_type,
+                                COALESCE(ANY_VALUE(line_item_currency_code, 'UNKNOWN'))        AS currency,
+                                COALESCE(ANY_VALUE(pricing_term, 'OnDemand'))                  AS pricing_type,
+                                COALESCE(line_item_usage_type, 'UNKNOWN')                      AS usage_type,
                     
                                 COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
                                 MAX(pricing_unit)                                              AS usage_unit,
@@ -252,11 +244,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 SUM(
                                     COALESCE(reservation_effective_cost, 0) +
                                     COALESCE(savings_plan_savings_plan_effective_cost, 0)
-                                )                                                              AS effective_cost,
-                    
-                                -- Billing period
-                                MIN(bill_billing_period_start_date)                            AS billing_period_start,
-                                MAX(bill_billing_period_end_date)                              AS billing_period_end
+                                )                                                              AS effective_cost
                     
                             FROM %s
                             WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
@@ -267,7 +255,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                     'Credit', 'Fee', 'Rounding'
                                 )
                                 AND line_item_unblended_cost IS NOT NULL
-                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12
                     """.formatted("athena", year, year, month, start, end);
 
             String bucket = "azerion-athena-results";
@@ -537,30 +525,21 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         dailyCost.setPayerAccountId(data.get(1).varCharValue());
         dailyCost.setUsageAccountId(data.get(2).varCharValue());
 
-        dailyCost.setProjectTag(data.get(3).varCharValue());
+        dailyCost.setServiceCode(data.get(3).varCharValue());
+        dailyCost.setServiceName(data.get(4).varCharValue());
+        dailyCost.setSkuId(data.get(5).varCharValue());
+        dailyCost.setSkuDescription(data.get(6).varCharValue());
+        dailyCost.setRegion(data.get(7).varCharValue());
+        dailyCost.setLocation(data.get(8).varCharValue());
+        dailyCost.setCurrency(data.get(9).varCharValue());
+        dailyCost.setPricingType(data.get(10).varCharValue());
+        dailyCost.setUsageType(data.get(11).varCharValue());
 
-        dailyCost.setServiceCode(data.get(4).varCharValue());
-        dailyCost.setServiceName(data.get(5).varCharValue());
-        dailyCost.setSkuId(data.get(6).varCharValue());
-        dailyCost.setSkuDescription(data.get(7).varCharValue());
-        dailyCost.setRegion(data.get(8).varCharValue());
-        dailyCost.setLocation(data.get(9).varCharValue());
-        dailyCost.setCurrency(data.get(10).varCharValue());
-        dailyCost.setPricingType(data.get(11).varCharValue());
-        dailyCost.setUsageType(data.get(12).varCharValue());
-
-        dailyCost.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
-        dailyCost.setUsageUnit(data.get(14).varCharValue());
-        dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-        dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
-        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
-
-        dailyCost.setBillingPeriodStart(
-                LocalDateTime.parse(data.get(18).varCharValue().replace(" ", "T"))
-        );
-        dailyCost.setBillingPeriodEnd(
-                LocalDateTime.parse(data.get(19).varCharValue().replace(" ", "T"))
-        );
+        dailyCost.setUsageAmount(parseBigDecimalSafe(data.get(12).varCharValue()));
+        dailyCost.setUsageUnit(data.get(13).varCharValue());
+        dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(14).varCharValue()));
+        dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(16).varCharValue()));
 
         return dailyCost;
     }
@@ -572,7 +551,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .usageDate(LocalDate.parse(record.get("usage_date")))
                 .payerAccountId(record.get("payer_account_id"))
                 .usageAccountId(record.get("usage_account_id"))
-                .projectTag(record.get("project_tag"))
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))
                 .skuId(record.get("sku_id"))
@@ -587,21 +565,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .unblendedCost(parseBigDecimalSafe(record.get("unblended_cost")))
                 .blendedCost(parseBigDecimalSafe(record.get("blended_cost")))
                 .effectiveCost(parseBigDecimalSafe(record.get("effective_cost")))
-                .billingPeriodStart(
-                        LocalDateTime.parse(
-                                record.get("billing_period_start").replace(" ", "T")
-                        )
-                )
-                .billingPeriodEnd(
-                        LocalDateTime.parse(
-                                record.get("billing_period_end").replace(" ", "T")
-                        )
-                )
                 .build();
     }
 
     private BigDecimal parseBigDecimalSafe(String value) {
-        return (value == null || value.isEmpty()) ? BigDecimal.ZERO : new BigDecimal(value);
+        try {
+
+            return (value == null || value.isEmpty()) ? BigDecimal.ZERO : new BigDecimal(value);
+        } catch (Exception e) {
+            log.error("Error parsing BigDecimal: {}", value, e);
+            throw new RuntimeException(e.getMessage());
+        }
     }
 
 }
