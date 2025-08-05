@@ -54,7 +54,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                     .append(toSqlStr(b.getResourceName())).append(", ")
                     .append(toSqlStr(b.getRegion())).append(", ")
                     .append(toSqlStr(b.getRegionName())).append(", ")
-                    .append(toSqlStr(b.getChargeMode())).append(", ")
+                    .append(toSqlInt(b.getChargeMode())).append(", ")
                     .append(toSqlDecimal(b.getUsageAmount())).append(", ")
                     .append(toSqlDecimal(b.getConsumeAmount())).append(", ")
                     .append(toSqlDecimal(b.getOfficialAmount())).append(", ")
