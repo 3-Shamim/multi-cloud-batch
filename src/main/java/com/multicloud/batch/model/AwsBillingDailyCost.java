@@ -35,7 +35,12 @@ import java.time.LocalDate;
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
-                @Index(name = "idx_service_level", columnList = "usage_date, payer_account_id, service_code")
+                @Index(
+                        name = "idx_service_level",
+                        columnList = """
+                                    organization_id, usage_date, payer_account_id, usage_account_id, service_code
+                                """
+                )
         }
 )
 public class AwsBillingDailyCost {

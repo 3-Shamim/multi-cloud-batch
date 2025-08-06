@@ -57,11 +57,15 @@ public class DataSyncHistory {
     private LocalDate end;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "last_sync_status", length = 50)
     private LastSyncStatus lastSyncStatus;
 
+    @Column(name = "fail_count")
     private int failCount;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public DataSyncHistory(Organization organization, CloudProvider cloudProvider, String jobName, LocalDate start, LocalDate end) {

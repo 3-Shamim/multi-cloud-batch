@@ -38,7 +38,12 @@ import java.time.LocalDate;
                 @Index(name = "idx_customer_id", columnList = "customer_id"),
                 @Index(name = "idx_cloud_service_type", columnList = "cloud_service_type"),
                 @Index(name = "idx_sku_code", columnList = "sku_code"),
-                @Index(name = "idx_project_service", columnList = "bill_date, customer_id, cloud_service_type")
+                @Index(
+                        name = "idx_project_service",
+                        columnList = """
+                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type
+                                """
+                )
         }
 )
 public class HuaweiBillingDailyCost {
@@ -48,62 +53,67 @@ public class HuaweiBillingDailyCost {
     private long id;
 
     // Multicloud organization ID
-    @Column(nullable = false)
+    @Column(name = "organization_id", nullable = false)
     private long organizationId;
 
-    @Column(nullable = false)
+    @Column(name = "bill_date", nullable = false)
     private LocalDate billDate;
 
     // Master/Billing Account ID
-    @Column(length = 64, nullable = false)
+    @Column(name = "payer_account_id", nullable = false, length = 64)
     private String payerAccountId;
 
     // Usage Account ID
     // Usage scope
-    @Column(length = 64, nullable = false)
+    @Column(name = "customer_id", nullable = false, length = 64)
     private String customerId;
 
     // Optional
+    @Column(name = "enterprise_project_id")
     private String enterpriseProjectId;
+    @Column(name = "enterprise_project_name")
     private String enterpriseProjectName;
 
-    @Column(length = 256, nullable = false)
+    @Column(name = "cloud_service_type", length = 256, nullable = false)
     private String cloudServiceType;
-    @Column(length = 200)
+    @Column(name = "cloud_service_type_name", length = 200)
     private String cloudServiceTypeName;
 
-    @Column(length = 64, nullable = false)
+    @Column(name = "sku_code", nullable = false, length = 64)
     private String skuCode;
+    @Column(name = "product_spec_desc")
     private String productSpecDesc;
 
-    @Column(length = 64, nullable = false)
+    @Column(name = "resource_type_code", nullable = false, length = 64)
     private String resourceTypeCode;
-    @Column(length = 200)
+    @Column(name = "resource_type_name", length = 200)
     private String resourceTypeName;
 
     // Optional
+    @Column(name = "resource_name")
     private String resourceName;
 
-    @Column(length = 64, nullable = false)
+    @Column(nullable = false, length = 64)
     private String region;
-    @Column(length = 64)
+    @Column(name = "region_name", length = 64)
     private String regionName;
 
     // 1: Yearly/monthly
     // 3: Pay-per-use
     // 10: Reserved instances
+    @Column(name = "charge_mode", nullable = false)
     private Integer chargeMode;
 
-    @Column(precision = 30, scale = 8)
+    @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
-    @Column(precision = 20, scale = 8)
+    @Column(name = "consume_amount", precision = 20, scale = 8)
     private BigDecimal consumeAmount;
-    @Column(precision = 20, scale = 8)
+    @Column(name = "official_amount", precision = 20, scale = 8)
     private BigDecimal officialAmount;
-    @Column(precision = 20, scale = 8)
+    @Column(name = "discount_amount", precision = 20, scale = 8)
     private BigDecimal discountAmount;
-    @Column(precision = 20, scale = 8)
+    @Column(name = "coupon_amount", precision = 20, scale = 8)
     private BigDecimal couponAmount;
 
     public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record, long orgId) {

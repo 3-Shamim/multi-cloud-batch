@@ -1,12 +1,9 @@
 package com.multicloud.batch.dao.aws;
 
 import com.multicloud.batch.cloud_config.aws.AwsDynamicCredentialsProvider;
-import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.model.AwsBillingDailyCost;
-import com.multicloud.batch.model.CloudDailyBilling;
 import com.multicloud.batch.repository.AwsBillingDailyCostRepository;
-import com.multicloud.batch.repository.CloudDailyBillingRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +18,9 @@ import software.amazon.awssdk.services.athena.model.GetQueryResultsResponse;
 import software.amazon.awssdk.services.athena.model.Row;
 import software.amazon.awssdk.services.athena.paginators.GetQueryResultsIterable;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
-import software.amazon.awssdk.services.costexplorer.model.*;
+import software.amazon.awssdk.services.costexplorer.model.DateInterval;
+import software.amazon.awssdk.services.costexplorer.model.GetCostAndUsageRequest;
+import software.amazon.awssdk.services.costexplorer.model.Granularity;
 import software.amazon.awssdk.services.organizations.OrganizationsClient;
 import software.amazon.awssdk.services.organizations.model.Account;
 import software.amazon.awssdk.services.organizations.model.ListAccountsRequest;
@@ -34,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,86 +62,55 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final S3Client s3Client;
     private final AthenaService athenaService;
     private final OrganizationsClient organizationsClient;
-    private final CloudDailyBillingRepository cloudDailyBillingRepository;
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
     @Override
     public Pair<LastSyncStatus, String> syncDailyServiceCostUsageFromExplorer(long organizationId, String accessKey,
                                                                               String secretKey, boolean firstSync) {
 
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
-        AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
+//        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+//        AwsDynamicCredentialsProvider.setAwsCredentials(credentials);
+//
+//        try {
+//
+//            LocalDate start;
+//
+//            if (firstSync) {
+//                start = YearMonth.now().minusMonths(12).atDay(1);
+//            } else {
+//                start = LocalDate.now().minusDays(7);
+//            }
+//
+//            LocalDate end = LocalDate.now();
+//
+//            GetCostAndUsageRequest request = GetCostAndUsageRequest.builder()
+//                    .timePeriod(
+//                            DateInterval.builder()
+//                                    .start(start.format(DateTimeFormatter.ISO_DATE))
+//                                    .end(end.format(DateTimeFormatter.ISO_DATE))
+//                                    .build()
+//                    )
+//                    .granularity(Granularity.DAILY)
+//                    .metrics(Metric.UNBLENDED_COST.name())
+//                    .groupBy(
+//                            GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.LINKED_ACCOUNT.name()).build(),
+//                            GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.SERVICE.name()).build()
+//
+//                    )
+//                    .build();
+//
+//            GetCostAndUsageResponse response = costExplorerClient.getCostAndUsage(request);
+//
+//            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(billings.size()));
+//
+//        } catch (Exception e) {
+//            log.error("AWS billing data fetch error", e);
+//            return Pair.of(LastSyncStatus.FAIL, e.getMessage());
+//        } finally {
+//            AwsDynamicCredentialsProvider.clear();
+//        }
 
-        try {
-
-            LocalDate start;
-
-            if (firstSync) {
-                start = YearMonth.now().minusMonths(12).atDay(1);
-            } else {
-                start = LocalDate.now().minusDays(7);
-            }
-
-            LocalDate end = LocalDate.now();
-
-            GetCostAndUsageRequest request = GetCostAndUsageRequest.builder()
-                    .timePeriod(
-                            DateInterval.builder()
-                                    .start(start.format(DateTimeFormatter.ISO_DATE))
-                                    .end(end.format(DateTimeFormatter.ISO_DATE))
-                                    .build()
-                    )
-                    .granularity(Granularity.DAILY)
-                    .metrics(Metric.UNBLENDED_COST.name())
-                    .groupBy(
-                            GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.LINKED_ACCOUNT.name()).build(),
-                            GroupDefinition.builder().type(GroupDefinitionType.DIMENSION).key(Dimension.SERVICE.name()).build()
-
-                    )
-                    .build();
-
-            GetCostAndUsageResponse response = costExplorerClient.getCostAndUsage(request);
-
-            List<CloudDailyBilling> billings = new ArrayList<>();
-
-            for (ResultByTime result : response.resultsByTime()) {
-
-                LocalDate startDate = LocalDate.parse(result.timePeriod().start());
-
-                for (Group group : result.groups()) {
-
-                    String accountId = group.keys().getFirst();
-                    String service = group.keys().get(1);
-
-                    BigDecimal cost = new BigDecimal(group.metrics().get("UnblendedCost").amount());
-
-                    CloudDailyBilling billing = CloudDailyBilling.builder()
-                            .organizationId(organizationId)
-                            .cloudProvider(CloudProvider.AWS)
-                            .accountId(accountId)
-                            .serviceName(service)
-                            .date(startDate)
-                            .costAmountUsd(cost)
-                            .currency("USD")
-                            .billingExportSource("AWSCostExplorer")
-                            .build();
-
-                    billings.add(billing);
-
-                }
-
-            }
-
-            cloudDailyBillingRepository.batchUpsert(billings, entityManager);
-
-            return Pair.of(LastSyncStatus.SUCCESS, "Successfully synced [%d] items.".formatted(billings.size()));
-
-        } catch (Exception e) {
-            log.error("AWS billing data fetch error", e);
-            return Pair.of(LastSyncStatus.FAIL, e.getMessage());
-        } finally {
-            AwsDynamicCredentialsProvider.clear();
-        }
+        return null;
 
     }
 
@@ -232,8 +199,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 )                                                              AS location,
                     
                                 -- Currency & Usage & Cost
-                                COALESCE(ANY_VALUE(line_item_currency_code, 'UNKNOWN'))        AS currency,
-                                COALESCE(ANY_VALUE(pricing_term, 'OnDemand'))                  AS pricing_type,
+                                COALESCE(MAX(line_item_currency_code), 'UNKNOWN')              AS currency,
+                                COALESCE(MAX(pricing_term), 'OnDemand')                        AS pricing_type,
                                 COALESCE(line_item_usage_type, 'UNKNOWN')                      AS usage_type,
                     
                                 COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,

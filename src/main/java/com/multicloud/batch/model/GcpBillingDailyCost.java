@@ -35,7 +35,12 @@ import java.time.LocalDate;
                 @Index(name = "idx_project_id", columnList = "project_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
-                @Index(name = "idx_project_service", columnList = "usage_date, billing_account_id, service_code")
+                @Index(
+                        name = "idx_project_service",
+                        columnList = """
+                                    organization_id, usage_date, billing_account_id, project_id, service_code
+                                """
+                )
         }
 )
 public class GcpBillingDailyCost {

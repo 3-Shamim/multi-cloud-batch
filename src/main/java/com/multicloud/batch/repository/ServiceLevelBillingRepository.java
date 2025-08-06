@@ -1,8 +1,7 @@
 package com.multicloud.batch.repository;
 
-import com.multicloud.batch.model.CloudBilling;
+import com.multicloud.batch.model.ServiceLevelBilling;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,6 +9,5 @@ import org.springframework.stereotype.Repository;
  * Email: shamim.molla@vivasoftltd.com
  */
 
-@Repository
-public interface CloudBillingRepository extends JpaRepository<CloudBilling, Long> {
+public interface ServiceLevelBillingRepository extends JpaRepository<ServiceLevelBilling, Long> {
 }
