@@ -68,7 +68,9 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                         COALESCE(SUM(cost), 0)                      AS cost
                 
                     FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
-                    WHERE usage_start_time >= ':start_date' AND usage_start_time <= ':end_date'
+                    WHERE DATE(_PARTITIONTIME) BETWEEN DATE(':start_date') AND DATE(':end_date')
+                        -- TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) BETWEEN TIMESTAMP(':start_date') AND TIMESTAMP(':end_date')
+                        -- usage_start_time >= ':start_date' AND usage_start_time <= ':end_date'
                         AND cost IS NOT NULL
                         AND cost_type IN ('regular', 'commitment', 'overcommit', 'adjustment', 'discount', 'support', 'tax')
                     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12

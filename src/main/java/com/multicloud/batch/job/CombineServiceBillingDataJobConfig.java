@@ -1,5 +1,6 @@
 package com.multicloud.batch.job;
 
+import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
 import lombok.RequiredArgsConstructor;
@@ -117,10 +118,12 @@ public class CombineServiceBillingDataJobConfig {
         reader.setDataSource(dataSource);
         reader.setSql(sql);
 
-        reader.setFetchSize(1000);
+        reader.setFetchSize(0);
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
+                .usageDate(rs.getDate("usage_date").toLocalDate())
                 .organizationId(rs.getLong("organization_id"))
+                .cloudProvider(CloudProvider.valueOf(rs.getString("cloud_provider")))
                 .billingAccountId(rs.getString("billing_account_id"))
                 .usageAccountId(rs.getString("usage_account_id"))
                 .usageAccountName(rs.getString("usage_account_name"))
