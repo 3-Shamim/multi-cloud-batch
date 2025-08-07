@@ -3,7 +3,9 @@ package com.multicloud.batch.job;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
+import com.multicloud.batch.service.JobStepService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -23,6 +25,7 @@ import javax.sql.DataSource;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.LocalDate;
 
 /**
  * Created by IntelliJ IDEA.
@@ -30,17 +33,20 @@ import java.sql.SQLException;
  * Email: shamim.molla@vivasoftltd.com
  */
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class CombineServiceBillingDataJobConfig {
 
-    private static final int CHUNK = 200;
+    private static final int CHUNK = 500;
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
+
+    private final JobStepService jobStepService;
 
     @Bean
     public Job combineServiceBillingDataJob() {
@@ -64,7 +70,9 @@ public class CombineServiceBillingDataJobConfig {
     public ItemReader<ServiceLevelBilling> huaweiDataReader() {
 
         try {
-            return getBillingDataCursorItemReader(ServiceLevelBillingSql.HUAWEI_SQL);
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.HUAWEI_SQL, "combineServiceHuaweiBillingDataStep"
+            );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
         }
@@ -84,7 +92,9 @@ public class CombineServiceBillingDataJobConfig {
     public ItemReader<ServiceLevelBilling> gcpDataReader() {
 
         try {
-            return getBillingDataCursorItemReader(ServiceLevelBillingSql.GCP_SQL);
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.GCP_SQL, "combineServiceGcpBillingDataStep"
+            );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
         }
@@ -104,14 +114,27 @@ public class CombineServiceBillingDataJobConfig {
     public ItemReader<ServiceLevelBilling> awsDataReader() {
 
         try {
-            return getBillingDataCursorItemReader(ServiceLevelBillingSql.AWS_SQL);
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.AWS_SQL, "combineServiceAwsBillingDataStep"
+            );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
         }
 
     }
 
-    private JdbcCursorItemReader<ServiceLevelBilling> getBillingDataCursorItemReader(String sql) throws Exception {
+    private JdbcCursorItemReader<ServiceLevelBilling> getBillingDataCursorItemReader(String sql, String stepName) throws Exception {
+
+        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
+
+        LocalDate startDate;
+        LocalDate endDate = LocalDate.now();
+
+        if (stepEverCompleted) {
+            startDate = endDate.minusDays(7);
+        } else {
+            startDate = LocalDate.parse("2024-01-01");
+        }
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
 
@@ -119,6 +142,11 @@ public class CombineServiceBillingDataJobConfig {
         reader.setSql(sql);
 
         reader.setFetchSize(0);
+
+        reader.setPreparedStatementSetter(ps -> {
+            ps.setObject(1, startDate);
+            ps.setObject(2, endDate);
+        });
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
                 .usageDate(rs.getDate("usage_date").toLocalDate())
@@ -142,6 +170,8 @@ public class CombineServiceBillingDataJobConfig {
         if (records == null || records.isEmpty()) {
             return;
         }
+
+        log.info("Upserting {} records...", records.size());
 
         jdbcTemplate.batchUpdate(
                 ServiceLevelBillingSql.UPSERT_SQL,

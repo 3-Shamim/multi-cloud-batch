@@ -25,7 +25,18 @@ public class SampleJobScheduler {
     private final Job partitionJob;
 
 //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
-    public void runJob() throws Exception {
+    public void runSampleJob() throws Exception {
+
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis())
+                .toJobParameters();
+
+        jobLauncher.run(sampleJob, jobParameters);
+
+    }
+
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
+    public void runPartitionJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())

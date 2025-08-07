@@ -28,7 +28,7 @@ public class HuaweiBillingDataJobScheduler {
 
 //    @Async
 //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
-    public void runJob() throws Exception {
+    public void runHuaweiBillingDataJob() throws Exception {
 
         Thread.sleep(10000);
 

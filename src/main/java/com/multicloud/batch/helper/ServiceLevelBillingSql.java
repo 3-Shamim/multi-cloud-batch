@@ -19,6 +19,7 @@ public class ServiceLevelBillingSql {
                        cloud_service_type_name AS service_name,
                        SUM(consume_amount)     AS cost
                 FROM huawei_billing_daily_costs
+                WHERE bill_date >= ? AND bill_date <= ?
                 GROUP BY 1, 2, 3, 4, 6;
             """;
 
@@ -33,6 +34,7 @@ public class ServiceLevelBillingSql {
                        service_name,
                        SUM(cost)    AS cost
                 FROM gcp_billing_daily_costs
+                WHERE usage_date >= ? AND usage_date <= ?
                 GROUP BY 1, 2, 3, 4, 6;
             """;
 
@@ -48,6 +50,7 @@ public class ServiceLevelBillingSql {
                        service_name,
                        SUM(unblended_cost) AS cost
                 FROM aws_billing_daily_costs
+                WHERE usage_date >= ? AND usage_date <= ?
                 GROUP BY 1, 2, 3, 4, 6;
             """;
 
