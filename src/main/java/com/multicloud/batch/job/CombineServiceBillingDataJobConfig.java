@@ -4,6 +4,7 @@ import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
 import com.multicloud.batch.service.JobStepService;
+import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +16,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -46,14 +48,28 @@ public class CombineServiceBillingDataJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
+    private final ServiceTypeService serviceTypeService;
     private final JobStepService jobStepService;
 
     @Bean
     public Job combineServiceBillingDataJob() {
         return new JobBuilder("combineServiceBillingDataJob", jobRepository)
-                .start(combineServiceHuaweiBillingDataStep())
+                .start(fetchAndStoreServiceTypeStep())
+                .next(combineServiceHuaweiBillingDataStep())
                 .next(combineServiceGcpBillingDataStep())
                 .next(combineServiceAwsBillingDataStep())
+                .build();
+    }
+
+    @Bean
+    public Step fetchAndStoreServiceTypeStep() {
+        return new StepBuilder("fetchAndStoreServiceTypeStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    serviceTypeService.fetchAndStoreServiceTypeMap();
+
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
                 .build();
     }
 
@@ -62,6 +78,16 @@ public class CombineServiceBillingDataJobConfig {
         return new StepBuilder("combineServiceHuaweiBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(huaweiDataReader())
+                .processor(item -> {
+
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
+
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
                 .writer(this::upsertAll)
                 .build();
     }
@@ -84,6 +110,16 @@ public class CombineServiceBillingDataJobConfig {
         return new StepBuilder("combineServiceGcpBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(gcpDataReader())
+                .processor(item -> {
+
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
+
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
                 .writer(this::upsertAll)
                 .build();
     }
@@ -106,6 +142,16 @@ public class CombineServiceBillingDataJobConfig {
         return new StepBuilder("combineServiceAwsBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(awsDataReader())
+                .processor(item -> {
+
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
+
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
                 .writer(this::upsertAll)
                 .build();
     }
@@ -190,7 +236,9 @@ public class CombineServiceBillingDataJobConfig {
                         ps.setString(6, item.getUsageAccountName());
                         ps.setString(7, item.getServiceCode());
                         ps.setString(8, item.getServiceName());
-                        ps.setBigDecimal(9, item.getCost());
+                        ps.setString(9, item.getParentCategory());
+                        ps.setBigDecimal(10, item.getCost());
+
                     }
 
                     @Override

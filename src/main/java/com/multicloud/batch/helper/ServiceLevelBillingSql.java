@@ -64,12 +64,14 @@ public class ServiceLevelBillingSql {
                     usage_account_name,
                     service_code,
                     service_name,
+                    parent_category,
                     cost
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     usage_account_name = VALUES(usage_account_name),
                     service_name = VALUES(service_name),
+                    parent_category = VALUES(parent_category),
                     cost = VALUES(cost);
             """;
 

@@ -72,6 +72,9 @@ public class ServiceLevelBilling {
     @Column(name = "service_name", nullable = false, length = 200)
     private String serviceName;
 
+    @Column(name = "parent_category", length = 200)
+    private String parentCategory;
+
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
 
