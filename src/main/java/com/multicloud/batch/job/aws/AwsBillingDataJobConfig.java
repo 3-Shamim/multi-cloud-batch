@@ -198,6 +198,13 @@ public class AwsBillingDataJobConfig {
                 String partitionName = stepExecution.getStepName();
                 BatchStatus status = stepExecution.getStatus();
 
+                if (!stepExecution.getFailureExceptions().isEmpty()) {
+                    stepExecution.getFailureExceptions()
+                            .forEach(ex -> log.error(
+                                    "Exception in step {}: ", partitionName, ex
+                            ));
+                }
+
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
                 Organization org = (Organization) stepExecution.getExecutionContext().get("org");
 

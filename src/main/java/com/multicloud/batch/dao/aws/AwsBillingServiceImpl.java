@@ -51,10 +51,9 @@ import java.util.zip.GZIPInputStream;
 public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final static String[] COLS = {
-            "usage_date", "payer_account_id", "usage_account_id", "service_code",
-            "service_name", "sku_id", "sku_description", "region", "location", "currency",
-            "pricing_type", "usage_type", "usage_amount", "usage_unit", "unblended_cost",
-            "blended_cost", "effective_cost"
+            "usage_date", "payer_account_id", "usage_account_id", "service_code", "service_name",
+            "sku_id", "sku_description", "region", "location", "currency", "pricing_type", "billing_type",
+            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "effective_cost"
     };
 
     private final EntityManager entityManager;
@@ -201,6 +200,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 -- Currency & Usage & Cost
                                 COALESCE(MAX(line_item_currency_code), 'UNKNOWN')              AS currency,
                                 COALESCE(MAX(pricing_term), 'OnDemand')                        AS pricing_type,
+                                COALESCE(MAX(line_item_line_item_type), 'UNKNOWN')             AS billing_type,
                                 COALESCE(line_item_usage_type, 'UNKNOWN')                      AS usage_type,
                     
                                 COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
@@ -222,7 +222,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                     'Credit', 'Fee', 'Rounding'
                                 )
                                 AND line_item_unblended_cost IS NOT NULL
-                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12
+                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 13
                     """.formatted("athena", year, year, month, start, end);
 
             String bucket = "azerion-athena-results";
@@ -500,13 +500,14 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         dailyCost.setLocation(data.get(8).varCharValue());
         dailyCost.setCurrency(data.get(9).varCharValue());
         dailyCost.setPricingType(data.get(10).varCharValue());
-        dailyCost.setUsageType(data.get(11).varCharValue());
+        dailyCost.setBillingType(data.get(11).varCharValue());
+        dailyCost.setUsageType(data.get(12).varCharValue());
 
-        dailyCost.setUsageAmount(parseBigDecimalSafe(data.get(12).varCharValue()));
-        dailyCost.setUsageUnit(data.get(13).varCharValue());
-        dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(14).varCharValue()));
-        dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
-        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(16).varCharValue()));
+        dailyCost.setUsageAmount(parseBigDecimalSafe(data.get(13).varCharValue()));
+        dailyCost.setUsageUnit(data.get(14).varCharValue());
+        dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
+        dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
+        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
 
         return dailyCost;
     }
@@ -526,6 +527,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .location(record.get("location"))
                 .currency(record.get("currency"))
                 .pricingType(record.get("pricing_type"))
+                .billingType(record.get("billing_type"))
                 .usageType(record.get("usage_type"))
                 .usageAmount(parseBigDecimalSafe(record.get("usage_amount")))
                 .usageUnit(record.get("usage_unit"))

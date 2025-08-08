@@ -27,7 +27,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                     (
                         organization_id, usage_date, payer_account_id, usage_account_id,
                         service_code, service_name, sku_id, sku_description, region, location,
-                        currency, pricing_type, usage_type, usage_amount, usage_unit,
+                        currency, pricing_type, billing_type, usage_type, usage_amount, usage_unit,
                         unblended_cost, blended_cost, effective_cost
                     )
                     VALUES
@@ -38,7 +38,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             AwsBillingDailyCost b = bills.get(i);
 
             sqlBuilder.append(
-                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s)"
+                    "(%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', %s, %s, %s)"
                             .formatted(
                                     b.getOrganizationId(),
                                     b.getUsageDate(),
@@ -52,6 +52,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                                     escapeSql(b.getLocation()),
                                     escapeSql(b.getCurrency()),
                                     escapeSql(b.getPricingType()),
+                                    escapeSql(b.getBillingType()),
                                     escapeSql(b.getUsageType()),
                                     b.getUsageAmount() != null ? b.getUsageAmount().toPlainString() : "NULL",
                                     escapeSql(b.getUsageUnit()),
@@ -69,6 +70,9 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
 
         sqlBuilder.append("""
                     ON DUPLICATE KEY UPDATE
+                        currency = VALUES(currency),
+                        pricing_type = VALUES(pricing_type),
+                        billing_type = VALUES(billing_type),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
                         unblended_cost = VALUES(unblended_cost),

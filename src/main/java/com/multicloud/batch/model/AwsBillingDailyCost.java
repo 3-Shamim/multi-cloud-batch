@@ -89,6 +89,9 @@ public class AwsBillingDailyCost {
     @Column(name = "pricing_type", length = 16)
     private String pricingType;
 
+    @Column(name = "billing_type", length = 32)
+    private String billingType;
+
     @Column(name = "usage_type", nullable = false, length = 128)
     private String usageType;
 

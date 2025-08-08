@@ -64,6 +64,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
 
         sqlBuilder.append("""
                     ON DUPLICATE KEY UPDATE
+                        currency = VALUES(currency),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
                         cost = VALUES(cost)
@@ -71,7 +72,6 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
 
         entityManager.createNativeQuery(sqlBuilder.toString()).executeUpdate();
     }
-
 
     private static String escapeSql(String value) {
         return value == null ? "" : value.replace("'", "''");
