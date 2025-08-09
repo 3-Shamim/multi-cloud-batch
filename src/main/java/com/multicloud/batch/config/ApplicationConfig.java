@@ -60,18 +60,18 @@ public class ApplicationConfig {
                 .build();
     }
 
-    @Bean
-    public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
-
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(450);
-        executor.setThreadNamePrefix("BatchWorker-");
-        executor.initialize();
-
-        return executor;
-    }
+//    @Bean
+//    public ThreadPoolTaskExecutor customExecutorPool() {
+//
+//        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+//        executor.setCorePoolSize(5);
+//        executor.setMaxPoolSize(10);
+//        executor.setQueueCapacity(450);
+//        executor.setThreadNamePrefix("BatchWorker-");
+//        executor.initialize();
+//
+//        return executor;
+//    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
