@@ -26,6 +26,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static java.util.Objects.requireNonNull;
@@ -86,7 +89,7 @@ public class AwsBillingDataJobConfig {
 
             boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.AWS);
 
-            long days = 365;
+            long days = ChronoUnit.DAYS.between(LocalDate.parse("2025-01-01"), LocalDate.now()) + 1;
 
             if (exist) {
                 days = 7;

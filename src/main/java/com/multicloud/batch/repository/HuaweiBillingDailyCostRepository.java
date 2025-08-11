@@ -29,7 +29,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         organization_id, bill_date, payer_account_id, customer_id, enterprise_project_id,
                         enterprise_project_name, cloud_service_type, cloud_service_type_name, sku_code,
                         product_spec_desc, resource_type_code, resource_type_name, resource_name, region,
-                        region_name, charge_mode, usage_amount, consume_amount, official_amount,
+                        region_name, charge_mode, bill_type, usage_amount, consume_amount, official_amount,
                         discount_amount, coupon_amount
                     ) VALUES
                 """);
@@ -55,6 +55,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                     .append(toSqlStr(b.getRegion())).append(", ")
                     .append(toSqlStr(b.getRegionName())).append(", ")
                     .append(toSqlInt(b.getChargeMode())).append(", ")
+                    .append(toSqlInt(b.getBillType())).append(", ")
                     .append(toSqlDecimal(b.getUsageAmount())).append(", ")
                     .append(toSqlDecimal(b.getConsumeAmount())).append(", ")
                     .append(toSqlDecimal(b.getOfficialAmount())).append(", ")
@@ -70,6 +71,12 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
 
         sqlBuilder.append("""
                     ON DUPLICATE KEY UPDATE
+                        enterprise_project_name = VALUES(enterprise_project_name),
+                        cloud_service_type_name = VALUES(cloud_service_type_name),
+                        product_spec_desc = VALUES(product_spec_desc),
+                        resource_type_name = VALUES(resource_type_name),
+                        resource_name = VALUES(resource_name),
+                        region_name = VALUES(region_name),
                         usage_amount = VALUES(usage_amount),
                         consume_amount = VALUES(consume_amount),
                         official_amount = VALUES(official_amount),

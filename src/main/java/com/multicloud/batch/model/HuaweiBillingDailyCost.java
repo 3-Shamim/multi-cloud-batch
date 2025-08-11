@@ -27,8 +27,8 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_huawei",
                 columnNames = {
-                        "organization_id", "bill_date", "payer_account_id", "customer_id", "cloud_service_type", "sku_code",
-                        "resource_type_code", "region", "charge_mode"
+                        "organization_id", "bill_date", "payer_account_id", "customer_id", "enterprise_project_id",
+                        "cloud_service_type", "sku_code", "resource_type_code", "region", "charge_mode", "bill_type"
                 }
         ),
         indexes = {
@@ -41,7 +41,7 @@ import java.time.LocalDate;
                 @Index(
                         name = "idx_project_service",
                         columnList = """
-                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type
+                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type, bill_type
                                 """
                 )
         }
@@ -68,7 +68,6 @@ public class HuaweiBillingDailyCost {
     @Column(name = "customer_id", nullable = false, length = 64)
     private String customerId;
 
-    // Optional
     @Column(name = "enterprise_project_id")
     private String enterpriseProjectId;
     @Column(name = "enterprise_project_name")
@@ -104,6 +103,25 @@ public class HuaweiBillingDailyCost {
     @Column(name = "charge_mode", nullable = false)
     private Integer chargeMode;
 
+    // 1: expenditure-purchase
+    // 2: expenditure-renewal
+    // 3: expenditure-change
+    // 4: refund-unsubscription
+    // 5: expenditure-use
+    // 8: expenditure-auto-renewal
+    // 9: adjustment-compensation
+    // 14: expenditure-month-end deduction for support plan
+    // 15: expenditure-tax
+    // 16: adjustment-deduction
+    // 17: expenditure-difference amount (min. guaranteed-actual)
+    // 20: refund-change
+    // 24: refund-changing to Pay-Per-Use
+    // 100: refund-unsubscription tax
+    // 101: adjustment-tax compensation
+    // 102: adjustment-tax deduction
+    @Column(name = "bill_type", nullable = false)
+    private Integer billType;
+
     @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
@@ -135,6 +153,7 @@ public class HuaweiBillingDailyCost {
                 .region(record.region())
                 .regionName(record.region_name())
                 .chargeMode(record.charge_mode())
+                .billType(record.bill_type())
                 .consumeAmount(record.consume_amount())
                 .officialAmount(record.official_amount())
                 .discountAmount(record.discount_amount())

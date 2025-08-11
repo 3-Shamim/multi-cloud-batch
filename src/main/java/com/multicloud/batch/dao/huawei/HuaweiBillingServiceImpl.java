@@ -90,7 +90,9 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
                         row.cloud_service_type(),
                         row.sku_code(),
                         row.resource_Type_code(),
-                        row.region()
+                        row.region(),
+                        row.charge_mode(),
+                        row.bill_type()
                 );
 
                 HuaweiBillingDailyCost cost = data.get(group);

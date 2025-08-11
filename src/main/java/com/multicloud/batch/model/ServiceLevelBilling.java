@@ -25,7 +25,8 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_slb",
                 columnNames = {
-                        "organization_id", "cloud_provider", "usage_date", "billing_account_id", "usage_account_id", "service_code"
+                        "organization_id", "cloud_provider", "usage_date", "billing_account_id", "usage_account_id",
+                        "service_code", "billing_type"
                 }
         ),
         indexes = {
@@ -71,6 +72,9 @@ public class ServiceLevelBilling {
 
     @Column(name = "service_name", nullable = false, length = 200)
     private String serviceName;
+
+    @Column(name = "billing_type", length = 50)
+    private String billingType;
 
     @Column(name = "parent_category", length = 200)
     private String parentCategory;

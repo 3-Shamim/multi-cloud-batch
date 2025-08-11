@@ -25,7 +25,7 @@ import java.time.LocalDate;
                 name = "idx_uq_const",
                 columnNames = {
                         "organization_id", "usage_date", "payer_account_id", "usage_account_id", "service_code",
-                        "service_name", "sku_id", "sku_description", "region", "location", "usage_type"
+                        "service_name", "sku_id", "sku_description", "region", "location", "billing_type", "usage_type"
                 }
         ),
         indexes = {
@@ -89,7 +89,7 @@ public class AwsBillingDailyCost {
     @Column(name = "pricing_type", length = 16)
     private String pricingType;
 
-    @Column(name = "billing_type", length = 32)
+    @Column(name = "billing_type", nullable = false, length = 32)
     private String billingType;
 
     @Column(name = "usage_type", nullable = false, length = 128)

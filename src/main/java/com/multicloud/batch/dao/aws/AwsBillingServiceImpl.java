@@ -200,7 +200,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                 -- Currency & Usage & Cost
                                 COALESCE(MAX(line_item_currency_code), 'UNKNOWN')              AS currency,
                                 COALESCE(MAX(pricing_term), 'OnDemand')                        AS pricing_type,
-                                COALESCE(MAX(line_item_line_item_type), 'UNKNOWN')             AS billing_type,
+                                COALESCE(line_item_line_item_type, 'UNKNOWN')                  AS billing_type,
                                 COALESCE(line_item_usage_type, 'UNKNOWN')                      AS usage_type,
                     
                                 COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
@@ -222,7 +222,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                     'Credit', 'Fee', 'Rounding'
                                 )
                                 AND line_item_unblended_cost IS NOT NULL
-                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 13
+                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13
                     """.formatted("athena", year, year, month, start, end);
 
             String bucket = "azerion-athena-results";
