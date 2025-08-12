@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -165,64 +166,64 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int month = start.getMonthValue();
 
             String query = """
-                            SELECT date(line_item_usage_start_date)                            AS usage_date,
+                    SELECT date(line_item_usage_start_date)                                   AS usage_date,
                     
-                                -- Master/Billing account ID
-                                bill_payer_account_id                                          AS payer_account_id,
+                        -- Master/Billing account ID
+                        bill_payer_account_id                                              AS payer_account_id,
                     
-                                -- Linked/Usage account ID
-                                line_item_usage_account_id                                     AS usage_account_id,
+                        -- Linked/Usage account ID
+                        line_item_usage_account_id                                         AS usage_account_id,
                     
-                                -- Service
-                                COALESCE(product_servicecode, 'UNKNOWN')                       AS service_code,
-                                IF(
-                                    product_servicename IS NOT NULL,
-                                    CONCAT('"', product_servicename, '"'),
-                                    'UNKNOWN'
-                                )                                                              AS service_name,
+                        -- Service
+                        COALESCE(product_servicecode, 'UNKNOWN')                           AS service_code,
+                        IF(
+                            product_servicename IS NOT NULL,
+                            CONCAT('"', product_servicename, '"'),
+                            'UNKNOWN'
+                        )                                                                  AS service_name,
                     
-                                -- SKU
-                                COALESCE(product_sku, 'UNKNOWN')                               AS sku_id,
-                                IF(
-                                    product_description IS NOT NULL,
-                                    CONCAT('"', product_description, '"'),
-                                    'UNKNOWN'
-                                )                                                              AS sku_description,
+                        -- SKU
+                        COALESCE(product_sku, 'UNKNOWN')                                   AS sku_id,
+                        IF(
+                            product_description IS NOT NULL,
+                            CONCAT('"', product_description, '"'),
+                            'UNKNOWN'
+                        )                                                                  AS sku_description,
                     
-                                -- Region & Location
-                                COALESCE(product_region, 'UNKNOWN')                            AS region,
-                                IF(
-                                    product_location IS NOT NULL,
-                                    CONCAT('"', product_location, '"'),
-                                    'UNKNOWN'
-                                )                                                              AS location,
+                        -- Region & Location
+                        COALESCE(product_region, 'UNKNOWN')                                AS region,
+                        IF(
+                            product_location IS NOT NULL,
+                            CONCAT('"', product_location, '"'),
+                            'UNKNOWN'
+                        )                                                                  AS location,
                     
-                                -- Currency & Usage & Cost
-                                COALESCE(MAX(line_item_currency_code), 'UNKNOWN')              AS currency,
-                                COALESCE(MAX(pricing_term), 'OnDemand')                        AS pricing_type,
-                                COALESCE(line_item_line_item_type, 'UNKNOWN')                  AS billing_type,
-                                COALESCE(line_item_usage_type, 'UNKNOWN')                      AS usage_type,
+                        -- Currency & Usage & Cost
+                        COALESCE(MAX(line_item_currency_code), 'UNKNOWN')                  AS currency,
+                        COALESCE(MAX(pricing_term), 'OnDemand')                            AS pricing_type,
+                        COALESCE(line_item_line_item_type, 'UNKNOWN')                      AS billing_type,
+                        COALESCE(line_item_usage_type, 'UNKNOWN')                          AS usage_type,
                     
-                                COALESCE(SUM(line_item_usage_amount), 0)                       AS usage_amount,
-                                MAX(pricing_unit)                                              AS usage_unit,
+                        COALESCE(SUM(CAST(line_item_usage_amount AS DECIMAL(20, 8))), 0)   AS usage_amount,
+                        MAX(pricing_unit)                                                  AS usage_unit,
                     
-                                COALESCE(SUM(line_item_unblended_cost), 0)                     AS unblended_cost,
-                                COALESCE(SUM(line_item_blended_cost), 0)                       AS blended_cost,
-                                SUM(
-                                    COALESCE(reservation_effective_cost, 0) +
-                                    COALESCE(savings_plan_savings_plan_effective_cost, 0)
-                                )                                                              AS effective_cost
+                        COALESCE(SUM(CAST(line_item_unblended_cost AS DECIMAL(20, 8))), 0) AS unblended_cost,
+                        COALESCE(SUM(CAST(line_item_blended_cost AS DECIMAL(20, 8))), 0)   AS blended_cost,
+                        SUM(
+                            COALESCE(CAST(reservation_effective_cost AS DECIMAL(20, 8)), 0) +
+                            COALESCE(CAST(savings_plan_savings_plan_effective_cost AS DECIMAL(20, 8)), 0)
+                        )                                                                  AS effective_cost
                     
-                            FROM %s
-                            WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
-                                AND date(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
-                                AND line_item_line_item_type IN (
-                                    'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
-                                    'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
-                                    'Credit', 'Fee', 'Rounding'
-                                )
-                                AND line_item_unblended_cost IS NOT NULL
-                            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13
+                    FROM %s
+                    WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
+                        AND date(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
+                        AND line_item_line_item_type IN (
+                            'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
+                            'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
+                            'Credit', 'Fee', 'Rounding'
+                        )
+                        AND line_item_unblended_cost IS NOT NULL
+                    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13
                     """.formatted("athena", year, year, month, start, end);
 
             String bucket = "azerion-athena-results";
@@ -539,7 +540,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     private BigDecimal parseBigDecimalSafe(String value) {
         try {
-
             return (value == null || value.isEmpty()) ? BigDecimal.ZERO : new BigDecimal(value);
         } catch (Exception e) {
             log.error("Error parsing BigDecimal: {}", value, e);
