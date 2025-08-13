@@ -215,7 +215,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     
                     FROM %s
                     WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
-                        AND DATE(line_item_usage_start_date) BETWEEN DATE '%s' AND DATE '%s'
+                        AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
                         AND line_item_line_item_type IN (
                             'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
                             'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
