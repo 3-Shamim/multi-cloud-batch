@@ -32,7 +32,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -166,7 +165,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int month = start.getMonthValue();
 
             String query = """
-                    SELECT date(line_item_usage_start_date)                                   AS usage_date,
+                    SELECT DATE(line_item_usage_start_date)                                AS usage_date,
                     
                         -- Master/Billing account ID
                         bill_payer_account_id                                              AS payer_account_id,
@@ -216,7 +215,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     
                     FROM %s
                     WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
-                        AND date(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
+                        AND DATE(line_item_usage_start_date) BETWEEN DATE '%s' AND DATE '%s'
                         AND line_item_line_item_type IN (
                             'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
                             'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
