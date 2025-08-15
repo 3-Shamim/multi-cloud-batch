@@ -33,20 +33,24 @@ public class CloudConfig implements Serializable {
 
     @NotNull(message = "Organization ID must not be null")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = false)
+    @JoinColumn(
+            name = "organization_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_cloud_configs_organization_id")
+    )
     private Organization organization;
 
     @NotNull(message = "Cloud provider must not be null")
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 100)
+    @Column(name = "cloud_provider", nullable = false, length = 100)
     private CloudProvider cloudProvider;
 
     @Size(min = 1, max = 500, message = "Access key must be between {min} to {max}")
-    @Column(length = 500)
+    @Column(name = "access_key", length = 500)
     private String accessKey;
 
     @Size(min = 1, max = 500, message = "Secret key must be between {min} to {max}")
-    @Column(length = 500)
+    @Column(name = "secret_key", length = 500)
     private String secretKey;
 
     @Lob
@@ -54,7 +58,7 @@ public class CloudConfig implements Serializable {
     private byte[] file;
 
     @Size(min = 1, max = 500, message = "File name must be between {min} to {max}")
-    @Column(length = 500)
+    @Column(name = "file_name", length = 500)
     private String fileName;
 
     @Column(columnDefinition = "boolean default false")
@@ -64,3 +68,4 @@ public class CloudConfig implements Serializable {
     private boolean connected;
 
 }
+

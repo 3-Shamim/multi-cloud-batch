@@ -22,7 +22,7 @@ import java.io.Serializable;
 @Entity
 @Table(
         name = "organizations",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"name"})
+        uniqueConstraints = @UniqueConstraint(name = "idx_uq_organizations_name", columnNames = {"name"})
 )
 public class Organization implements Serializable {
 
