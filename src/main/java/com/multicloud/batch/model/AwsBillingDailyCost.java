@@ -107,7 +107,7 @@ public class AwsBillingDailyCost {
     @Column(name = "blended_cost", precision = 20, scale = 8)
     private BigDecimal blendedCost;
 
-    @Column(name = "effective_cost", precision = 20, scale = 8)
-    private BigDecimal effectiveCost;
+    @Column(name = "net_cost", precision = 20, scale = 8)
+    private BigDecimal netCost;
 
 }

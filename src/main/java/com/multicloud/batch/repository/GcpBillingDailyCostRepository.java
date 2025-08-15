@@ -29,14 +29,15 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                     INSERT INTO gcp_billing_daily_costs
                     (organization_id, usage_date, billing_account_id, project_id, project_name,
                      service_code, service_name, sku_id, sku_description, region, location,
-                     currency, cost_type, usage_amount, usage_unit, cost)
+                     currency, cost_type, usage_amount, usage_unit, cost, credits)
                     VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         currency = VALUES(currency),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
-                        cost = VALUES(cost)
+                        cost = VALUES(cost),
+                        credits = VALUES(credits)
                 """;
 
         Query query = entityManager.createNativeQuery(sql);
@@ -58,6 +59,7 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
             query.setParameter(14, b.getUsageAmount());
             query.setParameter(15, b.getUsageUnit());
             query.setParameter(16, b.getCost() != null ? makeRound(b.getCost()) : null);
+            query.setParameter(17, b.getCredits() != null ? makeRound(b.getCredits()) : null);
 
             query.executeUpdate();
         }

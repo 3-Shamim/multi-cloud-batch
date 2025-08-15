@@ -53,7 +53,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final static String[] COLS = {
             "usage_date", "payer_account_id", "usage_account_id", "service_code", "service_name",
             "sku_id", "sku_description", "region", "location", "currency", "pricing_type", "billing_type",
-            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "effective_cost"
+            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "net_cost"
     };
 
     private final EntityManager entityManager;
@@ -165,63 +165,54 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int month = start.getMonthValue();
 
             String query = """
-                    SELECT DATE(line_item_usage_start_date)                                AS usage_date,
+                    SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
                     
                         -- Master/Billing account ID
-                        bill_payer_account_id                                              AS payer_account_id,
+                        bill_payer_account_id                                                    AS payer_account_id,
                     
                         -- Linked/Usage account ID
-                        line_item_usage_account_id                                         AS usage_account_id,
+                        line_item_usage_account_id                                               AS usage_account_id,
                     
                         -- Service
-                        COALESCE(product_servicecode, 'UNKNOWN')                           AS service_code,
+                        COALESCE(product_servicecode, 'UNKNOWN')                                 AS service_code,
                         IF(
                             product_servicename IS NOT NULL,
                             CONCAT('"', product_servicename, '"'),
                             'UNKNOWN'
-                        )                                                                  AS service_name,
+                        )                                                                        AS service_name,
                     
                         -- SKU
-                        COALESCE(product_sku, 'UNKNOWN')                                   AS sku_id,
+                        COALESCE(product_sku, 'UNKNOWN')                                         AS sku_id,
                         IF(
                             product_description IS NOT NULL,
                             CONCAT('"', product_description, '"'),
                             'UNKNOWN'
-                        )                                                                  AS sku_description,
+                        )                                                                        AS sku_description,
                     
                         -- Region & Location
-                        COALESCE(product_region, 'UNKNOWN')                                AS region,
+                        COALESCE(product_region, 'UNKNOWN')                                      AS region,
                         IF(
                             product_location IS NOT NULL,
                             CONCAT('"', product_location, '"'),
                             'UNKNOWN'
-                        )                                                                  AS location,
+                        )                                                                        AS location,
                     
                         -- Currency & Usage & Cost
-                        COALESCE(MAX(line_item_currency_code), 'UNKNOWN')                  AS currency,
-                        COALESCE(MAX(pricing_term), 'OnDemand')                            AS pricing_type,
-                        COALESCE(line_item_line_item_type, 'UNKNOWN')                      AS billing_type,
-                        COALESCE(line_item_usage_type, 'UNKNOWN')                          AS usage_type,
+                        COALESCE(MAX(line_item_currency_code), 'UNKNOWN')                        AS currency,
+                        COALESCE(MAX(pricing_term), 'OnDemand')                                  AS pricing_type,
+                        COALESCE(line_item_line_item_type, 'UNKNOWN')                            AS billing_type,
+                        COALESCE(line_item_usage_type, 'UNKNOWN')                                AS usage_type,
                     
-                        COALESCE(SUM(CAST(line_item_usage_amount AS DECIMAL(20, 8))), 0)   AS usage_amount,
-                        MAX(pricing_unit)                                                  AS usage_unit,
+                        CAST(COALESCE(SUM(line_item_usage_amount), 0) AS DECIMAL(20, 8))         AS usage_amount,
+                        MAX(pricing_unit)                                                        AS usage_unit,
                     
-                        COALESCE(SUM(CAST(line_item_unblended_cost AS DECIMAL(20, 8))), 0) AS unblended_cost,
-                        COALESCE(SUM(CAST(line_item_blended_cost AS DECIMAL(20, 8))), 0)   AS blended_cost,
-                        SUM(
-                            COALESCE(CAST(reservation_effective_cost AS DECIMAL(20, 8)), 0) +
-                            COALESCE(CAST(savings_plan_savings_plan_effective_cost AS DECIMAL(20, 8)), 0)
-                        )                                                                  AS effective_cost
+                        CAST(COALESCE(SUM(line_item_unblended_cost), 0) AS DECIMAL(20, 8))       AS unblended_cost,
+                        CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
+                        CAST(COALESCE(SUM(line_item_net_unblended_cost), 0) AS DECIMAL(20, 8))   AS net_cost
                     
                     FROM %s
                     WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
                         AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
-                        AND line_item_line_item_type IN (
-                            'Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
-                            'SavingsPlanRecurringFee', 'RIFee', 'EdpDiscount', 'Tax', 'Support', 'Refund',
-                            'Credit', 'Fee', 'Rounding'
-                        )
-                        AND line_item_unblended_cost IS NOT NULL
                     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13
                     """.formatted("athena", year, year, month, start, end);
 
@@ -507,7 +498,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         dailyCost.setUsageUnit(data.get(14).varCharValue());
         dailyCost.setUnblendedCost(parseBigDecimalSafe(data.get(15).varCharValue()));
         dailyCost.setBlendedCost(parseBigDecimalSafe(data.get(16).varCharValue()));
-        dailyCost.setEffectiveCost(parseBigDecimalSafe(data.get(17).varCharValue()));
+        dailyCost.setNetCost(parseBigDecimalSafe(data.get(17).varCharValue()));
 
         return dailyCost;
     }
@@ -533,7 +524,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .usageUnit(record.get("usage_unit"))
                 .unblendedCost(parseBigDecimalSafe(record.get("unblended_cost")))
                 .blendedCost(parseBigDecimalSafe(record.get("blended_cost")))
-                .effectiveCost(parseBigDecimalSafe(record.get("effective_cost")))
+                .netCost(parseBigDecimalSafe(record.get("net_cost")))
                 .build();
     }
 
