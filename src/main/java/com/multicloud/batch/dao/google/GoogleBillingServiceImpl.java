@@ -35,42 +35,44 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     public void fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LocalDate start, LocalDate end) {
 
         String query = """
-                    SELECT
-                        DATE(usage_start_time)                      AS usage_date,
+                    SELECT DATE(t.usage_start_time)                                      AS usage_date,
                 
                         -- Billing account ID
-                        billing_account_id                          AS billing_account_id,
+                        t.billing_account_id                                             AS billing_account_id,
                 
                         -- Project Info
                         -- Usage Scop
-                        COALESCE(project.id, 'UNKNOWN')             AS project_id,
-                        COALESCE(project.name, 'UNKNOWN')           AS project_name,
+                        COALESCE(t.project.id, 'UNKNOWN')                                AS project_id,
+                        COALESCE(t.project.name, 'UNKNOWN')                              AS project_name,
                 
                         -- Service
-                        COALESCE(service.id, 'UNKNOWN')             AS service_code,
-                        COALESCE(service.description, 'UNKNOWN')    AS service_name,
+                        COALESCE(t.service.id, 'UNKNOWN')                                AS service_code,
+                        COALESCE(t.service.description, 'UNKNOWN')                       AS service_name,
                 
                         -- SKU
-                        COALESCE(sku.id, 'UNKNOWN')                 AS sku_id,
-                        COALESCE(sku.description, 'UNKNOWN')        AS sku_description,
+                        COALESCE(t.sku.id, 'UNKNOWN')                                    AS sku_id,
+                        COALESCE(t.sku.description, 'UNKNOWN')                           AS sku_description,
                 
                         -- Region & Location
-                        COALESCE(location.region, 'UNKNOWN')        AS region,
-                        COALESCE(location.location, 'UNKNOWN')      AS location,
+                        COALESCE(t.location.region, 'UNKNOWN')                           AS region,
+                        COALESCE(t.location.location, 'UNKNOWN')                         AS location,
                 
                         -- Currency & Usage & Cost
-                        COALESCE(MAX(currency), 'UNKNOWN')          AS currency,
-                        COALESCE(cost_type, 'UNKNOWN')              AS cost_type,
+                        COALESCE(MAX(t.currency), 'UNKNOWN')                             AS currency,
                 
-                        COALESCE(SUM(usage.amount), 0)              AS usage_amount,
-                        COALESCE(MAX(usage.unit), 'UNKNOWN')        AS usage_unit,
+                        COALESCE(t.cost_type, 'UNKNOWN')                                 AS cost_type,
                 
-                        COALESCE(SUM(cost), 0)                      AS cost
+                        ROUND(COALESCE(SUM(t.usage.amount), 0), 8)                       AS usage_amount,
+                        COALESCE(MAX(t.usage.unit), 'UNKNOWN')                           AS usage_unit,
                 
-                    FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*`
-                    WHERE DATE(_PARTITIONTIME) BETWEEN DATE(':start_date') AND DATE(':end_date')
-                        AND cost IS NOT NULL
-                        AND cost_type IN ('regular', 'commitment', 'overcommit', 'adjustment', 'discount', 'support', 'tax')
+                        ROUND(COALESCE(SUM(t.cost), 0), 8)                               AS cost,
+                        ROUND(
+                            SUM((SELECT COALESCE(SUM(c.amount), 0) FROM UNNEST(t.credits) AS c)),
+                            8
+                        )                                                                AS credits
+                
+                    FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*` AS t
+                    WHERE _PARTITIONDATE BETWEEN ':start_date' AND ':end_date'
                     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12
                 """;
 
@@ -280,6 +282,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 .usageAmount(getNumericSafe(row, "usage_amount"))
                 .usageUnit(getStringSafe(row, "usage_unit"))
                 .cost(getNumericSafe(row, "cost"))
+                .credits(getNumericSafe(row, "credits"))
                 .build();
     }
 

@@ -101,4 +101,7 @@ public class GcpBillingDailyCost {
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
 
+    @Column(precision = 20, scale = 8)
+    private BigDecimal credits;
+
 }

@@ -30,7 +30,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                     (organization_id, usage_date, payer_account_id, usage_account_id,
                      service_code, service_name, sku_id, sku_description, region, location,
                      currency, pricing_type, billing_type, usage_type, usage_amount, usage_unit,
-                     unblended_cost, blended_cost, effective_cost)
+                     unblended_cost, blended_cost, net_cost)
                     VALUES
                     (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
@@ -40,7 +40,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                         usage_unit = VALUES(usage_unit),
                         unblended_cost = VALUES(unblended_cost),
                         blended_cost = VALUES(blended_cost),
-                        effective_cost = VALUES(effective_cost)
+                        net_cost = VALUES(net_cost)
                 """;
 
         Query query = entityManager.createNativeQuery(sql);
@@ -64,7 +64,7 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             query.setParameter(16, b.getUsageUnit());
             query.setParameter(17, b.getUnblendedCost() != null ? makeRound(b.getUnblendedCost()) : null);
             query.setParameter(18, b.getBlendedCost() != null ? makeRound(b.getBlendedCost()) : null);
-            query.setParameter(19, b.getEffectiveCost() != null ? makeRound(b.getEffectiveCost()) : null);
+            query.setParameter(19, b.getNetCost() != null ? makeRound(b.getNetCost()) : null);
 
             query.executeUpdate();
         }
