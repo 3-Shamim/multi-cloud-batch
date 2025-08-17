@@ -1,5 +1,7 @@
 package com.multicloud.batch.job.huawei;
 
+import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
+import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dao.huawei.HuaweiAuthService;
 import com.multicloud.batch.dao.huawei.HuaweiBillingService;
 import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
@@ -10,7 +12,9 @@ import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.DataSyncHistory;
 import com.multicloud.batch.model.Organization;
 import com.multicloud.batch.repository.DataSyncHistoryRepository;
-import com.multicloud.batch.repository.OrganizationRepository;
+import com.multicloud.batch.service.CloudConfigService;
+import com.multicloud.batch.service.SecretPayloadStoreService;
+import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -45,8 +49,10 @@ public class HuaweiBillingDataJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
-    private final OrganizationRepository organizationRepository;
     private final DataSyncHistoryRepository dataSyncHistoryRepository;
+    private final CloudConfigService cloudConfigService;
+    private final SecretPayloadStoreService secretPayloadStoreService;
+    private final AwsSecretsManagerService awsSecretsManagerService;
     private final HuaweiAuthService huaweiAuthService;
     private final HuaweiBillingService huaweiBillingService;
 
@@ -62,7 +68,40 @@ public class HuaweiBillingDataJobConfig {
     public Step huaweiLoginStep() {
         return new StepBuilder("huaweiLoginStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
-                    huaweiAuthService.login();
+
+                    StepExecution stepExecution = requireNonNull(
+                            StepSynchronizationManager.getContext()
+                    ).getStepExecution();
+
+                    JobParameters jobParameters = stepExecution.getJobParameters();
+                    Long orgId = jobParameters.getLong("orgId");
+
+                    if (orgId == null || orgId < 1) {
+                        throw new RuntimeException("Invalid organization id...");
+                    }
+
+                    Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
+                            orgId, CloudProvider.HWC
+                    );
+
+                    if (secretARN.isEmpty()) {
+                        throw new RuntimeException("Huawei config not found for organization: " + orgId);
+                    }
+
+                    SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
+
+                    if (secret == null) {
+                        throw new RuntimeException("Huawei secret not found for organization: " + orgId);
+                    }
+
+                    // Store secret
+                    secretPayloadStoreService.put(Util.getProviderStoreKey(orgId, CloudProvider.HWC), secret);
+
+                    // Login
+                    huaweiAuthService.login(
+                            secret.getUsername(), secret.getPassword(), secret.getDomainName(), secret.getRegion()
+                    );
+
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
@@ -82,7 +121,9 @@ public class HuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
-            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+            StepExecution stepExecution = requireNonNull(
+                    StepSynchronizationManager.getContext()
+            ).getStepExecution();
 
             JobParameters jobParameters = stepExecution.getJobParameters();
             Long orgId = jobParameters.getLong("orgId");
@@ -91,12 +132,12 @@ public class HuaweiBillingDataJobConfig {
                 throw new RuntimeException("Invalid organization id...");
             }
 
-            Organization org = organizationRepository.findById(orgId)
-                    .orElseThrow(() -> new RuntimeException("Organization not found by ID: " + orgId));
-
+            // Partition calculation
             boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.HWC);
 
-            long days = ChronoUnit.DAYS.between(LocalDate.parse("2025-01-01"), LocalDate.now()) + 1;
+            long days = ChronoUnit.DAYS.between(
+                    LocalDate.parse("2025-01-01"), LocalDate.now()
+            ) + 1;
 
             if (exist) {
                 days = 7;
@@ -113,7 +154,7 @@ public class HuaweiBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("org", org);
+                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -138,7 +179,7 @@ public class HuaweiBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("org", org);
+                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -154,7 +195,10 @@ public class HuaweiBillingDataJobConfig {
         return new StepBuilder("huaweiBillingDataSlaveStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
-                    StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+                    StepExecution stepExecution = requireNonNull(
+                            StepSynchronizationManager.getContext()
+                    ).getStepExecution();
+
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
                     Organization org = (Organization) stepExecution.getExecutionContext().get("org");
 
@@ -165,7 +209,14 @@ public class HuaweiBillingDataJobConfig {
                                 range, org.getId()
                         );
 
-                        HuaweiAuthDetails token = huaweiAuthService.login();
+                        SecretPayload secret = secretPayloadStoreService.get(
+                                Util.getProviderStoreKey(org.getId(), CloudProvider.HWC)
+                        );
+
+                        HuaweiAuthDetails token = huaweiAuthService.login(
+                                secret.getUsername(), secret.getPassword(), secret.getDomainName(), secret.getRegion()
+                        );
+
                         huaweiBillingService.fetchDailyServiceCostUsage(
                                 org.getId(), range, token
                         );

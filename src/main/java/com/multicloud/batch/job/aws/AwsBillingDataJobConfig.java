@@ -1,16 +1,18 @@
 package com.multicloud.batch.job.aws;
 
 import com.multicloud.batch.dao.aws.AwsBillingService;
+import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
+import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
-import com.multicloud.batch.model.CloudConfig;
 import com.multicloud.batch.model.DataSyncHistory;
 import com.multicloud.batch.model.Organization;
-import com.multicloud.batch.repository.CloudConfigRepository;
 import com.multicloud.batch.repository.DataSyncHistoryRepository;
-import com.multicloud.batch.repository.OrganizationRepository;
+import com.multicloud.batch.service.CloudConfigService;
+import com.multicloud.batch.service.SecretPayloadStoreService;
+import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -45,9 +47,10 @@ public class AwsBillingDataJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
-    private final OrganizationRepository organizationRepository;
-    private final CloudConfigRepository cloudConfigRepository;
     private final DataSyncHistoryRepository dataSyncHistoryRepository;
+    private final CloudConfigService cloudConfigService;
+    private final SecretPayloadStoreService secretPayloadStoreService;
+    private final AwsSecretsManagerService awsSecretsManagerService;
     private final AwsBillingService awsBillingService;
 
     @Bean
@@ -84,9 +87,24 @@ public class AwsBillingDataJobConfig {
                 throw new RuntimeException("Invalid organization id...");
             }
 
-            Organization org = organizationRepository.findById(orgId)
-                    .orElseThrow(() -> new RuntimeException("Organization not found by ID: " + orgId));
+            Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
+                    orgId, CloudProvider.AWS
+            );
 
+            if (secretARN.isEmpty()) {
+                throw new RuntimeException("AWS config not found for organization: " + orgId);
+            }
+
+            SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
+
+            if (secret == null) {
+                throw new RuntimeException("AWS secret not found for organization: " + orgId);
+            }
+
+            // Store secret
+            secretPayloadStoreService.put(Util.getProviderStoreKey(orgId, CloudProvider.AWS), secret);
+
+            // Partition calculation
             boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.AWS);
 
             long days = ChronoUnit.DAYS.between(
@@ -108,7 +126,7 @@ public class AwsBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("org", org);
+                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -133,7 +151,7 @@ public class AwsBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("org", org);
+                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -152,24 +170,20 @@ public class AwsBillingDataJobConfig {
                     StepExecution stepExecution = requireNonNull(
                             StepSynchronizationManager.getContext()
                     ).getStepExecution();
+
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                    Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                    Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                    if (range != null && org != null) {
+                    if (range != null && orgId != null) {
 
-                        log.info(
-                                "Processing aws billing for partition {} and organization {}",
-                                range, org.getId()
+                        log.info("Processing aws billing for partition {} and organization {}", range, orgId);
+
+                        SecretPayload secret = secretPayloadStoreService.get(
+                                Util.getProviderStoreKey(orgId, CloudProvider.AWS)
                         );
 
-                        CloudConfig awsConfig = cloudConfigRepository.findByOrganizationIdAndCloudProvider(
-                                org.getId(), CloudProvider.AWS
-                        ).orElseThrow(() -> new RuntimeException(
-                                "AWS config not found for organization: " + org.getId()
-                        ));
-
                         awsBillingService.syncDailyCostUsageFromAthena(
-                                org.getId(), awsConfig.getAccessKey(), awsConfig.getSecretKey(), "",
+                                orgId, secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
                                 range.start(), range.end()
                         );
 

@@ -10,6 +10,6 @@ import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
 
 public interface HuaweiAuthService {
 
-    HuaweiAuthDetails login();
+    HuaweiAuthDetails login(String username, String password, String domainName, String region);
 
 }

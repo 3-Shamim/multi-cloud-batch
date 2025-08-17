@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,7 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ServiceTypeService {
 
-    private final Map<ServiceTypeGroup, String> SERVICE_TYPE_MAP = new HashMap<>();
+    private final Map<ServiceTypeGroup, String> SERVICE_TYPE_MAP = new ConcurrentHashMap<>();
 
     private final ServiceTypeRepository serviceTypeRepository;
 

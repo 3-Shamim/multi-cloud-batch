@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by IntelliJ IDEA.
@@ -25,26 +25,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
-    private final Map<HuaweiAuthRequest, HuaweiAuthDetails> MAP = new HashMap<>();
+    private final Map<HuaweiAuthRequest, HuaweiAuthDetails> MAP = new ConcurrentHashMap<>();
 
     private final RestTemplate restTemplate;
 
     @Override
-    public HuaweiAuthDetails login() {
-
-        // IAM user
-        String username = "";
-        String password = "";
-
-        // Master account name
-        // Which account IAM user belongs to
-        String domain = "";
-
-        // Scope or Region
-        String region = "";
+    public HuaweiAuthDetails login(String username, String password, String domainName, String region) {
 
         HuaweiAuthRequest request = HuaweiAuthRequest.build(
-                region, domain, username, password
+                region, domainName, username, password
         );
 
         HuaweiAuthDetails cachedResponse = MAP.get(request);
