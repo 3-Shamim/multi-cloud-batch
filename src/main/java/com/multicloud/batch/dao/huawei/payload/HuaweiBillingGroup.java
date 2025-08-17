@@ -1,7 +1,5 @@
 package com.multicloud.batch.dao.huawei.payload;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.time.LocalDate;
 import java.util.Comparator;
 
@@ -25,7 +23,7 @@ public record HuaweiBillingGroup(
 ) implements Comparable<HuaweiBillingGroup> {
 
     @Override
-    public int compareTo(@NotNull HuaweiBillingGroup o) {
+    public int compareTo(HuaweiBillingGroup o) {
         return Comparator
                 .comparing(HuaweiBillingGroup::billDate)
                 .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))

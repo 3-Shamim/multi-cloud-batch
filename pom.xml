@@ -107,7 +107,7 @@
         <!--AWS SDK-->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>costexplorer</artifactId>
+            <artifactId>secretsmanager</artifactId>
         </dependency>
 
         <dependency>
@@ -120,24 +120,6 @@
             <artifactId>s3</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>organizations</artifactId>
-        </dependency>
-
-        <!-- Huawei SDK -->
-        <dependency>
-            <groupId>com.huaweicloud.sdk</groupId>
-            <artifactId>huaweicloud-sdk-bss</artifactId>
-            <version>3.1.150</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.huaweicloud.sdk</groupId>
-            <artifactId>huaweicloud-sdk-core</artifactId>
-            <version>3.1.150</version>
-        </dependency>
-
         <!-- Google SDK -->
         <dependency>
             <groupId>com.google.auth</groupId>
@@ -147,16 +129,6 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-bigquery</artifactId>
-        </dependency>
-
-<!--        <dependency>-->
-<!--            <groupId>com.google.cloud</groupId>-->
-<!--            <artifactId>google-cloud-monitoring</artifactId>-->
-<!--        </dependency>-->
-
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-resourcemanager</artifactId>
         </dependency>
 
         <!-- TEST -->

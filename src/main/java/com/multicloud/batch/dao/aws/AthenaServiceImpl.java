@@ -21,10 +21,8 @@ import java.util.Set;
 @Service
 public class AthenaServiceImpl implements AthenaService {
 
-    private final AthenaClient athenaClient;
-
     @Override
-    public String submitAthenaQuery(String query, String outputLocation, String database) {
+    public String submitAthenaQuery(String query, String outputLocation, String database, AthenaClient athenaClient) {
 
         StartQueryExecutionRequest request = StartQueryExecutionRequest.builder()
                 .queryString(query)
@@ -45,7 +43,7 @@ public class AthenaServiceImpl implements AthenaService {
     }
 
     @Override
-    public void waitForQueryToComplete(String executionId) {
+    public void waitForQueryToComplete(String executionId, AthenaClient athenaClient) {
 
         GetQueryExecutionRequest request = GetQueryExecutionRequest.builder()
                 .queryExecutionId(executionId)
@@ -106,7 +104,7 @@ public class AthenaServiceImpl implements AthenaService {
     }
 
     @Override
-    public void stopAthenaQuery(String executionId) {
+    public void stopAthenaQuery(String executionId, AthenaClient athenaClient) {
 
         try {
 
@@ -133,7 +131,7 @@ public class AthenaServiceImpl implements AthenaService {
     }
 
     @Override
-    public GetQueryResultsIterable fetchQueryResults(String executionId) {
+    public GetQueryResultsIterable fetchQueryResults(String executionId, AthenaClient athenaClient) {
 
         GetQueryResultsRequest request = GetQueryResultsRequest.builder()
                 .queryExecutionId(executionId)
@@ -143,9 +141,9 @@ public class AthenaServiceImpl implements AthenaService {
     }
 
     @Override
-    public void printQueryResults(String executionId) {
+    public void printQueryResults(String executionId, AthenaClient athenaClient) {
 
-        fetchQueryResults(executionId)
+        fetchQueryResults(executionId, athenaClient)
                 .forEach(res -> res.resultSet().rows().forEach(row -> {
 
                     StringBuilder rowData = new StringBuilder();
@@ -166,16 +164,16 @@ public class AthenaServiceImpl implements AthenaService {
     public String wrapQueryWithUnloadCsvGzip(String selectQuery, String outputLocation) {
 
         return String.format("""
-        UNLOAD (
-            %s
-        )
-        TO '%s'
-        WITH (
-            format = 'TEXTFILE',
-            field_delimiter = ',',
-            compression = 'GZIP'
-        );
-        """, selectQuery.trim(), outputLocation);
+                UNLOAD (
+                    %s
+                )
+                TO '%s'
+                WITH (
+                    format = 'TEXTFILE',
+                    field_delimiter = ',',
+                    compression = 'GZIP'
+                );
+                """, selectQuery.trim(), outputLocation);
     }
 
     private boolean isRetryableAthenaException(AthenaException e) {

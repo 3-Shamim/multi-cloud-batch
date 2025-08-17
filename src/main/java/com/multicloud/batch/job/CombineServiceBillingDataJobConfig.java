@@ -7,7 +7,6 @@ import com.multicloud.batch.service.JobStepService;
 import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -225,7 +224,7 @@ public class CombineServiceBillingDataJobConfig {
                 new BatchPreparedStatementSetter() {
 
                     @Override
-                    public void setValues(@NotNull PreparedStatement ps, int i) throws SQLException {
+                    public void setValues(PreparedStatement ps, int i) throws SQLException {
 
                         ServiceLevelBilling item = records.getItems().get(i);
 

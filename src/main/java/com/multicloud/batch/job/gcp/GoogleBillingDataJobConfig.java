@@ -13,7 +13,6 @@ import com.multicloud.batch.repository.DataSyncHistoryRepository;
 import com.multicloud.batch.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.partition.support.Partitioner;
@@ -74,7 +73,9 @@ public class GoogleBillingDataJobConfig {
 
         return gridSize -> {
 
-            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+            StepExecution stepExecution = requireNonNull(
+                    StepSynchronizationManager.getContext()
+            ).getStepExecution();
 
             JobParameters jobParameters = stepExecution.getJobParameters();
             Long orgId = jobParameters.getLong("orgId");
@@ -84,11 +85,15 @@ public class GoogleBillingDataJobConfig {
             }
 
             Organization org = organizationRepository.findById(orgId)
-                    .orElseThrow(() -> new RuntimeException("Organization not found by ID: " + orgId));
+                    .orElseThrow(() -> new RuntimeException(
+                            "Organization not found by ID: " + orgId
+                    ));
 
             boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.GCP);
 
-            long days = ChronoUnit.DAYS.between(LocalDate.parse("2025-01-01"), LocalDate.now()) + 1;
+            long days = ChronoUnit.DAYS.between(
+                    LocalDate.parse("2025-01-01"), LocalDate.now()
+            ) + 1;
 
             if (exist) {
                 days = 7;
@@ -146,7 +151,10 @@ public class GoogleBillingDataJobConfig {
         return new StepBuilder("gcpBillingDataSlaveStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
-                    StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+                    StepExecution stepExecution = requireNonNull(
+                            StepSynchronizationManager.getContext()
+                    ).getStepExecution();
+
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
                     Organization org = (Organization) stepExecution.getExecutionContext().get("org");
 
@@ -159,7 +167,9 @@ public class GoogleBillingDataJobConfig {
 
                         CloudConfig gcpConfig = cloudConfigRepository.findByOrganizationIdAndCloudProvider(
                                 org.getId(), CloudProvider.GCP
-                        ).orElseThrow(() -> new RuntimeException("GCP config not found for organization: " + org.getId()));
+                        ).orElseThrow(() -> new RuntimeException(
+                                "GCP config not found for organization: " + org.getId()
+                        ));
 
                         googleBillingService.fetchDailyServiceCostUsage(
                                 org.getId(), gcpConfig.getFile(), range.start(), range.end()
@@ -179,7 +189,7 @@ public class GoogleBillingDataJobConfig {
         return new StepExecutionListener() {
 
             @Override
-            public void beforeStep(@NotNull StepExecution stepExecution) {
+            public void beforeStep(StepExecution stepExecution) {
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
                 Organization org = (Organization) stepExecution.getExecutionContext().get("org");
@@ -195,7 +205,7 @@ public class GoogleBillingDataJobConfig {
             }
 
             @Override
-            public ExitStatus afterStep(@NotNull StepExecution stepExecution) {
+            public ExitStatus afterStep(StepExecution stepExecution) {
 
                 String partitionName = stepExecution.getStepName();
                 BatchStatus status = stepExecution.getStatus();

@@ -12,6 +12,4 @@ public interface GoogleBillingService {
 
     void fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LocalDate start, LocalDate end);
 
-    boolean checkGoogleBigQueryConnection(byte[] jsonKey);
-
 }
