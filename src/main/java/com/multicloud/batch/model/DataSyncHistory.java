@@ -3,7 +3,7 @@ package com.multicloud.batch.model;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -29,6 +29,9 @@ import java.time.LocalDateTime;
                         name = "idx_unq_data_sync_histories",
                         columnNames = {"organization_id", "cloud_provider", "job_name", "start", "end"}
                 )
+        },
+        indexes = {
+                @Index(name = "idx_organization_id", columnList = "organization_id")
         }
 )
 public class DataSyncHistory {
@@ -38,10 +41,9 @@ public class DataSyncHistory {
     private Long id;
 
     // Multicloud organization ID
-    @NotNull(message = "Organization ID must not be null")
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+    @Positive(message = "Organization ID must be a positive number")
+    @Column(name = "organization_id", nullable = false)
+    private long organizationId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "cloud_provider", nullable = false, length = 100)
@@ -68,8 +70,8 @@ public class DataSyncHistory {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public DataSyncHistory(Organization organization, CloudProvider cloudProvider, String jobName, LocalDate start, LocalDate end) {
-        this.organization = organization;
+    public DataSyncHistory(long organizationId, CloudProvider cloudProvider, String jobName, LocalDate start, LocalDate end) {
+        this.organizationId = organizationId;
         this.cloudProvider = cloudProvider;
         this.jobName = jobName;
         this.start = start;

@@ -10,7 +10,6 @@ import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.DataSyncHistory;
-import com.multicloud.batch.model.Organization;
 import com.multicloud.batch.repository.DataSyncHistoryRepository;
 import com.multicloud.batch.service.CloudConfigService;
 import com.multicloud.batch.service.SecretPayloadStoreService;
@@ -77,7 +76,7 @@ public class HuaweiBillingDataJobConfig {
                     Long orgId = jobParameters.getLong("orgId");
 
                     if (orgId == null || orgId < 1) {
-                        throw new RuntimeException("Invalid organization id...");
+                        throw new RuntimeException("Invalid organization ID...");
                     }
 
                     Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
@@ -85,13 +84,13 @@ public class HuaweiBillingDataJobConfig {
                     );
 
                     if (secretARN.isEmpty()) {
-                        throw new RuntimeException("Huawei config not found for organization: " + orgId);
+                        throw new RuntimeException("Huawei config not found for organization ID: " + orgId);
                     }
 
                     SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
 
                     if (secret == null) {
-                        throw new RuntimeException("Huawei secret not found for organization: " + orgId);
+                        throw new RuntimeException("Huawei secret not found for organization ID: " + orgId);
                     }
 
                     // Store secret
@@ -200,17 +199,14 @@ public class HuaweiBillingDataJobConfig {
                     ).getStepExecution();
 
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                    Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                    Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                    if (range != null && org != null) {
+                    if (range != null && orgId != null) {
 
-                        log.info(
-                                "Processing huawei billing for partition {} and organization {}",
-                                range, org.getId()
-                        );
+                        log.info("Processing huawei billing for partition {} and organization ID {}", range, orgId);
 
                         SecretPayload secret = secretPayloadStoreService.get(
-                                Util.getProviderStoreKey(org.getId(), CloudProvider.HWC)
+                                Util.getProviderStoreKey(orgId, CloudProvider.HWC)
                         );
 
                         HuaweiAuthDetails token = huaweiAuthService.login(
@@ -218,7 +214,7 @@ public class HuaweiBillingDataJobConfig {
                         );
 
                         huaweiBillingService.fetchDailyServiceCostUsage(
-                                org.getId(), range, token
+                                orgId, range, token
                         );
 
                     }
@@ -238,13 +234,13 @@ public class HuaweiBillingDataJobConfig {
             public void beforeStep(StepExecution stepExecution) {
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && org != null) {
+                if (range != null && orgId != null) {
 
                     log.info(
-                            "Starting step: {} for partition {} and organization {}",
-                            stepExecution.getStepName(), range, org.getId()
+                            "Starting step: {} for partition {} and organization ID {}",
+                            stepExecution.getStepName(), range, orgId
                     );
 
                 }
@@ -264,14 +260,14 @@ public class HuaweiBillingDataJobConfig {
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && org != null) {
+                if (range != null && orgId != null) {
 
                     DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                            org.getId(), CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
+                            orgId, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
                     ).orElse(new DataSyncHistory(
-                            org, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
+                            orgId, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -286,8 +282,8 @@ public class HuaweiBillingDataJobConfig {
                 }
 
                 log.info(
-                        "Step completed: {} with status: {} for partition {} and organization {}",
-                        partitionName, status, range, org == null ? 0 : org.getId()
+                        "Step completed: {} with status: {} for partition {} and organization ID {}",
+                        partitionName, status, range, orgId
                 );
 
                 return stepExecution.getExitStatus();

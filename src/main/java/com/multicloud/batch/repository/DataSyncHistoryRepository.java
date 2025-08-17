@@ -22,7 +22,7 @@ public interface DataSyncHistoryRepository extends JpaRepository<DataSyncHistory
     @Query("""
             SELECT EXISTS(
                 SELECT 1 FROM DataSyncHistory d
-                WHERE d.organization.id = :orgId
+                WHERE d.organizationId = :orgId
                 AND d.cloudProvider = :cloudProvider
             )
             """)

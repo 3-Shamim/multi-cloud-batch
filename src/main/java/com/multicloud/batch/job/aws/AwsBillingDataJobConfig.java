@@ -8,7 +8,6 @@ import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.DataSyncHistory;
-import com.multicloud.batch.model.Organization;
 import com.multicloud.batch.repository.DataSyncHistoryRepository;
 import com.multicloud.batch.service.CloudConfigService;
 import com.multicloud.batch.service.SecretPayloadStoreService;
@@ -84,7 +83,7 @@ public class AwsBillingDataJobConfig {
             Long orgId = jobParameters.getLong("orgId");
 
             if (orgId == null || orgId < 1) {
-                throw new RuntimeException("Invalid organization id...");
+                throw new RuntimeException("Invalid organization ID...");
             }
 
             Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
@@ -92,13 +91,13 @@ public class AwsBillingDataJobConfig {
             );
 
             if (secretARN.isEmpty()) {
-                throw new RuntimeException("AWS config not found for organization: " + orgId);
+                throw new RuntimeException("AWS config not found for organization ID: " + orgId);
             }
 
             SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
 
             if (secret == null) {
-                throw new RuntimeException("AWS secret not found for organization: " + orgId);
+                throw new RuntimeException("AWS secret not found for organization ID: " + orgId);
             }
 
             // Store secret
@@ -176,7 +175,7 @@ public class AwsBillingDataJobConfig {
 
                     if (range != null && orgId != null) {
 
-                        log.info("Processing aws billing for partition {} and organization {}", range, orgId);
+                        log.info("Processing aws billing for partition {} and organization ID {}", range, orgId);
 
                         SecretPayload secret = secretPayloadStoreService.get(
                                 Util.getProviderStoreKey(orgId, CloudProvider.AWS)
@@ -204,13 +203,13 @@ public class AwsBillingDataJobConfig {
             public void beforeStep(StepExecution stepExecution) {
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && org != null) {
+                if (range != null && orgId != null) {
 
                     log.info(
-                            "Starting step: {} for partition {} and organization {}",
-                            stepExecution.getStepName(), range, org.getId()
+                            "Starting step: {} for partition {} and organization ID {}",
+                            stepExecution.getStepName(), range, orgId
                     );
 
                 }
@@ -230,14 +229,14 @@ public class AwsBillingDataJobConfig {
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Organization org = (Organization) stepExecution.getExecutionContext().get("org");
+                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && org != null) {
+                if (range != null && orgId != null) {
 
                     DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                            org.getId(), CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
+                            orgId, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
                     ).orElse(new DataSyncHistory(
-                            org, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
+                            orgId, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -252,8 +251,8 @@ public class AwsBillingDataJobConfig {
                 }
 
                 log.info(
-                        "Step completed: {} with status: {} for partition {} and organization {}",
-                        partitionName, status, range, org == null ? 0 : org.getId()
+                        "Step completed: {} with status: {} for partition {} and organization ID {}",
+                        partitionName, status, range, orgId
                 );
 
                 return stepExecution.getExitStatus();

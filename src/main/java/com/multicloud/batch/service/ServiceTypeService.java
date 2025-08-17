@@ -1,11 +1,12 @@
 package com.multicloud.batch.service;
 
 import com.multicloud.batch.enums.CloudProvider;
-import com.multicloud.batch.repository.ServiceTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,15 +23,17 @@ public class ServiceTypeService {
 
     private final Map<ServiceTypeGroup, String> SERVICE_TYPE_MAP = new ConcurrentHashMap<>();
 
-    private final ServiceTypeRepository serviceTypeRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public void fetchAndStoreServiceTypeMap() {
 
         SERVICE_TYPE_MAP.clear();
 
-        serviceTypeRepository.findAll().forEach(serviceType -> SERVICE_TYPE_MAP.put(
-                new ServiceTypeGroup(serviceType.getCode(), serviceType.getCloudProvider()),
-                serviceType.getParentCategory())
+        findAllServiceTypes().forEach(serviceType -> SERVICE_TYPE_MAP.put(
+                new ServiceTypeGroup(
+                        serviceType.code(), CloudProvider.valueOf(serviceType.cloudProvider())
+                ),
+                serviceType.parentCategory())
         );
 
     }
@@ -39,7 +42,22 @@ public class ServiceTypeService {
         return SERVICE_TYPE_MAP.get(new ServiceTypeGroup(code, provider));
     }
 
+    private List<ServiceType> findAllServiceTypes() {
+
+        return jdbcTemplate.query(
+                "SELECT code, cloud_provider, parent_category FROM service_types",
+                (rs, rowNum) -> new ServiceType(
+                        rs.getString("code"),
+                        rs.getString("cloud_provider"),
+                        rs.getString("parent_category")
+                )
+        );
+    }
+
     private record ServiceTypeGroup(String code, CloudProvider provider) {
+    }
+
+    public record ServiceType(String code, String cloudProvider, String parentCategory) {
     }
 
 }

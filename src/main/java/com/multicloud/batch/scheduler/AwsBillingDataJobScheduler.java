@@ -28,8 +28,8 @@ public class AwsBillingDataJobScheduler {
     private final JobService jobService;
     private final Job awsBillingDataJob;
 
-//    @Async
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Async
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runAwsBillingDataJob() throws Exception {
 
         Thread.sleep(5000);
