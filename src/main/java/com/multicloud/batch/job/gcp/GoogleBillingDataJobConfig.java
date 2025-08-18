@@ -3,6 +3,7 @@ package com.multicloud.batch.job.gcp;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dao.google.GoogleBillingService;
+import com.multicloud.batch.dto.CloudConfigDTO;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
@@ -86,15 +87,19 @@ public class GoogleBillingDataJobConfig {
                 throw new RuntimeException("Invalid organization ID...");
             }
 
-            Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
+            Optional<CloudConfigDTO> cloudConfig = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
                     orgId, CloudProvider.GCP
             );
 
-            if (secretARN.isEmpty()) {
+            if (cloudConfig.isEmpty()) {
                 throw new RuntimeException("GCP config not found for organization ID: " + orgId);
             }
 
-            SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
+            if (cloudConfig.get().disabled()) {
+                throw new RuntimeException("GCP config is disabled for organization ID: " + orgId);
+            }
+
+            SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN());
 
             if (secret == null) {
                 throw new RuntimeException("GCP secret not found for organization ID: " + orgId);

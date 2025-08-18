@@ -5,6 +5,7 @@ import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dao.huawei.HuaweiAuthService;
 import com.multicloud.batch.dao.huawei.HuaweiBillingService;
 import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
+import com.multicloud.batch.dto.CloudConfigDTO;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
@@ -79,15 +80,19 @@ public class HuaweiBillingDataJobConfig {
                         throw new RuntimeException("Invalid organization ID...");
                     }
 
-                    Optional<String> secretARN = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
+                    Optional<CloudConfigDTO> cloudConfig = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
                             orgId, CloudProvider.HWC
                     );
 
-                    if (secretARN.isEmpty()) {
+                    if (cloudConfig.isEmpty()) {
                         throw new RuntimeException("Huawei config not found for organization ID: " + orgId);
                     }
 
-                    SecretPayload secret = awsSecretsManagerService.getSecret(secretARN.get());
+                    if (cloudConfig.get().disabled()) {
+                        throw new RuntimeException("Huawei config is disabled for organization ID: " + orgId);
+                    }
+
+                    SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN());
 
                     if (secret == null) {
                         throw new RuntimeException("Huawei secret not found for organization ID: " + orgId);
