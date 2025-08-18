@@ -40,8 +40,10 @@ spring:
     init:
       mode: always
 
-  aws:
-    access_key:
-    secret_key:
-    region: ap-south-1
-    profile: default
+#============ AWS Credentials ============
+aws:
+  access_key:
+  secret_key:
+  session_token:
+  region: eu-west-1
+  profile:

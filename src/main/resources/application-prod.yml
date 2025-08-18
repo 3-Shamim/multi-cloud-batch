@@ -39,3 +39,11 @@ spring:
   sql:
     init:
       mode: never
+
+#============ AWS Credentials ============
+aws:
+  access_key:
+  secret_key:
+  session_token:
+  region: eu-west-1
+  profile:

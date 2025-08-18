@@ -17,15 +17,19 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 @Configuration
 public class AwsConfig {
 
-    @Value("${aws.access_key:null}")
-    private String accessKey;
-    @Value("${aws.secret_key:null}")
-    private String secretKey;
+    // The default value is empty for all fields
 
-    @Value("${aws.region:null}")
+    @Value(value = "${aws.access_key:}")
+    private String accessKey;
+    @Value(value = "${aws.secret_key:}")
+    private String secretKey;
+    @Value(value = "${aws.session_token:}")
+    private String sessionToken;
+
+    @Value(value = "${aws.region:}")
     private String region;
 
-    @Value("${aws.profile:default}")
+    @Value(value = "${aws.profile:}")
     private String profile;
 
     @Bean
@@ -34,8 +38,15 @@ public class AwsConfig {
         AwsCredentialsProvider provider;
 
         if (StringUtils.hasText(accessKey) && StringUtils.hasText(secretKey)) {
-            AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
-            provider = StaticCredentialsProvider.create(credentials);
+
+            if (StringUtils.hasText(sessionToken)) {
+                AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKey, secretKey, sessionToken);
+                provider = StaticCredentialsProvider.create(credentials);
+            } else {
+                AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+                provider = StaticCredentialsProvider.create(credentials);
+            }
+
         } else if (StringUtils.hasText(profile)) {
             provider = ProfileCredentialsProvider.create(profile);
         } else {
