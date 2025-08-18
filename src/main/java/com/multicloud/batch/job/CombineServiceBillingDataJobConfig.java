@@ -175,7 +175,7 @@ public class CombineServiceBillingDataJobConfig {
         LocalDate startDate;
         LocalDate endDate = LocalDate.now();
 
-        if (!stepEverCompleted) {
+        if (stepEverCompleted) {
             startDate = endDate.minusDays(7);
         } else {
             startDate = LocalDate.parse("2024-01-01");
