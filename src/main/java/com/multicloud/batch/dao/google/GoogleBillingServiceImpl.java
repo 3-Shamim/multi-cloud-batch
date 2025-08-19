@@ -7,6 +7,7 @@ import com.multicloud.batch.repository.GcpBillingDailyCostRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -28,7 +29,7 @@ import java.util.List;
 @Service
 public class GoogleBillingServiceImpl implements GoogleBillingService {
 
-    private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
     private final GcpBillingDailyCostRepository gcpBillingDailyCostRepository;
 
     @Override
@@ -113,7 +114,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                     // Save each batch
                     // Clean before the next
                     log.info("Upserting {} fetched GCP records into DB.", billings.size());
-                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate);
                     billings.clear();
 
                 }
@@ -121,7 +122,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             }
 
             log.info("Upserting {} fetched GCP records into DB.", billings.size());
-            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, entityManager);
+            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate);
             billings.clear();
 
             log.info("GCP billing data fetched and stored successfully. Total results: {}", count);

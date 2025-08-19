@@ -4,6 +4,7 @@ import com.multicloud.batch.model.AwsBillingDailyCost;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -19,11 +20,7 @@ import java.util.List;
 @Repository
 public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingDailyCost, Long> {
 
-    default void upsertAwsBillingDailyCosts(List<AwsBillingDailyCost> bills, EntityManager entityManager) {
-
-        if (bills == null || bills.isEmpty()) {
-            return;
-        }
+    default void upsertAwsBillingDailyCosts(List<AwsBillingDailyCost> bills, JdbcTemplate jdbcTemplate) {
 
         String sql = """
                     INSERT INTO aws_billing_daily_costs
@@ -43,31 +40,27 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                         net_cost = VALUES(net_cost)
                 """;
 
-        Query query = entityManager.createNativeQuery(sql);
-
-        for (AwsBillingDailyCost b : bills) {
-            query.setParameter(1, b.getOrganizationId());
-            query.setParameter(2, b.getUsageDate());
-            query.setParameter(3, b.getPayerAccountId());
-            query.setParameter(4, b.getUsageAccountId());
-            query.setParameter(5, b.getServiceCode());
-            query.setParameter(6, b.getServiceName());
-            query.setParameter(7, b.getSkuId());
-            query.setParameter(8, b.getSkuDescription());
-            query.setParameter(9, b.getRegion());
-            query.setParameter(10, b.getLocation());
-            query.setParameter(11, b.getCurrency());
-            query.setParameter(12, b.getPricingType());
-            query.setParameter(13, b.getBillingType());
-            query.setParameter(14, b.getUsageType());
-            query.setParameter(15, b.getUsageAmount() != null ? makeRound(b.getUsageAmount()) : null);
-            query.setParameter(16, b.getUsageUnit());
-            query.setParameter(17, b.getUnblendedCost() != null ? makeRound(b.getUnblendedCost()) : null);
-            query.setParameter(18, b.getBlendedCost() != null ? makeRound(b.getBlendedCost()) : null);
-            query.setParameter(19, b.getNetCost() != null ? makeRound(b.getNetCost()) : null);
-
-            query.executeUpdate();
-        }
+        jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
+            ps.setLong(1, bill.getOrganizationId());
+            ps.setDate(2, java.sql.Date.valueOf(bill.getUsageDate()));
+            ps.setString(3, bill.getPayerAccountId());
+            ps.setString(4, bill.getUsageAccountId());
+            ps.setString(5, bill.getServiceCode());
+            ps.setString(6, bill.getServiceName());
+            ps.setString(7, bill.getSkuId());
+            ps.setString(8, bill.getSkuDescription());
+            ps.setString(9, bill.getRegion());
+            ps.setString(10, bill.getLocation());
+            ps.setString(11, bill.getCurrency());
+            ps.setString(12, bill.getPricingType());
+            ps.setString(13, bill.getBillingType());
+            ps.setString(14, bill.getUsageType());
+            ps.setBigDecimal(15, bill.getUsageAmount());
+            ps.setString(16, bill.getUsageUnit());
+            ps.setBigDecimal(17, bill.getUnblendedCost());
+            ps.setBigDecimal(18, bill.getBlendedCost());
+            ps.setBigDecimal(19, bill.getNetCost());
+        });
     }
 
     private static BigDecimal makeRound(BigDecimal value) {

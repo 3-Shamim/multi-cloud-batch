@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -29,7 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
-    private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
     private final RestTemplate restTemplate;
 
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
@@ -39,7 +40,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
         doRequest(orgId, range, authDetails, 0, data);
-        huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), entityManager);
+        huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), jdbcTemplate);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 

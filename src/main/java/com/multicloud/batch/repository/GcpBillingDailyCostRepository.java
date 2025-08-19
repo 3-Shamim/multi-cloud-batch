@@ -1,9 +1,8 @@
 package com.multicloud.batch.repository;
 
 import com.multicloud.batch.model.GcpBillingDailyCost;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -19,7 +18,7 @@ import java.util.List;
 @Repository
 public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingDailyCost, Long> {
 
-    default void upsertGcpBillingDailyCosts(List<GcpBillingDailyCost> bills, EntityManager entityManager) {
+    default void upsertGcpBillingDailyCosts(List<GcpBillingDailyCost> bills, JdbcTemplate jdbcTemplate) {
 
         if (bills == null || bills.isEmpty()) {
             return;
@@ -40,29 +39,25 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                         credits = VALUES(credits)
                 """;
 
-        Query query = entityManager.createNativeQuery(sql);
-
-        for (GcpBillingDailyCost b : bills) {
-            query.setParameter(1, b.getOrganizationId());
-            query.setParameter(2, b.getUsageDate());
-            query.setParameter(3, b.getBillingAccountId());
-            query.setParameter(4, b.getProjectId());
-            query.setParameter(5, b.getProjectName());
-            query.setParameter(6, b.getServiceCode());
-            query.setParameter(7, b.getServiceName());
-            query.setParameter(8, b.getSkuId());
-            query.setParameter(9, b.getSkuDescription());
-            query.setParameter(10, b.getRegion());
-            query.setParameter(11, b.getLocation());
-            query.setParameter(12, b.getCurrency());
-            query.setParameter(13, b.getCostType());
-            query.setParameter(14, b.getUsageAmount());
-            query.setParameter(15, b.getUsageUnit());
-            query.setParameter(16, b.getCost() != null ? makeRound(b.getCost()) : null);
-            query.setParameter(17, b.getCredits() != null ? makeRound(b.getCredits()) : null);
-
-            query.executeUpdate();
-        }
+        jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
+            ps.setLong(1, bill.getOrganizationId());
+            ps.setDate(2, java.sql.Date.valueOf(bill.getUsageDate()));
+            ps.setString(3, bill.getBillingAccountId());
+            ps.setString(4, bill.getProjectId());
+            ps.setString(5, bill.getProjectName());
+            ps.setString(6, bill.getServiceCode());
+            ps.setString(7, bill.getServiceName());
+            ps.setString(8, bill.getSkuId());
+            ps.setString(9, bill.getSkuDescription());
+            ps.setString(10, bill.getRegion());
+            ps.setString(11, bill.getLocation());
+            ps.setString(12, bill.getCurrency());
+            ps.setString(13, bill.getCostType());
+            ps.setBigDecimal(14, bill.getUsageAmount());
+            ps.setString(15, bill.getUsageUnit());
+            ps.setBigDecimal(16, bill.getCost());
+            ps.setBigDecimal(17, bill.getCredits());
+        });
 
     }
 

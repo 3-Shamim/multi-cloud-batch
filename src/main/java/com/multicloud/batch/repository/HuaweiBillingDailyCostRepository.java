@@ -1,9 +1,8 @@
 package com.multicloud.batch.repository;
 
 import com.multicloud.batch.model.HuaweiBillingDailyCost;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -19,7 +18,7 @@ import java.util.Collection;
 @Repository
 public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBillingDailyCost, Long> {
 
-    default void upsertHuaweiBillingDailyCosts(Collection<HuaweiBillingDailyCost> bills, EntityManager entityManager) {
+    default void upsertHuaweiBillingDailyCosts(Collection<HuaweiBillingDailyCost> bills, JdbcTemplate jdbcTemplate) {
 
         if (bills == null || bills.isEmpty()) {
             return;
@@ -48,34 +47,30 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         coupon_amount = VALUES(coupon_amount)
                 """;
 
-        Query query = entityManager.createNativeQuery(sql);
-
-        for (HuaweiBillingDailyCost b : bills) {
-            query.setParameter(1, b.getOrganizationId());
-            query.setParameter(2, b.getBillDate());
-            query.setParameter(3, b.getPayerAccountId());
-            query.setParameter(4, b.getCustomerId());
-            query.setParameter(5, b.getEnterpriseProjectId());
-            query.setParameter(6, b.getEnterpriseProjectName());
-            query.setParameter(7, b.getCloudServiceType());
-            query.setParameter(8, b.getCloudServiceTypeName());
-            query.setParameter(9, b.getSkuCode());
-            query.setParameter(10, b.getProductSpecDesc());
-            query.setParameter(11, b.getResourceTypeCode());
-            query.setParameter(12, b.getResourceTypeName());
-            query.setParameter(13, b.getResourceName());
-            query.setParameter(14, b.getRegion());
-            query.setParameter(15, b.getRegionName());
-            query.setParameter(16, b.getChargeMode());
-            query.setParameter(17, b.getBillType());
-            query.setParameter(18, b.getUsageAmount() != null ? makeRound(b.getUsageAmount()) : null);
-            query.setParameter(19, b.getConsumeAmount() != null ? makeRound(b.getConsumeAmount()) : null);
-            query.setParameter(20, b.getOfficialAmount() != null ? makeRound(b.getOfficialAmount()) : null);
-            query.setParameter(21, b.getDiscountAmount() != null ? makeRound(b.getDiscountAmount()) : null);
-            query.setParameter(22, b.getCouponAmount() != null ? makeRound(b.getCouponAmount()) : null);
-
-            query.executeUpdate();
-        }
+        jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
+            ps.setLong(1, bill.getOrganizationId());
+            ps.setDate(2, java.sql.Date.valueOf(bill.getBillDate()));
+            ps.setString(3, bill.getPayerAccountId());
+            ps.setString(4, bill.getCustomerId());
+            ps.setString(5, bill.getEnterpriseProjectId());
+            ps.setString(6, bill.getEnterpriseProjectName());
+            ps.setString(7, bill.getCloudServiceType());
+            ps.setString(8, bill.getCloudServiceTypeName());
+            ps.setString(9, bill.getSkuCode());
+            ps.setString(10, bill.getProductSpecDesc());
+            ps.setString(11, bill.getResourceTypeCode());
+            ps.setString(12, bill.getResourceTypeName());
+            ps.setString(13, bill.getResourceName());
+            ps.setString(14, bill.getRegion());
+            ps.setString(15, bill.getRegionName());
+            ps.setInt(16, bill.getChargeMode());
+            ps.setInt(17, bill.getBillType());
+            ps.setBigDecimal(18, bill.getUsageAmount());
+            ps.setBigDecimal(19, bill.getConsumeAmount());
+            ps.setBigDecimal(20, bill.getOfficialAmount());
+            ps.setBigDecimal(21, bill.getDiscountAmount());
+            ps.setBigDecimal(22, bill.getCouponAmount());
+        });
 
     }
 

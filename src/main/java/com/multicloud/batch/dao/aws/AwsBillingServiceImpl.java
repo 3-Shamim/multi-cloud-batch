@@ -2,11 +2,11 @@ package com.multicloud.batch.dao.aws;
 
 import com.multicloud.batch.model.AwsBillingDailyCost;
 import com.multicloud.batch.repository.AwsBillingDailyCostRepository;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -43,7 +43,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "net_cost"
     };
 
-    private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
     private final AthenaService athenaService;
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
@@ -190,7 +190,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                             // Save each batch
                             // Clean before the next
                             log.info("Upserting {} fetched AWS records into DB.", results.size());
-                            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+                            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate);
                             results.clear();
                         }
 
@@ -206,7 +206,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         // Save the remaining records
         log.info("Upserting {} fetched AWS records into DB.", results.size());
-        awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, entityManager);
+        awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate);
         results.clear();
 
         return count;
