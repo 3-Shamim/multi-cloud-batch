@@ -26,8 +26,8 @@ public class CommonScheduler {
     private final JobService jobService;
     private final Job combineServiceBillingDataJob;
 
-//    @Async
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Async
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runCombineServiceBillingDataJob() throws Exception {
 
         if (jobService.isJobTrulyRunning(combineServiceBillingDataJob.getName())) {

@@ -9,16 +9,16 @@ package com.multicloud.batch.helper;
 public class ServiceLevelBillingSql {
 
     public static final String HUAWEI_SQL = """
-                SELECT bill_date             AS usage_date,
+                SELECT bill_date                                                  AS usage_date,
                     organization_id,
-                    'HWC'                    AS cloud_provider,
-                    payer_account_id         AS billing_account_id,
-                    customer_id              AS usage_account_id,
-                    customer_id              AS usage_account_name,
-                    cloud_service_type       AS service_code,
-                    cloud_service_type_name  AS service_name,
-                    CONVERT(bill_type, CHAR) AS billing_type,
-                    SUM(consume_amount)      AS cost
+                    'HWC'                                                         AS cloud_provider,
+                    payer_account_id                                              AS billing_account_id,
+                    customer_id                                                   AS usage_account_id,
+                    customer_id                                                   AS usage_account_name,
+                    cloud_service_type                                            AS service_code,
+                    cloud_service_type_name                                       AS service_name,
+                    CONVERT(bill_type, CHAR)                                      AS billing_type,
+                    SUM(COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)) AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ?
                 GROUP BY 1, 2, 3, 4, 6;
