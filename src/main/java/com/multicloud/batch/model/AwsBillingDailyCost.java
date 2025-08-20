@@ -25,7 +25,7 @@ import java.time.LocalDate;
                 name = "idx_uq_const",
                 columnNames = {
                         "organization_id", "usage_date", "payer_account_id", "usage_account_id", "service_code",
-                        "service_name", "sku_id", "sku_description", "region", "location", "billing_type", "usage_type"
+                        "sku_id", "region", "billing_type", "usage_type"
                 }
         ),
         indexes = {

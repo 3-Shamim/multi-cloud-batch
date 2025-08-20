@@ -44,19 +44,19 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                         -- Project Info
                         -- Usage Scop
                         COALESCE(t.project.id, 'UNKNOWN')                                AS project_id,
-                        COALESCE(t.project.name, 'UNKNOWN')                              AS project_name,
+                        COALESCE(MAX(t.project.name), 'UNKNOWN')                         AS project_name,
                 
                         -- Service
                         COALESCE(t.service.id, 'UNKNOWN')                                AS service_code,
-                        COALESCE(t.service.description, 'UNKNOWN')                       AS service_name,
+                        COALESCE(MAX(t.service.description), 'UNKNOWN')                  AS service_name,
                 
                         -- SKU
                         COALESCE(t.sku.id, 'UNKNOWN')                                    AS sku_id,
-                        COALESCE(t.sku.description, 'UNKNOWN')                           AS sku_description,
+                        COALESCE(MAX(t.sku.description), 'UNKNOWN')                      AS sku_description,
                 
                         -- Region & Location
                         COALESCE(t.location.region, 'UNKNOWN')                           AS region,
-                        COALESCE(t.location.location, 'UNKNOWN')                         AS location,
+                        COALESCE(MAX(t.location.location), 'UNKNOWN')                    AS location,
                 
                         -- Currency & Usage & Cost
                         COALESCE(MAX(t.currency), 'UNKNOWN')                             AS currency,
@@ -74,7 +74,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 
                     FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*` AS t
                     WHERE _PARTITIONDATE BETWEEN ':start_date' AND ':end_date'
-                    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12
+                    GROUP BY 1, 2, 3, 5, 7, 9, 12
                 """;
 
         query = query

@@ -31,6 +31,9 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
                     VALUES
                     (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
+                        service_name = VALUES(service_name),
+                        sku_description = VALUES(sku_description),
+                        location = VALUES(location),
                         currency = VALUES(currency),
                         pricing_type = VALUES(pricing_type),
                         usage_amount = VALUES(usage_amount),

@@ -79,27 +79,15 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 
                     -- Service
                     COALESCE(product_servicecode, 'UNKNOWN')                                 AS service_code,
-                    IF(
-                        product_servicename IS NOT NULL,
-                        CONCAT('"', product_servicename, '"'),
-                        'UNKNOWN'
-                    )                                                                        AS service_name,
+                    CONCAT('"', COALESCE(MAX(product_servicename), 'UNKNOWN'), '"')          AS service_name,
                 
                     -- SKU
                     COALESCE(product_sku, 'UNKNOWN')                                         AS sku_id,
-                    IF(
-                        product_description IS NOT NULL,
-                        CONCAT('"', product_description, '"'),
-                        'UNKNOWN'
-                    )                                                                        AS sku_description,
+                    CONCAT('"', COALESCE(MAX(product_description), 'UNKNOWN'), '"')          AS sku_description,
                 
                     -- Region & Location
                     COALESCE(product_region, 'UNKNOWN')                                      AS region,
-                    IF(
-                        product_location IS NOT NULL,
-                        CONCAT('"', product_location, '"'),
-                        'UNKNOWN'
-                    )                                                                        AS location,
+                    CONCAT('"', COALESCE(MAX(product_location), 'UNKNOWN'), '"')             AS location,
                 
                     -- Currency & Usage & Cost
                     COALESCE(MAX(line_item_currency_code), 'UNKNOWN')                        AS currency,
@@ -117,7 +105,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 FROM %s
                 WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
-                GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13
+                GROUP BY 1, 2, 3, 4, 6, 8, 12, 13
                 """.formatted("athena", year, year, month, start, end);
 
         String bucket = "azerion-athena-results";

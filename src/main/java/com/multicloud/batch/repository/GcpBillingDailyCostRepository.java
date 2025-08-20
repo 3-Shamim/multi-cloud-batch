@@ -32,6 +32,10 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                     VALUES
                     (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
+                        project_name = VALUES(project_name),
+                        service_name = VALUES(service_name),
+                        sku_description = VALUES(sku_description),
+                        location = VALUES(location),
                         currency = VALUES(currency),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),

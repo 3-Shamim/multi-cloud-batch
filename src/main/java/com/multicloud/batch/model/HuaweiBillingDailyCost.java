@@ -40,7 +40,8 @@ import java.time.LocalDate;
                 @Index(
                         name = "idx_project_service",
                         columnList = """
-                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type, bill_type
+                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type,
+                                    bill_type
                                 """
                 )
         }
@@ -67,7 +68,9 @@ public class HuaweiBillingDailyCost {
     @Column(name = "customer_id", nullable = false, length = 64)
     private String customerId;
 
-    @Column(name = "enterprise_project_id")
+    // 0: ID of a default project
+    // null: The service does not support enterprise project management.
+    @Column(name = "enterprise_project_id", length = 64)
     private String enterpriseProjectId;
     @Column(name = "enterprise_project_name")
     private String enterpriseProjectName;
