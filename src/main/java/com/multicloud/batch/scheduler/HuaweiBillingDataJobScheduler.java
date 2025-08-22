@@ -2,6 +2,7 @@ package com.multicloud.batch.scheduler;
 
 import com.multicloud.batch.service.JobService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit;
  * Email: shamim.molla@vivasoftltd.com
  */
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class HuaweiBillingDataJobScheduler {
@@ -30,9 +32,8 @@ public class HuaweiBillingDataJobScheduler {
     @Scheduled(cron = "${batch_job.huawei_billing_data}")
     public void runHuaweiBillingDataJob() throws Exception {
 
-        Thread.sleep(10000);
-
         if (jobService.isJobTrulyRunning(huaweiBillingDataJob.getName())) {
+            log.info("Skipping because the job is already running: {}", huaweiBillingDataJob.getName());
             return;
         }
 
