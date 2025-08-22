@@ -12,9 +12,9 @@ services:
     tty: true
     volumes:
       - "./mc-batch-logs:/app/logs"
-#    networks:
-#      - bridge_network
-    network_mode: host
+    networks:
+      - bridge_network
+    #    network_mode: host
     #    hostname: mc-batch
     environment:
       - PROFILES=${PROFILES}
