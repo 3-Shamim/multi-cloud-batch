@@ -26,8 +26,8 @@ public class HuaweiBillingDataJobScheduler {
     private final JobService jobService;
     private final Job huaweiBillingDataJob;
 
-//    @Async
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Async
+    @Scheduled(cron = "${batch_job.huawei_billing_data}")
     public void runHuaweiBillingDataJob() throws Exception {
 
         Thread.sleep(10000);

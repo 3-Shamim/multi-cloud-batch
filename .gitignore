@@ -35,6 +35,7 @@ build/
 logs/
 mc-logs/
 data/
+mc-batch-logs/
 
 /src/main/resources/credentials/
 

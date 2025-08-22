@@ -10,8 +10,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -26,8 +24,8 @@ public class GoogleBillingDataJobScheduler {
     private final JobService jobService;
     private final Job gcpBillingDataJob;
 
-//    @Async
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Async
+    @Scheduled(cron = "${batch_job.gcp_billing_data}")
     public void runGcpBillingDataJob() throws Exception {
 
         if (jobService.isJobTrulyRunning(gcpBillingDataJob.getName())) {

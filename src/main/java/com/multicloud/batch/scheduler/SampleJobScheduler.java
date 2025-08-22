@@ -24,7 +24,7 @@ public class SampleJobScheduler {
     private final Job sampleJob;
     private final Job partitionJob;
 
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS) // every minute
+//    @Scheduled(cron = "${batch_job.sample}") // every minute
     public void runSampleJob() throws Exception {
 
         JobParameters jobParameters = new JobParametersBuilder()

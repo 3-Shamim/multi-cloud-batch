@@ -42,8 +42,18 @@ spring:
 
 #============ AWS Credentials ============
 aws:
-  access_key:
-  secret_key:
-  session_token:
-  region: eu-west-1
-  profile:
+  access_key: ${AWS_ACCESS_KEY:}
+  secret_key: ${AWS_SECRET_KEY:}
+  session_token: ${AWS_SESSION_TOKEN:}
+  region: ${AWS_REGION:eu-west-1}
+  profile: ${AWS_PROFILE:}
+  secret:
+    prefix: ${AWS_SECRET_PREFIX:staging/azerion_mc/backend}
+
+#============ JOB Schedule ============
+batch_job:
+  aws_billing_data: '0 5 */2 * * *'
+  gcp_billing_data: '0 2 */2 * * *'
+  huawei_billing_data: '0 1 */2 * * *'
+  combined_billing: '0 30 */2 * * *'
+  sample: '0 0/5 * * * *'
