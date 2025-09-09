@@ -8,6 +8,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,10 +22,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@ConditionalOnProperty(name = "batch_job.combined_billing.enabled", havingValue = "true")
 public class CommonScheduler {
-
-    @Value("${batch_job.combined_billing.enabled}")
-    private boolean isCombinedBillingJobEnabled;
 
     private final JobLauncher jobLauncher;
     private final JobService jobService;
@@ -33,11 +32,6 @@ public class CommonScheduler {
     @Async
     @Scheduled(cron = "${batch_job.combined_billing.corn}")
     public void runCombineServiceBillingDataJob() throws Exception {
-
-        if (!isCombinedBillingJobEnabled) {
-            log.info("Skipping because the job is disabled: {}", combineServiceBillingDataJob.getName());
-            return;
-        }
 
         if (jobService.isJobTrulyRunning(combineServiceBillingDataJob.getName())) {
             log.info("Skipping because the job is already running: {}", combineServiceBillingDataJob.getName());

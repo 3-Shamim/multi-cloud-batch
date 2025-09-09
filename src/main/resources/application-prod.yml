@@ -64,6 +64,3 @@ batch_job:
   combined_billing:
     corn: '0 30 */2 * * *'
     enabled: true
-  sample:
-    corn: '0 0/5 * * * *'
-    enabled: false
