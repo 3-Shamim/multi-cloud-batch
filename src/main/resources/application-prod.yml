@@ -52,8 +52,18 @@ aws:
 
 #============ JOB Schedule ============
 batch_job:
-  aws_billing_data: '0 5 */2 * * *'
-  gcp_billing_data: '0 2 */2 * * *'
-  huawei_billing_data: '0 1 */2 * * *'
-  combined_billing: '0 30 */2 * * *'
-  sample: '0 0/5 * * * *'
+  aws_billing_data:
+    corn: '0 5 */2 * * *'
+    enabled: true
+  gcp_billing_data:
+    corn: '0 2 */2 * * *'
+    enabled: true
+  huawei_billing_data:
+    corn: '0 1 */2 * * *'
+    enabled: true
+  combined_billing:
+    corn: '0 30 */2 * * *'
+    enabled: true
+  sample:
+    corn: '0 0/5 * * * *'
+    enabled: false
