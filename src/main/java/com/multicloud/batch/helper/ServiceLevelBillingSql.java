@@ -21,7 +21,7 @@ public class ServiceLevelBillingSql {
                     SUM(COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)) AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ?
-                GROUP BY 1, 2, 3, 4, 6;
+                GROUP BY 1, 2, 3, 4, 5, 7, 9;
             """;
 
     public static final String GCP_SQL = """
@@ -37,7 +37,7 @@ public class ServiceLevelBillingSql {
                     SUM(cost)    AS cost
                 FROM gcp_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
-                GROUP BY 1, 2, 3, 4, 6;
+                GROUP BY 1, 2, 3, 4, 5, 7, 9;
             """;
 
 
@@ -54,7 +54,7 @@ public class ServiceLevelBillingSql {
                     SUM(unblended_cost) AS cost
                 FROM aws_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
-                GROUP BY 1, 2, 3, 4, 6;
+                GROUP BY 1, 2, 3, 4, 5, 7, 9;
             """;
 
     public static final String UPSERT_SQL = """
