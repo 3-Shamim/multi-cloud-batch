@@ -25,14 +25,14 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_slb",
                 columnNames = {
-                        "organization_id", "cloud_provider", "usage_date", "billing_account_id", "usage_account_id",
-                        "service_code", "billing_type"
+                        "usage_date", "organization_id", "cloud_provider", "billing_account_id", "usage_account_id",
+                        "service_code"
                 }
         ),
         indexes = {
+                @Index(name = "idx_usage_date", columnList = "usage_date"),
                 @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_cloud_provider", columnList = "cloud_provider"),
-                @Index(name = "idx_usage_date", columnList = "usage_date"),
                 @Index(name = "idx_payer_account_id", columnList = "billing_account_id"),
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
@@ -73,13 +73,13 @@ public class ServiceLevelBilling {
     @Column(name = "service_name", nullable = false, length = 200)
     private String serviceName;
 
-    @Column(name = "billing_type", length = 50)
-    private String billingType;
-
     @Column(name = "parent_category", length = 200)
     private String parentCategory;
 
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
+
+    @Column(precision = 20, scale = 8)
+    private BigDecimal tax;
 
 }

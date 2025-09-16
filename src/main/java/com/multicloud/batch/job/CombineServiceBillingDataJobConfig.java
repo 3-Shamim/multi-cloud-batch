@@ -204,8 +204,8 @@ public class CombineServiceBillingDataJobConfig {
                 .usageAccountName(rs.getString("usage_account_name"))
                 .serviceCode(rs.getString("service_code"))
                 .serviceName(rs.getString("service_name"))
-                .billingType(rs.getString("billing_type"))
                 .cost(rs.getBigDecimal("cost"))
+                .tax(rs.getBigDecimal("tax"))
                 .build());
 
         reader.afterPropertiesSet();
@@ -238,9 +238,9 @@ public class CombineServiceBillingDataJobConfig {
                         ps.setString(6, item.getUsageAccountName());
                         ps.setString(7, item.getServiceCode());
                         ps.setString(8, item.getServiceName());
-                        ps.setString(9, item.getBillingType());
-                        ps.setString(10, item.getParentCategory());
-                        ps.setBigDecimal(11, item.getCost());
+                        ps.setString(9, item.getParentCategory());
+                        ps.setBigDecimal(10, item.getCost());
+                        ps.setBigDecimal(11, item.getTax());
 
                     }
 
