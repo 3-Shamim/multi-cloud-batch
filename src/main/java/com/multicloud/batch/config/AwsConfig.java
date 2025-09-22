@@ -48,9 +48,9 @@ public class AwsConfig {
             }
 
         } else if (StringUtils.hasText(profile)) {
-            provider = ProfileCredentialsProvider.create(profile);
+            provider = ProfileCredentialsProvider.builder().profileName(profile).build();
         } else {
-            provider = DefaultCredentialsProvider.create();
+            provider = DefaultCredentialsProvider.builder().build();
         }
 
         return SecretsManagerClient.builder()
