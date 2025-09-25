@@ -10,11 +10,11 @@ import com.multicloud.batch.dao.aws.payload.SecretPayload;
 
 public interface AwsSecretsManagerService {
 
-    String createSecret(String name, SecretPayload secretPayload);
+    String createSecret(String name, SecretPayload secretPayload, boolean compress);
 
-    SecretPayload getSecret(String secretName);
+    SecretPayload getSecret(String secretName, boolean decompress);
 
-    void updateSecret(String secretName, SecretPayload secretPayload);
+    void updateSecret(String secretName, SecretPayload secretPayload, boolean compress);
 
     void deleteSecret(String secretName);
 

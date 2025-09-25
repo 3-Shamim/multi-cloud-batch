@@ -24,12 +24,11 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const",
                 columnNames = {
-                        "organization_id", "usage_date", "payer_account_id", "usage_account_id", "service_code",
+                        "usage_date", "payer_account_id", "usage_account_id", "service_code",
                         "sku_id", "region", "billing_type", "usage_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_usage_date", columnList = "usage_date"),
                 @Index(name = "idx_payer_account_id", columnList = "payer_account_id"),
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
@@ -38,7 +37,7 @@ import java.time.LocalDate;
                 @Index(
                         name = "idx_service_level",
                         columnList = """
-                                    organization_id, usage_date, payer_account_id, usage_account_id, service_code
+                                    usage_date, payer_account_id, usage_account_id, service_code
                                 """
                 )
         }
@@ -48,10 +47,6 @@ public class AwsBillingDailyCost {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // Multicloud organization ID
-    @Column(name = "organization_id", nullable = false)
-    private long organizationId;
 
     @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;

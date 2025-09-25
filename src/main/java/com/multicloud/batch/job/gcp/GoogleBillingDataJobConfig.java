@@ -101,7 +101,7 @@ public class GoogleBillingDataJobConfig {
                 throw new RuntimeException("GCP config is disabled for organization ID: " + orgId);
             }
 
-            SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN());
+            SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN(), true);
 
             if (secret == null) {
                 throw new RuntimeException("GCP secret not found for organization ID: " + orgId);

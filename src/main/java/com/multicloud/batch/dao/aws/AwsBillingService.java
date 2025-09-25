@@ -11,7 +11,7 @@ import java.time.LocalDate;
 public interface AwsBillingService {
 
     void syncDailyCostUsageFromAthena(
-            long organizationId, String accessKey, String secretKey, String region, LocalDate start, LocalDate end
+            String accessKey, String secretKey, String region, LocalDate start, LocalDate end
     );
 
 }

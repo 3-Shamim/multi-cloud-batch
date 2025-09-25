@@ -3,16 +3,12 @@ package com.multicloud.batch.job.aws;
 import com.multicloud.batch.dao.aws.AwsBillingService;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import com.multicloud.batch.dao.aws.payload.SecretPayload;
-import com.multicloud.batch.dto.CloudConfigDTO;
-import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
-import com.multicloud.batch.model.DataSyncHistory;
-import com.multicloud.batch.repository.DataSyncHistoryRepository;
-import com.multicloud.batch.service.CloudConfigService;
+import com.multicloud.batch.model.AwsDataSyncHistory;
+import com.multicloud.batch.repository.AwsDataSyncHistoryRepository;
 import com.multicloud.batch.service.SecretPayloadStoreService;
-import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -23,6 +19,7 @@ import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,18 +43,23 @@ import static java.util.Objects.requireNonNull;
 @ConditionalOnProperty(name = "batch_job.aws_billing_data.enabled", havingValue = "true")
 public class AwsBillingDataJobConfig {
 
+    private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
+    private static final String JOB_NAME = "awsBillingDataJob";
+
+    @Value("${batch_job.aws_billing_data.secret_path}")
+    private String awsSecretPath;
+
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
-    private final DataSyncHistoryRepository dataSyncHistoryRepository;
-    private final CloudConfigService cloudConfigService;
+    private final AwsDataSyncHistoryRepository awsDataSyncHistoryRepository;
     private final SecretPayloadStoreService secretPayloadStoreService;
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final AwsBillingService awsBillingService;
 
     @Bean
     public Job awsBillingDataJob() {
-        return new JobBuilder("awsBillingDataJob", jobRepository)
+        return new JobBuilder(JOB_NAME, jobRepository)
                 .start(awsBillingDataMasterStep())
                 .build();
     }
@@ -78,40 +80,23 @@ public class AwsBillingDataJobConfig {
 
         return gridSize -> {
 
-            StepExecution stepExecution = requireNonNull(
-                    StepSynchronizationManager.getContext()
-            ).getStepExecution();
+            SecretPayload secretPayload = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
-            JobParameters jobParameters = stepExecution.getJobParameters();
-            Long orgId = jobParameters.getLong("orgId");
+            if (secretPayload == null) {
 
-            if (orgId == null || orgId < 1) {
-                throw new RuntimeException("Invalid organization ID...");
+                SecretPayload secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
+
+                if (secret == null) {
+                    throw new RuntimeException("AWS secret not found");
+                }
+
+                // Store secret
+                secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
+
             }
-
-            Optional<CloudConfigDTO> cloudConfig = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
-                    orgId, CloudProvider.AWS
-            );
-
-            if (cloudConfig.isEmpty()) {
-                throw new RuntimeException("AWS config not found for organization ID: " + orgId);
-            }
-
-            if (cloudConfig.get().disabled()) {
-                throw new RuntimeException("AWS config is disabled for organization ID: " + orgId);
-            }
-
-            SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN());
-
-            if (secret == null) {
-                throw new RuntimeException("AWS secret not found for organization ID: " + orgId);
-            }
-
-            // Store secret
-            secretPayloadStoreService.put(Util.getProviderStoreKey(orgId, CloudProvider.AWS), secret);
 
             // Partition calculation
-            boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.AWS);
+            boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME);
 
             long days = ChronoUnit.DAYS.between(
                     LocalDate.parse("2025-01-01"), LocalDate.now()
@@ -132,18 +117,17 @@ public class AwsBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
                 i++;
             }
 
-            List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.AWS, LastSyncStatus.FAIL, 5
+            List<AwsDataSyncHistory> failList = awsDataSyncHistoryRepository.findAllByJobNameAndTableNameAndLastSyncStatusAndFailCountLessThan(
+                    JOB_NAME, "athena", LastSyncStatus.FAIL, 3
             );
 
-            for (DataSyncHistory item : failList) {
+            for (AwsDataSyncHistory item : failList) {
 
                 CustomDateRange dateRange = new CustomDateRange(
                         item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
@@ -157,7 +141,6 @@ public class AwsBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -178,18 +161,15 @@ public class AwsBillingDataJobConfig {
                     ).getStepExecution();
 
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                    Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                    if (range != null && orgId != null) {
+                    if (range != null) {
 
-                        log.info("Processing aws billing for partition {} and organization ID {}", range, orgId);
+                        log.info("Processing aws billing for partition {}", range);
 
-                        SecretPayload secret = secretPayloadStoreService.get(
-                                Util.getProviderStoreKey(orgId, CloudProvider.AWS)
-                        );
+                        SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                         awsBillingService.syncDailyCostUsageFromAthena(
-                                orgId, secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
+                                secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
                                 range.start(), range.end()
                         );
 
@@ -210,16 +190,11 @@ public class AwsBillingDataJobConfig {
             public void beforeStep(StepExecution stepExecution) {
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && orgId != null) {
-
-                    log.info(
-                            "Starting step: {} for partition {} and organization ID {}",
-                            stepExecution.getStepName(), range, orgId
-                    );
-
+                if (range != null) {
+                    log.info("Starting step: {} for partition {}", stepExecution.getStepName(), range);
                 }
+
             }
 
             @Override
@@ -230,20 +205,17 @@ public class AwsBillingDataJobConfig {
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
                     stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error(
-                                    "Exception in step {}: ", partitionName, ex
-                            ));
+                            .forEach(ex -> log.error("Exception in step {}: ", partitionName, ex));
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && orgId != null) {
+                if (range != null) {
 
-                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                            orgId, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
-                    ).orElse(new DataSyncHistory(
-                            orgId, CloudProvider.AWS, "awsBillingDataJob", range.start(), range.end()
+                    AwsDataSyncHistory sync = awsDataSyncHistoryRepository.findByJobNameAndTableNameAndStartAndEnd(
+                            JOB_NAME, "athena", range.start(), range.end()
+                    ).orElse(new AwsDataSyncHistory(
+                            JOB_NAME, "athena", range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -253,14 +225,11 @@ public class AwsBillingDataJobConfig {
                         sync.setFailCount(sync.getFailCount() + 1);
                     }
 
-                    dataSyncHistoryRepository.save(sync);
+                    awsDataSyncHistoryRepository.save(sync);
 
                 }
 
-                log.info(
-                        "Step completed: {} with status: {} for partition {} and organization ID {}",
-                        partitionName, status, range, orgId
-                );
+                log.info("Step completed: {} with status: {} for partition {}", partitionName, status, range);
 
                 return stepExecution.getExitStatus();
             }

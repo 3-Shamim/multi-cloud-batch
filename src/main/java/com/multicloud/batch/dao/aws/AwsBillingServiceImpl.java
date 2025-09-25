@@ -48,7 +48,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
     @Override
-    public void syncDailyCostUsageFromAthena(long organizationId, String accessKey, String secretKey, String region,
+    public void syncDailyCostUsageFromAthena(String accessKey, String secretKey, String region,
                                              LocalDate start, LocalDate end) {
 
         StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
@@ -103,10 +103,10 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(COALESCE(SUM(line_item_net_unblended_cost), 0) AS DECIMAL(20, 8))   AS net_cost
                 
                 FROM %s
-                WHERE (CAST(year AS INTEGER) > %d OR (CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d))
+                WHERE CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
                 GROUP BY 1, 2, 3, 4, 6, 8, 12, 13
-                """.formatted("athena", year, year, month, start, end);
+                """.formatted("athena", year, month, start, end);
 
         String bucket = "azerion-athena-results";
         String prefix = "azerion_mc";
@@ -124,13 +124,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
         athenaService.waitForQueryToComplete(executionId, athenaClient);
 
-        long totalResults = fetchResultsToUnloadedFileFromS3(organizationId, bucket, prefix, s3Client);
+        long totalResults = fetchResultsToUnloadedFileFromS3(bucket, prefix, s3Client);
 
         log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
 
     }
 
-    private long fetchResultsToUnloadedFileFromS3(long organizationId, String bucket, String prefix, S3Client s3Client) {
+    private long fetchResultsToUnloadedFileFromS3(String bucket, String prefix, S3Client s3Client) {
 
         ListObjectsV2Request s3Request = ListObjectsV2Request.builder()
                 .bucket(bucket)
@@ -171,7 +171,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
                     for (CSVRecord record : records) {
 
-                        results.add(bindRecord(record, organizationId));
+                        results.add(bindRecord(record));
                         count++;
 
                         if (results.size() == 5000) {
@@ -200,10 +200,9 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         return count;
     }
 
-    private AwsBillingDailyCost bindRecord(CSVRecord record, long organizationId) {
+    private AwsBillingDailyCost bindRecord(CSVRecord record) {
 
         return AwsBillingDailyCost.builder()
-                .organizationId(organizationId)
                 .usageDate(LocalDate.parse(record.get("usage_date")))
                 .payerAccountId(record.get("payer_account_id"))
                 .usageAccountId(record.get("usage_account_id"))

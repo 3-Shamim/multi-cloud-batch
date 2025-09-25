@@ -1,8 +1,8 @@
 package com.multicloud.batch.dao.aws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.multicloud.batch.util.Util;
 import com.multicloud.batch.dao.aws.payload.SecretPayload;
+import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -28,14 +28,17 @@ public class AwsSecretsManagerServiceImpl implements AwsSecretsManagerService {
     private final SecretsManagerClient secretsManagerClient;
 
     @Override
-    public String createSecret(String name, SecretPayload secretPayload) {
+    public String createSecret(String name, SecretPayload secretPayload, boolean compress) {
 
         String secret;
 
         try {
 
             secret = objectMapper.writeValueAsString(secretPayload);
-            secret = Util.compressValue(secret);
+
+            if (compress) {
+                secret = Util.compressValue(secret);
+            }
 
         } catch (IOException e) {
             log.error("Error while converting object to secret or during compression.", e);
@@ -53,7 +56,7 @@ public class AwsSecretsManagerServiceImpl implements AwsSecretsManagerService {
     }
 
     @Override
-    public  SecretPayload getSecret(String secretName) {
+    public SecretPayload getSecret(String secretName, boolean decompress) {
 
         GetSecretValueResponse response = secretsManagerClient.getSecretValue(
                 GetSecretValueRequest.builder().secretId(secretName).build()
@@ -62,7 +65,10 @@ public class AwsSecretsManagerServiceImpl implements AwsSecretsManagerService {
         try {
 
             String secret = response.secretString();
-            secret = Util.decompressValue(secret);
+
+            if (decompress) {
+                secret = Util.decompressValue(secret);
+            }
 
             return objectMapper.readValue(secret, SecretPayload.class);
         } catch (IOException e) {
@@ -73,14 +79,17 @@ public class AwsSecretsManagerServiceImpl implements AwsSecretsManagerService {
     }
 
     @Override
-    public void updateSecret(String secretName, SecretPayload secretPayload) {
+    public void updateSecret(String secretName, SecretPayload secretPayload, boolean compress) {
 
         String secret;
 
         try {
 
             secret = objectMapper.writeValueAsString(secretPayload);
-            secret = Util.compressValue(secret);
+
+            if (compress) {
+                secret = Util.compressValue(secret);
+            }
 
         } catch (IOException e) {
             log.error("Error while converting object to secret or during compression.", e);

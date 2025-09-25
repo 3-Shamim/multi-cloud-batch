@@ -39,7 +39,6 @@ public class AwsBillingDataJobScheduler {
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
-                .addLong("orgId", 1L)
                 .toJobParameters();
 
         jobLauncher.run(awsBillingDataJob, jobParameters);

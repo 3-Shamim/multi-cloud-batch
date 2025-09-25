@@ -94,7 +94,7 @@ public class HuaweiBillingDataJobConfig {
                         throw new RuntimeException("Huawei config is disabled for organization ID: " + orgId);
                     }
 
-                    SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN());
+                    SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN(), true);
 
                     if (secret == null) {
                         throw new RuntimeException("Huawei secret not found for organization ID: " + orgId);
