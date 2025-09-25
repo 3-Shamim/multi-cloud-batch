@@ -69,9 +69,6 @@ public class AwsBillingDailyCost {
     @Column(name = "sku_id", nullable = false, length = 32)
     private String skuId;
 
-    @Column(name = "sku_description", nullable = false, length = 512)
-    private String skuDescription;
-
     @Column(nullable = false, length = 32)
     private String region;
 

@@ -2,7 +2,6 @@
 //
 //import com.multicloud.batch.dao.aws.AthenaService;
 //import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
-//import com.multicloud.batch.dao.aws.payload.SecretPayload;
 //import lombok.RequiredArgsConstructor;
 //import lombok.extern.slf4j.Slf4j;
 //import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +38,8 @@
 ////    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
 ////    void storeSecrets() {
 ////
-//////        awsSecretsManagerService.deleteSecret("multicloud/billing/secrets/aws");
+//
+//    /// /        awsSecretsManagerService.deleteSecret("multicloud/billing/secrets/aws");
 ////
 ////        SecretPayload payload = new SecretPayload();
 ////        payload.setAccessKey("");
@@ -50,7 +50,7 @@
 ////
 ////    }
 //
-//    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
 //    void runAthenaQuery() {
 //
 //        StaticCredentialsProvider provider = StaticCredentialsProvider.create(
@@ -82,7 +82,7 @@
 //                """;
 //
 ////        query = "show tables";
-////        query = "select count(*) from cur_azul where month = '9' and year = '2025'";
+//        query = "select count(*) from cur_bbw where year = '2025'";
 ////        query = "select * from cur_azul where month = '9' and year = '2025' limit 1";
 ////        query = """
 ////            select distinct(billing_entity)

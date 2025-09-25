@@ -21,9 +21,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -39,8 +37,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final static String[] COLS = {
             "usage_date", "payer_account_id", "usage_account_id", "service_code", "service_name",
-            "sku_id", "sku_description", "region", "location", "currency", "pricing_type", "billing_type",
-            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "net_cost"
+            "sku_id", "region", "location", "currency", "pricing_type", "billing_type",
+            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost"
     };
 
     private final JdbcTemplate jdbcTemplate;
@@ -48,8 +46,42 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final AwsBillingDailyCostRepository awsBillingDailyCostRepository;
 
     @Override
-    public void syncDailyCostUsageFromAthena(String accessKey, String secretKey, String region,
-                                             LocalDate start, LocalDate end) {
+    public Set<String> tableListByDatabase(String database, String accessKey, String secretKey, String region) {
+
+        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKey, secretKey)
+        );
+
+        AthenaClient athenaClient = AthenaClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(Region.of(region))
+                .build();
+
+        String query = "SHOW TABLES";
+
+        String bucket = "azerion-athena-results";
+        String prefix = "azerion_mc";
+
+        String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
+
+        String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
+        athenaService.waitForQueryToComplete(executionId, athenaClient);
+
+        Set<String> tables = new HashSet<>();
+
+        athenaService.fetchQueryResults(executionId, athenaClient)
+                .forEach(res -> res.resultSet().rows()
+                        .forEach(row -> {
+                            tables.add(row.data().getFirst().varCharValue());
+                        }));
+
+        return tables;
+    }
+
+    @Override
+    public void syncInternalProjectDailyCostUsageFromAthena(String database, String tableName,
+                                                            String accessKey, String secretKey, String region,
+                                                            LocalDate start, LocalDate end) {
 
         StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(accessKey, secretKey)
@@ -83,7 +115,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 
                     -- SKU
                     COALESCE(product_sku, 'UNKNOWN')                                         AS sku_id,
-                    CONCAT('"', COALESCE(MAX(product_description), 'UNKNOWN'), '"')          AS sku_description,
                 
                     -- Region & Location
                     COALESCE(product_region, 'UNKNOWN')                                      AS region,
@@ -99,14 +130,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     MAX(pricing_unit)                                                        AS usage_unit,
                 
                     CAST(COALESCE(SUM(line_item_unblended_cost), 0) AS DECIMAL(20, 8))       AS unblended_cost,
-                    CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
-                    CAST(COALESCE(SUM(line_item_net_unblended_cost), 0) AS DECIMAL(20, 8))   AS net_cost
+                    CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost
                 
                 FROM %s
                 WHERE CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
-                GROUP BY 1, 2, 3, 4, 6, 8, 12, 13
-                """.formatted("athena", year, month, start, end);
+                GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
+                """.formatted(tableName, year, month, start, end);
 
         String bucket = "azerion-athena-results";
         String prefix = "azerion_mc";
@@ -116,7 +146,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         prefix = "%s/%s/%s".formatted(prefix, "unloaded_data", UUID.randomUUID().toString());
 
         String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
-        String database = "athenacurcfn_athena";
 
         // Wrap query for unload
         query = athenaService.wrapQueryWithUnloadCsvGzip(query, outputLocation);
@@ -209,7 +238,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))
                 .skuId(record.get("sku_id"))
-                .skuDescription(record.get("sku_description"))
                 .region(record.get("region"))
                 .location(record.get("location"))
                 .currency(record.get("currency"))
@@ -220,7 +248,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .usageUnit(record.get("usage_unit"))
                 .unblendedCost(parseBigDecimalSafe(record.get("unblended_cost")))
                 .blendedCost(parseBigDecimalSafe(record.get("blended_cost")))
-                .netCost(parseBigDecimalSafe(record.get("net_cost")))
                 .build();
     }
 

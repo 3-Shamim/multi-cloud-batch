@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Created by IntelliJ IDEA.
@@ -28,6 +29,10 @@ public interface AwsDataSyncHistoryRepository extends JpaRepository<AwsDataSyncH
 
     List<AwsDataSyncHistory> findAllByJobNameAndTableNameAndLastSyncStatusAndFailCountLessThan(
             String jobName, String tableName, LastSyncStatus lastSyncStatus, int failCount
+    );
+
+    List<AwsDataSyncHistory> findAllByJobNameAndTableNameInAndLastSyncStatusAndFailCountLessThan(
+            String jobName, Set<String> tables, LastSyncStatus lastSyncStatus, int failCount
     );
 
     Optional<AwsDataSyncHistory> findByJobNameAndTableNameAndStartAndEnd(

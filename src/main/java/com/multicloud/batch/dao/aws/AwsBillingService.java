@@ -1,6 +1,7 @@
 package com.multicloud.batch.dao.aws;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,8 +11,11 @@ import java.time.LocalDate;
 
 public interface AwsBillingService {
 
-    void syncDailyCostUsageFromAthena(
-            String accessKey, String secretKey, String region, LocalDate start, LocalDate end
+    Set<String> tableListByDatabase(String database, String accessKey, String secretKey, String region);
+
+    void syncInternalProjectDailyCostUsageFromAthena(
+            String databaseName, String tableName, String accessKey, String secretKey, String region,
+            LocalDate start, LocalDate end
     );
 
 }
