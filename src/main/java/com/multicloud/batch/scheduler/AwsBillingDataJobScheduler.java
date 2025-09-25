@@ -49,8 +49,8 @@ public class AwsBillingDataJobScheduler {
     }
 
     @Async
-//    @Scheduled(cron = "${batch_job.external_aws_billing_data.corn}")
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Scheduled(cron = "${batch_job.external_aws_billing_data.corn}")
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runExternalAwsBillingDataJob() throws Exception {
 
         if (jobService.isJobTrulyRunning(externalAwsBillingDataJob.getName())) {

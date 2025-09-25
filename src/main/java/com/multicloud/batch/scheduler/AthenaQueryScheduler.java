@@ -12,6 +12,7 @@
 //import software.amazon.awssdk.regions.Region;
 //import software.amazon.awssdk.services.athena.AthenaClient;
 //
+//import java.util.Set;
 //import java.util.concurrent.TimeUnit;
 //
 ///**
@@ -49,7 +50,6 @@
 ////        awsSecretsManagerService.createSecret("azerion_mc/billing/secrets/aws", payload, true);
 ////
 ////    }
-//
 //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
 //    void runAthenaQuery() {
 //
@@ -66,8 +66,8 @@
 //        String prefix = "azerion_mc";
 //
 //        String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
-//        String database = "abc_cur_exports";
-////        String database = "athenacurcfn_athena";
+//        String externalDB = "abc_cur_exports";
+//        String internalDB = "athenacurcfn_athena";
 //
 //        String query = """
 //                SELECT
@@ -82,7 +82,7 @@
 //                """;
 //
 ////        query = "show tables";
-//        query = "select count(*) from cur_bbw where year = '2025'";
+//        query = "select count(*) from %s where year = '2025'";
 ////        query = "select * from cur_azul where month = '9' and year = '2025' limit 1";
 ////        query = """
 ////            select distinct(billing_entity)
@@ -91,9 +91,26 @@
 ////            where month = '8' and year = '2025'
 ////        """;
 //
-//        String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, client);
-//        athenaService.waitForQueryToComplete(executionId, client);
-//        athenaService.printQueryResults(executionId, client);
+//        Set<String> externalTables = Set.of(
+//                "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",
+//                "cur_team_acity", "cur_team_apex", "cur_team_artemis", "cur_team_feig"
+//        );
+//
+//        Set<String> internalTables = Set.of("athena");
+//
+//        for (String table : internalTables) {
+//
+//            query = String.format("select count(*) from %s where year = '2025'", table);
+//
+//            String executionId = athenaService.submitAthenaQuery(query, outputLocation, internalDB, client);
+//            athenaService.waitForQueryToComplete(executionId, client);
+//
+//            System.out.println(table);
+//            athenaService.printQueryResults(executionId, client);
+//
+//            System.out.println();
+//
+//        }
 //
 //    }
 //
