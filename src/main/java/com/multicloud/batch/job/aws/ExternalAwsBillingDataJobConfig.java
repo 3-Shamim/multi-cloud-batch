@@ -20,7 +20,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "batch_job.external_aws_billing_data.enabled", havingValue = "true")
+@ConditionalOnExpression("${batch_job.external_aws_billing_data.enabled}")
 public class ExternalAwsBillingDataJobConfig {
 
     private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
@@ -88,7 +88,7 @@ public class ExternalAwsBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("AWS secret not found");
+                    throw new RuntimeException("AWS secret not found for external externalAwsBillingDataJob");
                 }
 
                 // Store secret
@@ -104,10 +104,10 @@ public class ExternalAwsBillingDataJobConfig {
             ) + 1;
 
             if (exist) {
-                days = 11;
+                days = 10;
             }
 
-            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 7);
+            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
 
             Set<UniqueStep> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
@@ -183,7 +183,7 @@ public class ExternalAwsBillingDataJobConfig {
 
                     if (range != null && tableName != null) {
 
-                        log.info("Processing aws billing for partition {} for table {}", range, tableName);
+                        log.info("Processing externalAwsBillingDataJob's partition {} for table {}", range, tableName);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
@@ -212,7 +212,10 @@ public class ExternalAwsBillingDataJobConfig {
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
 
                 if (range != null) {
-                    log.info("Starting step: {} for partition {}", stepExecution.getStepName(), range);
+                    log.info(
+                            "Starting externalAwsBillingDataJob's step: {} for partition {}",
+                            stepExecution.getStepName(), range
+                    );
                 }
 
             }
@@ -225,7 +228,9 @@ public class ExternalAwsBillingDataJobConfig {
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
                     stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error("Exception in step {}: ", partitionName, ex));
+                            .forEach(ex -> log.error(
+                                    "ExternalAwsBillingDataJob exception in step {}: ", partitionName, ex
+                            ));
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -250,7 +255,10 @@ public class ExternalAwsBillingDataJobConfig {
 
                 }
 
-                log.info("Step completed: {} with status: {} for partition {}", partitionName, status, range);
+                log.info(
+                        "ExternalAwsBillingDataJob step completed: {} with status: {} for partition {}",
+                        partitionName, status, range
+                );
 
                 return stepExecution.getExitStatus();
             }

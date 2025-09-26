@@ -20,7 +20,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "batch_job.aws_billing_data.enabled", havingValue = "true")
+@ConditionalOnExpression("${batch_job.aws_billing_data.enabled}")
 public class AwsBillingDataJobConfig {
 
     private static final String JOB_NAME = "awsBillingDataJob";
@@ -90,7 +90,7 @@ public class AwsBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("AWS secret not found");
+                    throw new RuntimeException("AWS secret not found for awsBillingDataJob");
                 }
 
                 // Store secret
@@ -170,7 +170,7 @@ public class AwsBillingDataJobConfig {
 
                     if (range != null) {
 
-                        log.info("Processing aws billing for partition {}", range);
+                        log.info("Processing partition {} for awsBillingDataJob", range);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
@@ -199,7 +199,10 @@ public class AwsBillingDataJobConfig {
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
 
                 if (range != null) {
-                    log.info("Starting step: {} for partition {}", stepExecution.getStepName(), range);
+                    log.info(
+                            "Starting awsBillingDataJob's step: {} for partition {}",
+                            stepExecution.getStepName(), range
+                    );
                 }
 
             }
@@ -212,7 +215,9 @@ public class AwsBillingDataJobConfig {
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
                     stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error("Exception in step {}: ", partitionName, ex));
+                            .forEach(ex -> log.error(
+                                    "AwsBillingDataJob exception in step {}: ", partitionName, ex
+                            ));
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -236,7 +241,7 @@ public class AwsBillingDataJobConfig {
 
                 }
 
-                log.info("Step completed: {} with status: {} for partition {}", partitionName, status, range);
+                log.info("AwsBillingDataJob step completed: {} with status: {} for partition {}", partitionName, status, range);
 
                 return stepExecution.getExitStatus();
             }
