@@ -81,8 +81,22 @@
 //                ORDER BY total_cost DESC
 //                """;
 //
+//        query = """
+//                SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
+//                    COALESCE(line_item_line_item_type, 'UNKNOWN')                            AS billing_type,
+//                    COUNT(*)                                                                 AS rows,
+//                    CAST(COALESCE(SUM(line_item_unblended_cost), 0) AS DECIMAL(20, 8))       AS unblended_cost
+//                FROM athena
+//                WHERE year = '2025' and month = '8'
+//                    AND product_servicecode = ''
+//                    AND DATE(line_item_usage_start_date) >= DATE '2025-08-01'
+//                    AND date(line_item_usage_start_date) <= DATE '2025-08-07'
+//                GROUP BY 1, 2
+//                ORDER BY 1;
+//                """;
+//
 ////        query = "show tables";
-//        query = "select count(*) from %s where year = '2025'";
+////        query = "select count(*) from %s where year = '2025'";
 ////        query = "select * from cur_azul where month = '9' and year = '2025' limit 1";
 ////        query = """
 ////            select distinct(billing_entity)
@@ -100,7 +114,7 @@
 //
 //        for (String table : internalTables) {
 //
-//            query = String.format("select count(*) from %s where year = '2025'", table);
+////            query = String.format("select count(*) from %s where year = '2025'", table);
 //
 //            String executionId = athenaService.submitAthenaQuery(query, outputLocation, internalDB, client);
 //            athenaService.waitForQueryToComplete(executionId, client);
@@ -115,3 +129,5 @@
 //    }
 //
 //}
+//
+//
