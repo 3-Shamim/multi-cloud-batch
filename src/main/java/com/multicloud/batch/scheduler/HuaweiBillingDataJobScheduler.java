@@ -7,6 +7,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "batch_job.huawei_billing_data.enabled", havingValue = "true")
+@ConditionalOnExpression("${batch_job.huawei_billing_data.enabled}")
 public class HuaweiBillingDataJobScheduler {
 
     private final JobLauncher jobLauncher;
@@ -39,7 +40,6 @@ public class HuaweiBillingDataJobScheduler {
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
-                .addLong("orgId", 1L)
                 .toJobParameters();
 
         jobLauncher.run(huaweiBillingDataJob, jobParameters);

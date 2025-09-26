@@ -21,8 +21,7 @@ public interface AwsDataSyncHistoryRepository extends JpaRepository<AwsDataSyncH
 
     @Query("""
             SELECT EXISTS(
-                SELECT 1 FROM AwsDataSyncHistory d
-                WHERE d.jobName = :jobName
+                SELECT 1 FROM AwsDataSyncHistory d WHERE d.jobName = :jobName
             )
             """)
     boolean existsAny(@Param("jobName") String jobName);

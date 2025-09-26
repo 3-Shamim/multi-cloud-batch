@@ -5,16 +5,12 @@ import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dao.huawei.HuaweiAuthService;
 import com.multicloud.batch.dao.huawei.HuaweiBillingService;
 import com.multicloud.batch.dao.huawei.payload.HuaweiAuthDetails;
-import com.multicloud.batch.dto.CloudConfigDTO;
-import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
-import com.multicloud.batch.model.DataSyncHistory;
-import com.multicloud.batch.repository.DataSyncHistoryRepository;
-import com.multicloud.batch.service.CloudConfigService;
+import com.multicloud.batch.model.HuaweiDataSyncHistory;
+import com.multicloud.batch.repository.HuaweiDataSyncHistoryRepository;
 import com.multicloud.batch.service.SecretPayloadStoreService;
-import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -25,6 +21,7 @@ import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,13 +45,21 @@ import static java.util.Objects.requireNonNull;
 @ConditionalOnProperty(name = "batch_job.huawei_billing_data.enabled", havingValue = "true")
 public class HuaweiBillingDataJobConfig {
 
+    private static final String JOB_NAME = "huaweiBillingDataJob";
+    private static final String SECRET_STORE_KEY = "huawei_internal_billing_data_secret";
+
+    private static final Long ORG_ID = 1L;
+    private static final String PROJECT = "internal_project";
+
+    @Value("${batch_job.huawei_internal.secret_path}")
+    private String huaweiInternalSecretPath;
+
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
-    private final DataSyncHistoryRepository dataSyncHistoryRepository;
-    private final CloudConfigService cloudConfigService;
-    private final SecretPayloadStoreService secretPayloadStoreService;
+    private final HuaweiDataSyncHistoryRepository huaweiDataSyncHistoryRepository;
     private final AwsSecretsManagerService awsSecretsManagerService;
+    private final SecretPayloadStoreService secretPayloadStoreService;
     private final HuaweiAuthService huaweiAuthService;
     private final HuaweiBillingService huaweiBillingService;
 
@@ -71,37 +76,20 @@ public class HuaweiBillingDataJobConfig {
         return new StepBuilder("huaweiLoginStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
-                    StepExecution stepExecution = requireNonNull(
-                            StepSynchronizationManager.getContext()
-                    ).getStepExecution();
-
-                    JobParameters jobParameters = stepExecution.getJobParameters();
-                    Long orgId = jobParameters.getLong("orgId");
-
-                    if (orgId == null || orgId < 1) {
-                        throw new RuntimeException("Invalid organization ID...");
-                    }
-
-                    Optional<CloudConfigDTO> cloudConfig = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
-                            orgId, CloudProvider.HWC
-                    );
-
-                    if (cloudConfig.isEmpty()) {
-                        throw new RuntimeException("Huawei config not found for organization ID: " + orgId);
-                    }
-
-                    if (cloudConfig.get().disabled()) {
-                        throw new RuntimeException("Huawei config is disabled for organization ID: " + orgId);
-                    }
-
-                    SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN(), true);
+                    SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                     if (secret == null) {
-                        throw new RuntimeException("Huawei secret not found for organization ID: " + orgId);
-                    }
 
-                    // Store secret
-                    secretPayloadStoreService.put(Util.getProviderStoreKey(orgId, CloudProvider.HWC), secret);
+                        secret = awsSecretsManagerService.getSecret(huaweiInternalSecretPath, true);
+
+                        if (secret == null) {
+                            throw new RuntimeException("Huawei secret not found for huaweiBillingDataJob");
+                        }
+
+                        // Store secret
+                        secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
+
+                    }
 
                     // Login
                     huaweiAuthService.login(
@@ -127,19 +115,8 @@ public class HuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
-            StepExecution stepExecution = requireNonNull(
-                    StepSynchronizationManager.getContext()
-            ).getStepExecution();
-
-            JobParameters jobParameters = stepExecution.getJobParameters();
-            Long orgId = jobParameters.getLong("orgId");
-
-            if (orgId == null || orgId < 1) {
-                throw new RuntimeException("Invalid organization id...");
-            }
-
             // Partition calculation
-            boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.HWC);
+            boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME);
 
             long days = ChronoUnit.DAYS.between(
                     LocalDate.parse("2025-01-01"), LocalDate.now()
@@ -160,18 +137,19 @@ public class HuaweiBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
+
+                unique.add(dateRange);
 
                 i++;
             }
 
-            List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.HWC, LastSyncStatus.FAIL, 5
+            List<HuaweiDataSyncHistory> failList = huaweiDataSyncHistoryRepository.findAllByJobNameAndProjectAndLastSyncStatusAndFailCountLessThan(
+                    JOB_NAME, PROJECT, LastSyncStatus.FAIL, 3
             );
 
-            for (DataSyncHistory item : failList) {
+            for (HuaweiDataSyncHistory item : failList) {
 
                 CustomDateRange dateRange = new CustomDateRange(
                         item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
@@ -185,7 +163,6 @@ public class HuaweiBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -206,22 +183,19 @@ public class HuaweiBillingDataJobConfig {
                     ).getStepExecution();
 
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                    Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                    if (range != null && orgId != null) {
+                    if (range != null) {
 
-                        log.info("Processing huawei billing for partition {} and organization ID {}", range, orgId);
+                        log.info("Processing huawei billing for partition {}", range);
 
-                        SecretPayload secret = secretPayloadStoreService.get(
-                                Util.getProviderStoreKey(orgId, CloudProvider.HWC)
-                        );
+                        SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                         HuaweiAuthDetails token = huaweiAuthService.login(
                                 secret.getUsername(), secret.getPassword(), secret.getDomainName(), secret.getRegion()
                         );
 
                         huaweiBillingService.fetchDailyServiceCostUsage(
-                                orgId, range, token
+                                ORG_ID, range, token
                         );
 
                     }
@@ -267,14 +241,13 @@ public class HuaweiBillingDataJobConfig {
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && orgId != null) {
+                if (range != null) {
 
-                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                            orgId, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
-                    ).orElse(new DataSyncHistory(
-                            orgId, CloudProvider.HWC, "huaweiBillingDataJob", range.start(), range.end()
+                    HuaweiDataSyncHistory sync = huaweiDataSyncHistoryRepository.findByJobNameAndProjectAndStartAndEnd(
+                            JOB_NAME, PROJECT, range.start(), range.end()
+                    ).orElse(new HuaweiDataSyncHistory(
+                            JOB_NAME, PROJECT, range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -284,13 +257,13 @@ public class HuaweiBillingDataJobConfig {
                         sync.setFailCount(sync.getFailCount() + 1);
                     }
 
-                    dataSyncHistoryRepository.save(sync);
+                    huaweiDataSyncHistoryRepository.save(sync);
 
                 }
 
                 log.info(
-                        "Step completed: {} with status: {} for partition {} and organization ID {}",
-                        partitionName, status, range, orgId
+                        "Step completed: {} with status: {} for partition {}",
+                        partitionName, status, range
                 );
 
                 return stepExecution.getExitStatus();

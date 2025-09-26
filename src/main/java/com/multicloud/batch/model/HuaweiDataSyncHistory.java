@@ -21,15 +21,15 @@ import java.time.LocalDateTime;
 @ToString
 @Entity
 @Table(
-        name = "aws_data_sync_histories",
+        name = "huawei_data_sync_histories",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "idx_unq_aws_data_sync_histories",
-                        columnNames = {"job_name", "table_name", "start", "end"}
+                        name = "idx_unq_huawei_data_sync_histories",
+                        columnNames = {"job_name", "project", "start", "end"}
                 )
         }
 )
-public class AwsDataSyncHistory {
+public class HuaweiDataSyncHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,8 +38,8 @@ public class AwsDataSyncHistory {
     @Column(name = "job_name", nullable = false, length = 150)
     private String jobName;
 
-    @Column(name = "table_name", nullable = false, length = 150)
-    private String tableName;
+    @Column(name = "project", nullable = false, length = 150)
+    private String project;
 
     @Column(nullable = false)
     private LocalDate start;
@@ -59,9 +59,9 @@ public class AwsDataSyncHistory {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public AwsDataSyncHistory(String jobName, String tableName, LocalDate start, LocalDate end) {
+    public HuaweiDataSyncHistory(String jobName, String project, LocalDate start, LocalDate end) {
         this.jobName = jobName;
-        this.tableName = tableName;
+        this.project = project;
         this.start = start;
         this.end = end;
     }
