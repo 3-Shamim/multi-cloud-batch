@@ -1,19 +1,17 @@
 package com.multicloud.batch.scheduler;
 
 import com.multicloud.batch.service.JobService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -23,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnExpression("${batch_job.aws_billing_data.enabled} OR ${batch_job.external_aws_billing_data.enabled}")
 public class AwsBillingDataJobScheduler {
 
@@ -36,6 +33,19 @@ public class AwsBillingDataJobScheduler {
     private final JobService jobService;
     private final Job awsBillingDataJob;
     private final Job externalAwsBillingDataJob;
+
+    public AwsBillingDataJobScheduler(JobLauncher jobLauncher,
+                                      JobService jobService,
+                                      @Qualifier("awsBillingDataJob")
+                                      Job awsBillingDataJob,
+                                      @Qualifier("externalAwsBillingDataJob")
+                                      Job externalAwsBillingDataJob) {
+
+        this.jobLauncher = jobLauncher;
+        this.jobService = jobService;
+        this.awsBillingDataJob = awsBillingDataJob;
+        this.externalAwsBillingDataJob = externalAwsBillingDataJob;
+    }
 
     @Async
     @Scheduled(cron = "${batch_job.aws_billing_data.corn}")

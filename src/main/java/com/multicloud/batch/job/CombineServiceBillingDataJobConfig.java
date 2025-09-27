@@ -16,7 +16,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -38,7 +38,7 @@ import java.time.LocalDate;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "batch_job.combined_billing.enabled", havingValue = "true")
+@ConditionalOnExpression("${batch_job.combined_billing.enabled}")
 public class CombineServiceBillingDataJobConfig {
 
     private static final int CHUNK = 500;
@@ -197,15 +197,14 @@ public class CombineServiceBillingDataJobConfig {
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
                 .usageDate(rs.getDate("usage_date").toLocalDate())
-                .organizationId(rs.getLong("organization_id"))
                 .cloudProvider(CloudProvider.valueOf(rs.getString("cloud_provider")))
                 .billingAccountId(rs.getString("billing_account_id"))
                 .usageAccountId(rs.getString("usage_account_id"))
                 .usageAccountName(rs.getString("usage_account_name"))
                 .serviceCode(rs.getString("service_code"))
                 .serviceName(rs.getString("service_name"))
+                .billingType(rs.getString("billing_type"))
                 .cost(rs.getBigDecimal("cost"))
-                .tax(rs.getBigDecimal("tax"))
                 .build());
 
         reader.afterPropertiesSet();
@@ -230,17 +229,16 @@ public class CombineServiceBillingDataJobConfig {
 
                         ServiceLevelBilling item = records.getItems().get(i);
 
-                        ps.setLong(1, item.getOrganizationId());
-                        ps.setString(2, item.getCloudProvider().name());
-                        ps.setDate(3, Date.valueOf(item.getUsageDate()));
-                        ps.setString(4, item.getBillingAccountId());
-                        ps.setString(5, item.getUsageAccountId());
-                        ps.setString(6, item.getUsageAccountName());
-                        ps.setString(7, item.getServiceCode());
-                        ps.setString(8, item.getServiceName());
+                        ps.setString(1, item.getCloudProvider().name());
+                        ps.setDate(2, Date.valueOf(item.getUsageDate()));
+                        ps.setString(3, item.getBillingAccountId());
+                        ps.setString(4, item.getUsageAccountId());
+                        ps.setString(5, item.getUsageAccountName());
+                        ps.setString(6, item.getServiceCode());
+                        ps.setString(7, item.getServiceName());
+                        ps.setString(8, item.getBillingType());
                         ps.setString(9, item.getParentCategory());
                         ps.setBigDecimal(10, item.getCost());
-                        ps.setBigDecimal(11, item.getTax());
 
                     }
 

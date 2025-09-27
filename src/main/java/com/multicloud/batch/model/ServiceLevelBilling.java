@@ -25,17 +25,17 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_slb",
                 columnNames = {
-                        "usage_date", "organization_id", "cloud_provider", "billing_account_id", "usage_account_id",
-                        "service_code"
+                        "usage_date", "cloud_provider", "billing_account_id", "usage_account_id",
+                        "service_code", "billing_type"
                 }
         ),
         indexes = {
                 @Index(name = "idx_usage_date", columnList = "usage_date"),
-                @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_cloud_provider", columnList = "cloud_provider"),
                 @Index(name = "idx_payer_account_id", columnList = "billing_account_id"),
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
+                @Index(name = "idx_billing_type", columnList = "billing_type")
         }
 )
 public class ServiceLevelBilling {
@@ -43,10 +43,6 @@ public class ServiceLevelBilling {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // Multicloud organization ID
-    @Column(name = "organization_id", nullable = false)
-    private long organizationId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "cloud_provider", nullable = false, length = 100)
@@ -64,22 +60,22 @@ public class ServiceLevelBilling {
     @Column(name = "usage_account_id", nullable = false, length = 64)
     private String usageAccountId;
 
-    @Column(name = "usage_account_name", nullable = false, length = 128)
+    @Column(name = "usage_account_name", length = 128)
     private String usageAccountName;
 
     @Column(name = "service_code", nullable = false, length = 256)
     private String serviceCode;
 
-    @Column(name = "service_name", nullable = false, length = 200)
+    @Column(name = "service_name", length = 200)
     private String serviceName;
+
+    @Column(name = "billing_type", nullable = false, length = 32)
+    private String billingType;
 
     @Column(name = "parent_category", length = 200)
     private String parentCategory;
 
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
-
-    @Column(precision = 20, scale = 8)
-    private BigDecimal tax;
 
 }

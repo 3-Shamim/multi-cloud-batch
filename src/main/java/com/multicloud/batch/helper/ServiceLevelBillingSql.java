@@ -9,70 +9,52 @@ package com.multicloud.batch.helper;
 public class ServiceLevelBillingSql {
 
     public static final String HUAWEI_SQL = """
-                SELECT bill_date                                    AS usage_date,
-                    organization_id,
-                    'HWC'                                           AS cloud_provider,
-                    payer_account_id                                AS billing_account_id,
-                    customer_id                                     AS usage_account_id,
-                    customer_id                                     AS usage_account_name,
-                    cloud_service_type                              AS service_code,
-                    cloud_service_type_name                         AS service_name,
-                    -- Pre-tax service charges (exclude tax)
-                    SUM(IF(
-                        bill_type NOT IN (15, 100, 101, 102),
-                        COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0),
-                        0
-                    ))                                              AS cost,
-                    -- Tax only
-                    SUM(
-                        IF(bill_type IN (15, 100, 101, 102),
-                        COALESCE(consume_amount, 0),
-                        0
-                    ))                                              AS tax
+                SELECT bill_date                                                AS usage_date,
+                    'HWC'                                                       AS cloud_provider,
+                    payer_account_id                                            AS billing_account_id,
+                    customer_id                                                 AS usage_account_id,
+                    null                                                        AS usage_account_name,
+                    cloud_service_type                                          AS service_code,
+                    cloud_service_type_name                                     AS service_name,
+                    bill_type                                                   AS billing_type,
+                    COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)    AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ?
-                GROUP BY 1, 2, 3, 4, 5, 7;
+                GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
     public static final String GCP_SQL = """
                 SELECT usage_date,
-                    organization_id,
                     'GCP'                                   AS cloud_provider,
                     billing_account_id,
                     project_id                              AS usage_account_id,
                     project_name                            AS usage_account_name,
                     service_code,
                     service_name,
-                    -- Pre-tax service charges (exclude tax)
-                    SUM(IF(cost_type <> 'tax', cost, 0))    AS cost,
-                    -- Tax only
-                    SUM(IF(cost_type = 'tax', cost, 0))     AS tax
+                    cost_type                               AS billing_type,
+                    cost
                 FROM gcp_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
-                GROUP BY 1, 2, 3, 4, 5, 7;
+                GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
     public static final String AWS_SQL = """
                 SELECT usage_date,
-                       organization_id,
-                       'AWS'                                             AS cloud_provider,
-                       payer_account_id                                  AS billing_account_id,
+                       'AWS'                                    AS cloud_provider,
+                       payer_account_id                         AS billing_account_id,
                        usage_account_id,
-                       usage_account_id                                  AS usage_account_name,
+                       null                                     AS usage_account_name,
                        service_code,
                        service_name,
-                       -- Pre-tax service charges (exclude tax)
-                       SUM(IF(billing_type <> 'Tax', unblended_cost, 0)) AS cost,
-                       -- Tax only
-                       SUM(IF(billing_type = 'Tax', unblended_cost, 0))  AS tax
+                       billing_type,
+                       unblended_cost                           AS cost
                 FROM aws_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
-                GROUP BY 1, 2, 3, 4, 5, 7;
+                GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
     public static final String UPSERT_SQL = """
                 INSERT INTO service_level_billings (
-                    organization_id,
                     cloud_provider,
                     usage_date,
                     billing_account_id,
@@ -80,17 +62,16 @@ public class ServiceLevelBillingSql {
                     usage_account_name,
                     service_code,
                     service_name,
+                    billing_type,
                     parent_category,
-                    cost,
-                    tax
+                    cost
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     usage_account_name = VALUES(usage_account_name),
                     service_name = VALUES(service_name),
                     parent_category = VALUES(parent_category),
-                    cost = VALUES(cost),
-                    tax = VALUES(tax);
+                    cost = VALUES(cost);
             """;
 
 }
