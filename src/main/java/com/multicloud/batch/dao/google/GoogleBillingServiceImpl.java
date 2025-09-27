@@ -4,7 +4,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.*;
 import com.multicloud.batch.model.GcpBillingDailyCost;
 import com.multicloud.batch.repository.GcpBillingDailyCostRepository;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,7 +32,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     private final GcpBillingDailyCostRepository gcpBillingDailyCostRepository;
 
     @Override
-    public void fetchDailyServiceCostUsage(long organizationId, byte[] jsonKey, LocalDate start, LocalDate end) {
+    public void fetchDailyServiceCostUsage(byte[] jsonKey, LocalDate start, LocalDate end) {
 
         String query = """
                     SELECT DATE(t.usage_start_time)                                      AS usage_date,
@@ -104,7 +103,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             // Each page can contain up to 10,000 rows by default, depending on the query and row size.
             for (FieldValueList row : result.iterateAll()) {
 
-                GcpBillingDailyCost billing = bindRow(row, organizationId);
+                GcpBillingDailyCost billing = bindRow(row);
 
                 billings.add(billing);
                 count++;
@@ -134,10 +133,9 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
     }
 
-    private GcpBillingDailyCost bindRow(FieldValueList row, long organizationId) {
+    private GcpBillingDailyCost bindRow(FieldValueList row) {
 
         return GcpBillingDailyCost.builder()
-                .organizationId(organizationId)
                 .usageDate(parseLocalDate(row, "usage_date"))
                 .billingAccountId(getStringSafe(row, "billing_account_id"))
                 .projectId(getStringSafe(row, "project_id"))

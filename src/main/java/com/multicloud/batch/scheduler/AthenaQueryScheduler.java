@@ -65,7 +65,7 @@ public class AthenaQueryScheduler {
 
     }
 
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void runAthenaQuery() {
 
         StaticCredentialsProvider provider = StaticCredentialsProvider.create(

@@ -3,16 +3,12 @@ package com.multicloud.batch.job.gcp;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dao.google.GoogleBillingService;
-import com.multicloud.batch.dto.CloudConfigDTO;
-import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.enums.LastSyncStatus;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
-import com.multicloud.batch.model.DataSyncHistory;
-import com.multicloud.batch.repository.DataSyncHistoryRepository;
-import com.multicloud.batch.service.CloudConfigService;
+import com.multicloud.batch.model.GcpDataSyncHistory;
+import com.multicloud.batch.repository.GcpDataSyncHistoryRepository;
 import com.multicloud.batch.service.SecretPayloadStoreService;
-import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -23,6 +19,7 @@ import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,11 +43,18 @@ import static java.util.Objects.requireNonNull;
 @ConditionalOnProperty(name = "batch_job.gcp_billing_data.enabled", havingValue = "true")
 public class GoogleBillingDataJobConfig {
 
+    private static final String JOB_NAME = "gcpBillingDataJob";
+    private static final String SECRET_STORE_KEY = "gcp_internal_billing_data_secret";
+
+    private static final String PROJECT_NAME = "internal_project";
+
+    @Value("${batch_job.gcp_billing_data.secret_path}")
+    private String gcpInternalSecretPath;
+
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
-    private final DataSyncHistoryRepository dataSyncHistoryRepository;
-    private final CloudConfigService cloudConfigService;
+    private final GcpDataSyncHistoryRepository gcpDataSyncHistoryRepository;
     private final SecretPayloadStoreService secretPayloadStoreService;
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final GoogleBillingService googleBillingService;
@@ -78,40 +82,23 @@ public class GoogleBillingDataJobConfig {
 
         return gridSize -> {
 
-            StepExecution stepExecution = requireNonNull(
-                    StepSynchronizationManager.getContext()
-            ).getStepExecution();
-
-            JobParameters jobParameters = stepExecution.getJobParameters();
-            Long orgId = jobParameters.getLong("orgId");
-
-            if (orgId == null || orgId < 1) {
-                throw new RuntimeException("Invalid organization ID...");
-            }
-
-            Optional<CloudConfigDTO> cloudConfig = cloudConfigService.getConfigByOrganizationIdAndCloudProvider(
-                    orgId, CloudProvider.GCP
-            );
-
-            if (cloudConfig.isEmpty()) {
-                throw new RuntimeException("GCP config not found for organization ID: " + orgId);
-            }
-
-            if (cloudConfig.get().disabled()) {
-                throw new RuntimeException("GCP config is disabled for organization ID: " + orgId);
-            }
-
-            SecretPayload secret = awsSecretsManagerService.getSecret(cloudConfig.get().secretARN(), true);
+            SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
             if (secret == null) {
-                throw new RuntimeException("GCP secret not found for organization ID: " + orgId);
+
+                secret = awsSecretsManagerService.getSecret(gcpInternalSecretPath, true);
+
+                if (secret == null) {
+                    throw new RuntimeException("AWS secret not found for awsBillingDataJob");
+                }
+
+                // Store secret
+                secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
+
             }
 
-            // Store secret
-            secretPayloadStoreService.put(Util.getProviderStoreKey(orgId, CloudProvider.GCP), secret);
-
             // Partition calculation
-            boolean exist = dataSyncHistoryRepository.existsAny(orgId, CloudProvider.GCP);
+            boolean exist = gcpDataSyncHistoryRepository.existsAny(JOB_NAME);
 
             long days = ChronoUnit.DAYS.between(
                     LocalDate.parse("2025-01-01"), LocalDate.now()
@@ -132,18 +119,19 @@ public class GoogleBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
+
+                unique.add(dateRange);
 
                 i++;
             }
 
-            List<DataSyncHistory> failList = dataSyncHistoryRepository.findAllByOrganizationIdAndCloudProviderAndLastSyncStatusAndFailCountLessThan(
-                    orgId, CloudProvider.GCP, LastSyncStatus.FAIL, 5
+            List<GcpDataSyncHistory> failList = gcpDataSyncHistoryRepository.findAllByJobNameAndProjectAndLastSyncStatusAndFailCountLessThan(
+                    JOB_NAME, PROJECT_NAME, LastSyncStatus.FAIL, 3
             );
 
-            for (DataSyncHistory item : failList) {
+            for (GcpDataSyncHistory item : failList) {
 
                 CustomDateRange dateRange = new CustomDateRange(
                         item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
@@ -157,7 +145,6 @@ public class GoogleBillingDataJobConfig {
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
-                executionContext.put("orgId", orgId);
 
                 partitions.put("partition" + i, executionContext);
 
@@ -178,18 +165,15 @@ public class GoogleBillingDataJobConfig {
                     ).getStepExecution();
 
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                    Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                    if (range != null && orgId != null) {
+                    if (range != null) {
 
-                        log.info("Processing gcp billing for partition {} and organization ID {}", range, orgId);
+                        log.info("Processing gcp billing for partition {}", range);
 
-                        SecretPayload secret = secretPayloadStoreService.get(
-                                Util.getProviderStoreKey(orgId, CloudProvider.GCP)
-                        );
+                        SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                         googleBillingService.fetchDailyServiceCostUsage(
-                                orgId, secret.getJsonKey().getBytes(), range.start(), range.end()
+                                secret.getJsonKey().getBytes(), range.start(), range.end()
                         );
 
                     }
@@ -209,14 +193,10 @@ public class GoogleBillingDataJobConfig {
             public void beforeStep(StepExecution stepExecution) {
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && orgId != null) {
+                if (range != null) {
 
-                    log.info(
-                            "Starting step: {} for partition {} and organization ID {}",
-                            stepExecution.getStepName(), range, orgId
-                    );
+                    log.info("Starting step: {} for partition {}", stepExecution.getStepName(), range);
 
                 }
             }
@@ -235,14 +215,13 @@ public class GoogleBillingDataJobConfig {
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
-                Long orgId = (Long) stepExecution.getExecutionContext().get("orgId");
 
-                if (range != null && orgId != null) {
+                if (range != null) {
 
-                    DataSyncHistory sync = dataSyncHistoryRepository.findByOrganizationIdAndCloudProviderAndJobNameAndStartAndEnd(
-                            orgId, CloudProvider.GCP, "gcpBillingDataJob", range.start(), range.end()
-                    ).orElse(new DataSyncHistory(
-                            orgId, CloudProvider.GCP, "gcpBillingDataJob", range.start(), range.end()
+                    GcpDataSyncHistory sync = gcpDataSyncHistoryRepository.findByJobNameAndProjectAndStartAndEnd(
+                            JOB_NAME, PROJECT_NAME, range.start(), range.end()
+                    ).orElse(new GcpDataSyncHistory(
+                            JOB_NAME, PROJECT_NAME, range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -252,14 +231,11 @@ public class GoogleBillingDataJobConfig {
                         sync.setFailCount(sync.getFailCount() + 1);
                     }
 
-                    dataSyncHistoryRepository.save(sync);
+                    gcpDataSyncHistoryRepository.save(sync);
 
                 }
 
-                log.info(
-                        "Step completed: {} with status: {} for partition {} and organization ID {}",
-                        partitionName, status, range, orgId
-                );
+                log.info("Step completed: {} with status: {} for partition {}", partitionName, status, range);
 
                 return stepExecution.getExitStatus();
             }

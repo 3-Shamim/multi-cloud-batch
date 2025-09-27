@@ -63,6 +63,7 @@ batch_job:
   gcp_billing_data:
     corn: '0 2 */2 * * *'
     enabled: false
+    secret_path: azerion_mc/billing/secrets/internal/gcp
   huawei_billing_data:
     corn: '0 1 */2 * * *'
     enabled: false

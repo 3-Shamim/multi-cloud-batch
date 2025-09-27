@@ -24,12 +24,11 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_gcp",
                 columnNames = {
-                        "organization_id", "usage_date", "billing_account_id", "project_id", "service_code", "sku_id",
+                        "usage_date", "billing_account_id", "project_id", "service_code", "sku_id",
                         "region", "cost_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_usage_date", columnList = "usage_date"),
                 @Index(name = "idx_billing_account_id", columnList = "billing_account_id"),
                 @Index(name = "idx_project_id", columnList = "project_id"),
@@ -37,9 +36,7 @@ import java.time.LocalDate;
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
                 @Index(
                         name = "idx_project_service",
-                        columnList = """
-                                    organization_id, usage_date, billing_account_id, project_id, service_code
-                                """
+                        columnList = "usage_date, billing_account_id, project_id, service_code"
                 )
         }
 )
@@ -48,10 +45,6 @@ public class GcpBillingDailyCost {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // Multicloud organization ID
-    @Column(name = "organization_id", nullable = false)
-    private long organizationId;
 
     @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
