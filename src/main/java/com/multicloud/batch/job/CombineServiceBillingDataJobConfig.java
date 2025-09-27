@@ -177,7 +177,7 @@ public class CombineServiceBillingDataJobConfig {
         LocalDate startDate;
         LocalDate endDate = LocalDate.now();
 
-        if (stepEverCompleted) {
+        if (!stepEverCompleted) {
             startDate = endDate.minusDays(7);
         } else {
             startDate = LocalDate.parse("2024-01-01");
@@ -229,8 +229,8 @@ public class CombineServiceBillingDataJobConfig {
 
                         ServiceLevelBilling item = records.getItems().get(i);
 
-                        ps.setString(1, item.getCloudProvider().name());
-                        ps.setDate(2, Date.valueOf(item.getUsageDate()));
+                        ps.setDate(1, Date.valueOf(item.getUsageDate()));
+                        ps.setString(2, item.getCloudProvider().name());
                         ps.setString(3, item.getBillingAccountId());
                         ps.setString(4, item.getUsageAccountId());
                         ps.setString(5, item.getUsageAccountName());

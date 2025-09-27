@@ -55,8 +55,8 @@ public class ServiceLevelBillingSql {
 
     public static final String UPSERT_SQL = """
                 INSERT INTO service_level_billings (
-                    cloud_provider,
                     usage_date,
+                    cloud_provider,
                     billing_account_id,
                     usage_account_id,
                     usage_account_name,

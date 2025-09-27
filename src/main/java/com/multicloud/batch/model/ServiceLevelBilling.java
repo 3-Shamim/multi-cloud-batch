@@ -44,12 +44,12 @@ public class ServiceLevelBilling {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "usage_date", nullable = false)
+    private LocalDate usageDate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "cloud_provider", nullable = false, length = 100)
     private CloudProvider cloudProvider;
-
-    @Column(name = "usage_date", nullable = false)
-    private LocalDate usageDate;
 
     // Master/Billing Account ID
     @Column(name = "billing_account_id", nullable = false, length = 64)
