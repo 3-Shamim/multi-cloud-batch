@@ -7,7 +7,6 @@ import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.model.HuaweiBillingDailyCost;
 import com.multicloud.batch.repository.HuaweiBillingDailyCostRepository;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -36,17 +35,17 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
 
     @Override
-    public void fetchDailyServiceCostUsage(long orgId, CustomDateRange range, HuaweiAuthDetails authDetails) {
+    public void fetchDailyServiceCostUsage(CustomDateRange range, HuaweiAuthDetails authDetails) {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
-        doRequest(orgId, range, authDetails, 0, data);
+        doRequest(range, authDetails, 0, data);
         huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), jdbcTemplate);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 
     }
 
-    private void doRequest(long orgId, CustomDateRange range, HuaweiAuthDetails authDetails, int offset,
+    private void doRequest(CustomDateRange range, HuaweiAuthDetails authDetails, int offset,
                            Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data) {
 
         HuaweiResourceBillingRequest request = new HuaweiResourceBillingRequest(
@@ -100,7 +99,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
                 if (cost == null) {
 
-                    HuaweiBillingDailyCost newCost = HuaweiBillingDailyCost.from(row, orgId);
+                    HuaweiBillingDailyCost newCost = HuaweiBillingDailyCost.from(row);
                     data.put(group, newCost);
 
                 } else {
@@ -116,7 +115,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
             });
 
             if (!response.getBody().monthly_records().isEmpty()) {
-                doRequest(orgId, range, authDetails, offset + 1000, data);
+                doRequest(range, authDetails, offset + 1000, data);
             }
 
         } else {

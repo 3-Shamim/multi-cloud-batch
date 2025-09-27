@@ -48,10 +48,9 @@ public class HuaweiBillingDataJobConfig {
     private static final String JOB_NAME = "huaweiBillingDataJob";
     private static final String SECRET_STORE_KEY = "huawei_internal_billing_data_secret";
 
-    private static final Long ORG_ID = 1L;
     private static final String PROJECT = "internal_project";
 
-    @Value("${batch_job.huawei_internal.secret_path}")
+    @Value("${batch_job.huawei_billing_data.secret_path}")
     private String huaweiInternalSecretPath;
 
     private final JobRepository jobRepository;
@@ -195,7 +194,7 @@ public class HuaweiBillingDataJobConfig {
                         );
 
                         huaweiBillingService.fetchDailyServiceCostUsage(
-                                ORG_ID, range, token
+                                range, token
                         );
 
                     }

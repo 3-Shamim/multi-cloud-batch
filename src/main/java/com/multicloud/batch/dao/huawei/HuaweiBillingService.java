@@ -11,6 +11,6 @@ import com.multicloud.batch.job.CustomDateRange;
 
 public interface HuaweiBillingService {
 
-    void fetchDailyServiceCostUsage(long organizationId, CustomDateRange customDateRange, HuaweiAuthDetails authDetails);
+    void fetchDailyServiceCostUsage(CustomDateRange customDateRange, HuaweiAuthDetails authDetails);
 
 }

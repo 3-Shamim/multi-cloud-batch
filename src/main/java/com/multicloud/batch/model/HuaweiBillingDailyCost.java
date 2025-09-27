@@ -26,12 +26,11 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_huawei",
                 columnNames = {
-                        "organization_id", "bill_date", "payer_account_id", "customer_id", "enterprise_project_id",
-                        "cloud_service_type", "sku_code", "resource_type_code", "region", "charge_mode", "bill_type"
+                        "bill_date", "payer_account_id", "customer_id", "enterprise_project_id", "cloud_service_type",
+                        "sku_code", "resource_type_code", "region", "charge_mode", "bill_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_bill_date", columnList = "bill_date"),
                 @Index(name = "idx_payer_account_id", columnList = "payer_account_id"),
                 @Index(name = "idx_customer_id", columnList = "customer_id"),
@@ -39,10 +38,7 @@ import java.time.LocalDate;
                 @Index(name = "idx_sku_code", columnList = "sku_code"),
                 @Index(
                         name = "idx_project_service",
-                        columnList = """
-                                    organization_id, bill_date, payer_account_id, customer_id, cloud_service_type,
-                                    bill_type
-                                """
+                        columnList = "bill_date, payer_account_id, customer_id, cloud_service_type, bill_type"
                 )
         }
 )
@@ -51,10 +47,6 @@ public class HuaweiBillingDailyCost {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-
-    // Multicloud organization ID
-    @Column(name = "organization_id", nullable = false)
-    private long organizationId;
 
     @Column(name = "bill_date", nullable = false)
     private LocalDate billDate;
@@ -136,10 +128,9 @@ public class HuaweiBillingDailyCost {
     @Column(name = "coupon_amount", precision = 20, scale = 8)
     private BigDecimal couponAmount;
 
-    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record, long orgId) {
+    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record) {
 
         return HuaweiBillingDailyCost.builder()
-                .organizationId(orgId)
                 .billDate(LocalDate.parse(record.bill_date()))
                 .payerAccountId(record.payer_account_id())
                 .customerId(record.customer_id())
@@ -164,10 +155,9 @@ public class HuaweiBillingDailyCost {
     }
 
 
-    public static HuaweiBillingDailyCost from(HuaweiBillingExpenseResponse.FeeRecord record, String payerAccountId, long orgId) {
+    public static HuaweiBillingDailyCost from(HuaweiBillingExpenseResponse.FeeRecord record, String payerAccountId) {
 
         return HuaweiBillingDailyCost.builder()
-                .organizationId(orgId)
                 .billDate(LocalDate.parse(record.bill_date()))
                 .payerAccountId(payerAccountId)
                 .customerId(record.customer_id())
