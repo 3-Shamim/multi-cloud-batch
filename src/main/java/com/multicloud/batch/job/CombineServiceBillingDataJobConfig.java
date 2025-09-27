@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.sql.Date;
@@ -117,7 +118,16 @@ public class CombineServiceBillingDataJobConfig {
                             item.getServiceCode(), item.getCloudProvider()
                     );
 
-                    item.setParentCategory(parentCategory);
+                    if (!StringUtils.hasText(parentCategory)) {
+
+                        if (item.getBillingType().equalsIgnoreCase("regular")) {
+                            item.setServiceCode("Unknown");
+                            item.setParentCategory("Unknown");
+                        }
+
+                    } else {
+                        item.setParentCategory(parentCategory);
+                    }
 
                     return item;
                 })
@@ -149,7 +159,16 @@ public class CombineServiceBillingDataJobConfig {
                             item.getServiceCode(), item.getCloudProvider()
                     );
 
-                    item.setParentCategory(parentCategory);
+                    if (!StringUtils.hasText(parentCategory)) {
+
+                        if (item.getBillingType().equalsIgnoreCase("Usage")) {
+                            item.setServiceCode("Unknown");
+                            item.setParentCategory("Unknown");
+                        }
+
+                    } else {
+                        item.setParentCategory(parentCategory);
+                    }
 
                     return item;
                 })
@@ -177,10 +196,14 @@ public class CombineServiceBillingDataJobConfig {
         LocalDate startDate;
         LocalDate endDate = LocalDate.now();
 
-        if (!stepEverCompleted) {
+        /* Todo:
+        *   Maybe we can run this job on full dataset
+        *   Depending on the job frequency
+        * */
+        if (stepEverCompleted) {
             startDate = endDate.minusDays(7);
         } else {
-            startDate = LocalDate.parse("2024-01-01");
+            startDate = LocalDate.parse("2025-01-01");
         }
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
