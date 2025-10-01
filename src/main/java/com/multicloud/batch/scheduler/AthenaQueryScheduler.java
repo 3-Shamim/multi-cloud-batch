@@ -37,7 +37,7 @@ public class AthenaQueryScheduler {
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final AthenaService athenaService;
 
-    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void storeSecrets() {
 
 //        SecretPayload aws = new SecretPayload();
@@ -54,8 +54,9 @@ public class AthenaQueryScheduler {
 //        awsSecretsManagerService.createSecret("azerion_mc/billing/secrets/internal/huawei", internalHuawei, true);
 
 //        SecretPayload externalHuawei = new SecretPayload();
-//        externalHuawei.setAccessKey("");
-//        externalHuawei.setSecretKey("");
+//        externalHuawei.setDomainName("");
+//        externalHuawei.setUsername("");
+//        externalHuawei.setPassword("");
 //        externalHuawei.setRegion("");
 //        awsSecretsManagerService.createSecret("azerion_mc/billing/secrets/external/huawei", externalHuawei, true);
 
@@ -65,7 +66,7 @@ public class AthenaQueryScheduler {
 
     }
 
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void runAthenaQuery() {
 
         StaticCredentialsProvider provider = StaticCredentialsProvider.create(
@@ -114,19 +115,19 @@ public class AthenaQueryScheduler {
 //        query = "select count(*) from %s where year = '2025'";
 //        query = "select * from cur_azul where month = '9' and year = '2025' limit 1";
         query = """
-            select distinct(billing_entity)
-            from athena a
-            left join org_accounts o ON a.line_item_usage_account_id = o.account_id
-            where month = '8' and year = '2025'
-        """;
+                    select distinct(billing_entity)
+                    from athena a
+                    left join org_accounts o ON a.line_item_usage_account_id = o.account_id
+                    where month = '8' and year = '2025'
+                """;
 
         query = """
-            select billing_entity, bill_payer_account_id, line_item_usage_account_id
-            from athena a
-            left join org_accounts o ON a.line_item_usage_account_id = o.account_id
-            where billing_entity in ('gembly-bv', 'adinmo', 'hitta', 'woozworld')
-            group by 1, 2, 3
-        """;
+                    select billing_entity, bill_payer_account_id, line_item_usage_account_id
+                    from athena a
+                    left join org_accounts o ON a.line_item_usage_account_id = o.account_id
+                    where billing_entity in ('gembly-bv', 'adinmo', 'hitta', 'woozworld')
+                    group by 1, 2, 3
+                """;
 
         Set<String> externalTables = Set.of(
                 "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",

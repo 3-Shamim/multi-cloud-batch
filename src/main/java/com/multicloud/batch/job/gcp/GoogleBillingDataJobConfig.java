@@ -20,7 +20,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "batch_job.gcp_billing_data.enabled", havingValue = "true")
+@ConditionalOnExpression("${batch_job.gcp_billing_data.enabled}")
 public class GoogleBillingDataJobConfig {
 
     private static final String JOB_NAME = "gcpBillingDataJob";

@@ -30,10 +30,10 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
     private final RestTemplate restTemplate;
 
     @Override
-    public HuaweiAuthDetails login(String username, String password, String domainName, String region) {
+    public HuaweiAuthDetails login(String username, String password, String domain, String project) {
 
-        HuaweiAuthRequest request = HuaweiAuthRequest.build(
-                region, domainName, username, password
+        HuaweiAuthRequest request = HuaweiAuthRequest.buildPasswordIdentity(
+                username, password, domain, project
         );
 
         HuaweiAuthDetails cachedResponse = MAP.get(request);
@@ -51,19 +51,10 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
         }
 
-        String url = "https://iam.myhuaweicloud.eu/v3/auth/tokens?nocatalog=true";
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<HuaweiAuthRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<HuaweiAuthResponse> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                HuaweiAuthResponse.class
-        );
+        ResponseEntity<HuaweiAuthResponse> response = doAuthRequest(request, headers);
 
         // Get token from the header
         List<String> tokenHeader = response.getHeaders().get("X-Subject-Token");
@@ -81,6 +72,43 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
         log.info("Serve token from API request: {}", huaweiAuthDetails.token());
 
         return huaweiAuthDetails;
+    }
+
+    @Override
+    public HuaweiAuthDetails getAssumeRoleToken(String token, String domainName, String agencyName, String project) {
+
+        HuaweiAuthRequest request = HuaweiAuthRequest.buildAssumeRoleIdentity(domainName, agencyName, project);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Auth-Token", token);
+
+        ResponseEntity<HuaweiAuthResponse> response = doAuthRequest(request, headers);
+
+        // Get token from the header
+        List<String> tokenHeader = response.getHeaders().get("X-Subject-Token");
+
+        if (tokenHeader == null || tokenHeader.isEmpty() || response.getBody() == null) {
+            throw new RuntimeException("Failed to get token from API response");
+        }
+
+        String payerAccountId = response.getBody().token().user().domain().id();
+
+        return new HuaweiAuthDetails(payerAccountId, tokenHeader.getFirst(), LocalDate.now());
+    }
+
+    private ResponseEntity<HuaweiAuthResponse> doAuthRequest(HuaweiAuthRequest request, HttpHeaders headers) {
+
+        String url = "https://iam.myhuaweicloud.eu/v3/auth/tokens?nocatalog=true";
+
+        HttpEntity<HuaweiAuthRequest> entity = new HttpEntity<>(request, headers);
+
+        return restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                HuaweiAuthResponse.class
+        );
     }
 
 }

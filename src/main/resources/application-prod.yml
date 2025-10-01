@@ -68,6 +68,10 @@ batch_job:
     corn: '0 1 */2 * * *'
     enabled: true
     secret_path: azerion_mc/billing/secrets/internal/huawei
+  external_huawei_billing_data:
+    corn: '0 1 */2 * * *'
+    enabled: false
+    secret_path: azerion_mc/billing/secrets/external/huawei
   combined_billing:
     corn: '0 30 */2 * * *'
     enabled: true

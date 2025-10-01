@@ -12,4 +12,6 @@ public interface HuaweiAuthService {
 
     HuaweiAuthDetails login(String username, String password, String domainName, String region);
 
+    HuaweiAuthDetails getAssumeRoleToken(String token, String domainName, String agencyName, String project);
+
 }
