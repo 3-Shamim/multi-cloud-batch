@@ -89,7 +89,7 @@ public class GoogleBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(gcpInternalSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("AWS secret not found for awsBillingDataJob");
+                    throw new RuntimeException("Secret not found for gcpBillingDataJob");
                 }
 
                 // Store secret
@@ -168,7 +168,7 @@ public class GoogleBillingDataJobConfig {
 
                     if (range != null) {
 
-                        log.info("Processing gcp billing for partition {}", range);
+                        log.info("Processing partition {} for gcpBillingDataJob", range);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
@@ -196,7 +196,7 @@ public class GoogleBillingDataJobConfig {
 
                 if (range != null) {
 
-                    log.info("Starting step: {} for partition {}", stepExecution.getStepName(), range);
+                    log.info("Starting gcpBillingDataJob's step: {} for partition {}", stepExecution.getStepName(), range);
 
                 }
             }
@@ -210,7 +210,7 @@ public class GoogleBillingDataJobConfig {
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
                     stepExecution.getFailureExceptions()
                             .forEach(ex -> log.error(
-                                    "Exception in step {}: ", partitionName, ex
+                                    "GcpBillingDataJob exception in step {}: ", partitionName, ex
                             ));
                 }
 
@@ -235,7 +235,10 @@ public class GoogleBillingDataJobConfig {
 
                 }
 
-                log.info("Step completed: {} with status: {} for partition {}", partitionName, status, range);
+                log.info(
+                        "GcpBillingDataJob's step completed: {} with status: {} for partition {}",
+                        partitionName, status, range
+                );
 
                 return stepExecution.getExitStatus();
             }

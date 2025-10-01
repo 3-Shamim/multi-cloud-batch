@@ -82,7 +82,7 @@ public class HuaweiBillingDataJobConfig {
                         secret = awsSecretsManagerService.getSecret(huaweiInternalSecretPath, true);
 
                         if (secret == null) {
-                            throw new RuntimeException("Huawei secret not found for huaweiBillingDataJob");
+                            throw new RuntimeException("Secret not found for huaweiBillingDataJob");
                         }
 
                         // Store secret
@@ -185,7 +185,7 @@ public class HuaweiBillingDataJobConfig {
 
                     if (range != null) {
 
-                        log.info("Processing huawei billing for partition {}", range);
+                        log.info("Processing partition {} for huaweiBillingDataJob", range);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
@@ -219,7 +219,7 @@ public class HuaweiBillingDataJobConfig {
                 if (range != null && orgId != null) {
 
                     log.info(
-                            "Starting step: {} for partition {} and organization ID {}",
+                            "Starting huaweiBillingDataJob's step: {} for partition {} and organization ID {}",
                             stepExecution.getStepName(), range, orgId
                     );
 
@@ -233,10 +233,15 @@ public class HuaweiBillingDataJobConfig {
                 BatchStatus status = stepExecution.getStatus();
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
-                    stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error(
-                                    "Exception in step {}: ", partitionName, ex
-                            ));
+
+                    for (Throwable ex : stepExecution.getFailureExceptions()) {
+
+                        log.error(
+                                "HuaweiBillingDataJob exception in step {}: ", partitionName, ex
+                        );
+
+                    }
+
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -261,7 +266,7 @@ public class HuaweiBillingDataJobConfig {
                 }
 
                 log.info(
-                        "Step completed: {} with status: {} for partition {}",
+                        "HuaweiBillingDataJob's Step completed: {} with status: {} for partition {}",
                         partitionName, status, range
                 );
 

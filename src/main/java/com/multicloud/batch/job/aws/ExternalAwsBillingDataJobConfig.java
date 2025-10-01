@@ -88,7 +88,7 @@ public class ExternalAwsBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("AWS secret not found for external externalAwsBillingDataJob");
+                    throw new RuntimeException("Secret not found for external externalAwsBillingDataJob");
                 }
 
                 // Store secret
@@ -227,10 +227,9 @@ public class ExternalAwsBillingDataJobConfig {
                 BatchStatus status = stepExecution.getStatus();
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
-                    stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error(
-                                    "ExternalAwsBillingDataJob exception in step {}: ", partitionName, ex
-                            ));
+                    for (Throwable ex : stepExecution.getFailureExceptions()) {
+                        log.error("ExternalAwsBillingDataJob exception in step {}: ", partitionName, ex);
+                    }
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -256,7 +255,7 @@ public class ExternalAwsBillingDataJobConfig {
                 }
 
                 log.info(
-                        "ExternalAwsBillingDataJob step completed: {} with status: {} for partition {}",
+                        "ExternalAwsBillingDataJob's step completed: {} with status: {} for partition {}",
                         partitionName, status, range
                 );
 

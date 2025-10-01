@@ -90,7 +90,7 @@ public class AwsBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("AWS secret not found for awsBillingDataJob");
+                    throw new RuntimeException("Secret not found for awsBillingDataJob");
                 }
 
                 // Store secret
@@ -214,10 +214,11 @@ public class AwsBillingDataJobConfig {
                 BatchStatus status = stepExecution.getStatus();
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
-                    stepExecution.getFailureExceptions()
-                            .forEach(ex -> log.error(
-                                    "AwsBillingDataJob exception in step {}: ", partitionName, ex
-                            ));
+
+                    for (Throwable ex : stepExecution.getFailureExceptions()) {
+                        log.error("AwsBillingDataJob exception in step {}: ", partitionName, ex);
+                    }
+
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -241,7 +242,10 @@ public class AwsBillingDataJobConfig {
 
                 }
 
-                log.info("AwsBillingDataJob step completed: {} with status: {} for partition {}", partitionName, status, range);
+                log.info(
+                        "AwsBillingDataJob's step completed: {} with status: {} for partition {}",
+                        partitionName, status, range
+                );
 
                 return stepExecution.getExitStatus();
             }
