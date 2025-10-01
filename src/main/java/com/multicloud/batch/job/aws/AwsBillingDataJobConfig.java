@@ -99,7 +99,7 @@ public class AwsBillingDataJobConfig {
             }
 
             // Partition calculation
-            boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME);
+            boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, TABLE_NAME);
 
             long days = ChronoUnit.DAYS.between(
                     LocalDate.parse("2025-01-01"), LocalDate.now()

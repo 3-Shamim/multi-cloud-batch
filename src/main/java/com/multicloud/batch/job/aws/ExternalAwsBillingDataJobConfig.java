@@ -96,22 +96,6 @@ public class ExternalAwsBillingDataJobConfig {
 
             }
 
-            // Partition calculation
-            boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME);
-
-            long days = ChronoUnit.DAYS.between(
-                    LocalDate.parse("2025-01-01"), LocalDate.now()
-            ) + 1;
-
-            if (exist) {
-                days = 10;
-            }
-
-            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
-
-            Set<UniqueStep> unique = new HashSet<>();
-            Map<String, ExecutionContext> partitions = new HashMap<>();
-
             Set<String> tables = awsBillingService.tableListByDatabase(
                     "abc_cur_exports", secret.getAccessKey(), secret.getSecretKey(), secret.getRegion()
             );
@@ -119,9 +103,25 @@ public class ExternalAwsBillingDataJobConfig {
             // Removing a test table
             tables.remove("cur_stratego_billing_group");
 
+            Set<UniqueStep> unique = new HashSet<>();
+            Map<String, ExecutionContext> partitions = new HashMap<>();
+
             int i = 1;
 
             for (String table : tables) {
+
+                // Partition calculation
+                boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, table);
+
+                long days = ChronoUnit.DAYS.between(
+                        LocalDate.parse("2025-01-01"), LocalDate.now()
+                ) + 1;
+
+                if (exist) {
+                    days = 10;
+                }
+
+                List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
 
                 for (CustomDateRange dateRange : dateRanges) {
 

@@ -21,10 +21,10 @@ public interface AwsDataSyncHistoryRepository extends JpaRepository<AwsDataSyncH
 
     @Query("""
             SELECT EXISTS(
-                SELECT 1 FROM AwsDataSyncHistory d WHERE d.jobName = :jobName
+                SELECT 1 FROM AwsDataSyncHistory d WHERE d.jobName = :jobName AND d.tableName = :tableName
             )
             """)
-    boolean existsAny(@Param("jobName") String jobName);
+    boolean existsAny(@Param("jobName") String jobName, @Param("tableName") String tableName);
 
     List<AwsDataSyncHistory> findAllByJobNameAndTableNameAndLastSyncStatusAndFailCountLessThan(
             String jobName, String tableName, LastSyncStatus lastSyncStatus, int failCount

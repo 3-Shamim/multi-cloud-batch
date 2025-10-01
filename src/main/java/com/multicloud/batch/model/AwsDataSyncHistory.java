@@ -27,6 +27,9 @@ import java.time.LocalDateTime;
                         name = "idx_unq_aws_data_sync_histories",
                         columnNames = {"job_name", "table_name", "start", "end"}
                 )
+        },
+        indexes = {
+                @Index(name = "idx_job_table_aws_data_sync_histories", columnList = "job_name, table_name")
         }
 )
 public class AwsDataSyncHistory {

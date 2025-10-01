@@ -27,6 +27,9 @@ import java.time.LocalDateTime;
                         name = "idx_unq_huawei_data_sync_histories",
                         columnNames = {"job_name", "project", "start", "end"}
                 )
+        },
+        indexes = {
+                @Index(name = "idx_job_project_huawei_data_sync_histories", columnList = "job_name, project")
         }
 )
 public class HuaweiDataSyncHistory {
