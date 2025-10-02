@@ -1,6 +1,6 @@
 package com.multicloud.batch.dao.huawei.payload;
 
-import java.time.LocalDate;
+import java.time.Instant;
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,7 +11,7 @@ import java.time.LocalDate;
 public record HuaweiAuthDetails(
         String payerAccountId,
         String token,
-        LocalDate date
+        Instant instant
 ) {
 
 }

@@ -103,7 +103,7 @@ public class ExternalAwsBillingDataJobConfig {
             // Removing a test table
             tables.remove("cur_stratego_billing_group");
 
-            Set<UniqueStep> unique = new HashSet<>();
+            Set<AwsUniqueStep> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
 
             int i = 1;
@@ -131,7 +131,7 @@ public class ExternalAwsBillingDataJobConfig {
 
                     partitions.put("partition" + i, executionContext);
 
-                    unique.add(new UniqueStep(table, dateRange));
+                    unique.add(new AwsUniqueStep(table, dateRange));
 
                     i++;
                 }
@@ -148,13 +148,13 @@ public class ExternalAwsBillingDataJobConfig {
                         item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
                 );
 
-                UniqueStep uniqueStep = new UniqueStep(item.getTableName(), dateRange);
+                AwsUniqueStep awsUniqueStep = new AwsUniqueStep(item.getTableName(), dateRange);
 
-                if (unique.contains(uniqueStep)) {
+                if (unique.contains(awsUniqueStep)) {
                     continue;
                 }
 
-                unique.add(uniqueStep);
+                unique.add(awsUniqueStep);
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
@@ -264,7 +264,7 @@ public class ExternalAwsBillingDataJobConfig {
         };
     }
 
-    record UniqueStep(String tableName, CustomDateRange range) {
+    record AwsUniqueStep(String tableName, CustomDateRange range) {
     }
 
 }

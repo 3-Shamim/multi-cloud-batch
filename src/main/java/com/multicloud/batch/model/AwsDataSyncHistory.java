@@ -29,7 +29,8 @@ import java.time.LocalDateTime;
                 )
         },
         indexes = {
-                @Index(name = "idx_job_table_aws_data_sync_histories", columnList = "job_name, table_name")
+                @Index(name = "idx_job_table_aws_data_sync_histories", columnList = "job_name, table_name"),
+                @Index(name = "idx_table_name_aws_data_sync_histories", columnList = "table_name")
         }
 )
 public class AwsDataSyncHistory {
@@ -41,7 +42,7 @@ public class AwsDataSyncHistory {
     @Column(name = "job_name", nullable = false, length = 150)
     private String jobName;
 
-    @Column(name = "table_name", nullable = false, length = 150)
+    @Column(name = "table_name", nullable = false)
     private String tableName;
 
     @Column(nullable = false)

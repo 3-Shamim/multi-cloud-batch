@@ -43,6 +43,8 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 
+        data.clear();
+
     }
 
     private void doRequest(CustomDateRange range, HuaweiAuthDetails authDetails, int offset,

@@ -46,7 +46,7 @@ public class GoogleBillingDataJobConfig {
     private static final String JOB_NAME = "gcpBillingDataJob";
     private static final String SECRET_STORE_KEY = "gcp_internal_billing_data_secret";
 
-    private static final String PROJECT_NAME = "internal_project";
+    private static final String PROJECT_NAME = "gcp_internal_project";
 
     @Value("${batch_job.gcp_billing_data.secret_path}")
     private String gcpInternalSecretPath;

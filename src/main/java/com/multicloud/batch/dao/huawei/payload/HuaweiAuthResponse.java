@@ -2,6 +2,8 @@ package com.multicloud.batch.dao.huawei.payload;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.time.Instant;
+
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -15,6 +17,7 @@ public record HuaweiAuthResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Token(
+            Instant expires_at,
             User user
     ) {
 

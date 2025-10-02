@@ -21,10 +21,10 @@ public interface HuaweiDataSyncHistoryRepository extends JpaRepository<HuaweiDat
 
     @Query("""
             SELECT EXISTS(
-                SELECT 1 FROM HuaweiDataSyncHistory d WHERE d.jobName = :jobName
+                SELECT 1 FROM HuaweiDataSyncHistory d WHERE d.jobName = :jobName AND d.project = :project
             )
             """)
-    boolean existsAny(@Param("jobName") String jobName);
+    boolean existsAny(@Param("jobName") String jobName, @Param("project") String project);
 
     List<HuaweiDataSyncHistory> findAllByJobNameAndProjectAndLastSyncStatusAndFailCountLessThan(
             String jobName, String project, LastSyncStatus lastSyncStatus, int failCount

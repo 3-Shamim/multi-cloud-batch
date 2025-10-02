@@ -48,7 +48,7 @@ public class HuaweiBillingDataJobConfig {
     private static final String JOB_NAME = "huaweiBillingDataJob";
     private static final String SECRET_STORE_KEY = "huawei_internal_billing_data_secret";
 
-    private static final String PROJECT = "internal_project";
+    private static final String PROJECT = "huawei_internal_project";
 
     @Value("${batch_job.huawei_billing_data.secret_path}")
     private String huaweiInternalSecretPath;
@@ -116,7 +116,7 @@ public class HuaweiBillingDataJobConfig {
         return gridSize -> {
 
             // Partition calculation
-            boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME);
+            boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME, PROJECT);
 
             long days = ChronoUnit.DAYS.between(
                     LocalDate.parse("2025-01-01"), LocalDate.now()

@@ -29,7 +29,8 @@ import java.time.LocalDateTime;
                 )
         },
         indexes = {
-                @Index(name = "idx_job_project_gcp_data_sync_histories", columnList = "job_name, project")
+                @Index(name = "idx_job_project_gcp_data_sync_histories", columnList = "job_name, project"),
+                @Index(name = "idx_project_gcp_data_sync_histories", columnList = "project")
         }
 )
 public class GcpDataSyncHistory {
@@ -41,7 +42,7 @@ public class GcpDataSyncHistory {
     @Column(name = "job_name", nullable = false, length = 150)
     private String jobName;
 
-    @Column(name = "project", nullable = false, length = 150)
+    @Column(name = "project", nullable = false)
     private String project;
 
     @Column(nullable = false)
