@@ -118,7 +118,7 @@ public class ExternalAwsBillingDataJobConfig {
                 ) + 1;
 
                 if (exist) {
-                    days = 10;
+                    days = 7;
                 }
 
                 List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);

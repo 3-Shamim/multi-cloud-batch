@@ -115,6 +115,9 @@ public class ExternalHuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
+            /* Todo:
+            *   Need to read account info from database
+            * */
             List<HuaweiSubAccountInfoDTO> subAccountInfoDTOS = new ArrayList<>();
             subAccountInfoDTOS.add(new HuaweiSubAccountInfoDTO(
                     1, "eniro-master", "azerion-mc-billing", "eu-west-101"
@@ -142,7 +145,7 @@ public class ExternalHuaweiBillingDataJobConfig {
                     days = 7;
                 }
 
-                List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
+                List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
 
                 for (CustomDateRange dateRange : dateRanges) {
 

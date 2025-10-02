@@ -43,7 +43,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
             if (Instant.now().isBefore(cachedResponse.instant())) {
 
-                log.info("Serve login token from cache: {}", cachedResponse.token());
+                log.info("Serve login token from cache");
 
                 return cachedResponse;
             }
@@ -62,7 +62,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
         MAP.put(request, huaweiAuthDetails);
 
-        log.info("Serve login token from API request: {}", huaweiAuthDetails.token());
+        log.info("Serve login token from API request");
 
         return huaweiAuthDetails;
     }
@@ -78,7 +78,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
             if (Instant.now().isBefore(cachedResponse.instant())) {
 
-                log.info("Serve assume role token from cache: {}", cachedResponse.token());
+                log.info("Serve assume role token from cache");
 
                 return cachedResponse;
             }
@@ -97,7 +97,7 @@ public class HuaweiAuthServiceImpl implements HuaweiAuthService {
 
         MAP.put(request, huaweiAuthDetails);
 
-        log.info("Serve assume role token from API request: {}", huaweiAuthDetails.token());
+        log.info("Serve assume role token from API request");
 
         return huaweiAuthDetails;
     }

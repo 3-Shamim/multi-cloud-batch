@@ -1,5 +1,7 @@
 package com.multicloud.batch.dto;
 
+import java.io.Serializable;
+
 /**
  * Created by IntelliJ IDEA.
  * User: Md. Shamim Molla
@@ -11,7 +13,7 @@ public record HuaweiSubAccountInfoDTO(
         String domainName,
         String agencyName,
         String project
-) {
+) implements Serializable {
 
     public String getUniqueName() {
         return String.format("%s_#_%s_#_%s", domainName, agencyName, project);
