@@ -29,10 +29,11 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         bill_date, payer_account_id, customer_id, enterprise_project_id,
                         enterprise_project_name, cloud_service_type, cloud_service_type_name, sku_code,
                         product_spec_desc, resource_type_code, resource_type_name, resource_name, region,
-                        region_name, charge_mode, bill_type, usage_amount, consume_amount, official_amount,
-                        discount_amount, coupon_amount
+                        region_name, charge_mode, bill_type, usage_amount, consume_amount, cash_amount,
+                        credit_amount, coupon_amount, flexipurchase_coupon_amount, stored_card_amount,
+                        bonus_amount, debt_amount, adjustment_amount, official_amount, discount_amount
                     ) VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         enterprise_project_name = VALUES(enterprise_project_name),
                         cloud_service_type_name = VALUES(cloud_service_type_name),
@@ -42,9 +43,16 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         region_name = VALUES(region_name),
                         usage_amount = VALUES(usage_amount),
                         consume_amount = VALUES(consume_amount),
+                        cash_amount = VALUES(cash_amount),
+                        credit_amount = VALUES(credit_amount),
+                        coupon_amount = VALUES(coupon_amount),
+                        flexipurchase_coupon_amount = VALUES(flexipurchase_coupon_amount),
+                        stored_card_amount = VALUES(stored_card_amount),
+                        bonus_amount = VALUES(bonus_amount),
+                        debt_amount = VALUES(debt_amount),
+                        adjustment_amount = VALUES(adjustment_amount),
                         official_amount = VALUES(official_amount),
-                        discount_amount = VALUES(discount_amount),
-                        coupon_amount = VALUES(coupon_amount)
+                        discount_amount = VALUES(discount_amount)
                 """;
 
         jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
@@ -66,9 +74,16 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
             ps.setInt(16, bill.getBillType());
             ps.setBigDecimal(17, bill.getUsageAmount());
             ps.setBigDecimal(18, bill.getConsumeAmount());
-            ps.setBigDecimal(19, bill.getOfficialAmount());
-            ps.setBigDecimal(20, bill.getDiscountAmount());
+            ps.setBigDecimal(19, bill.getCashAmount());
+            ps.setBigDecimal(20, bill.getCreditAmount());
             ps.setBigDecimal(21, bill.getCouponAmount());
+            ps.setBigDecimal(22, bill.getFlexipurchaseCouponAmount());
+            ps.setBigDecimal(23, bill.getStoredCardAmount());
+            ps.setBigDecimal(24, bill.getBonusAmount());
+            ps.setBigDecimal(25, bill.getDebtAmount());
+            ps.setBigDecimal(26, bill.getAdjustmentAmount());
+            ps.setBigDecimal(27, bill.getOfficialAmount());
+            ps.setBigDecimal(28, bill.getDiscountAmount());
         });
     }
 

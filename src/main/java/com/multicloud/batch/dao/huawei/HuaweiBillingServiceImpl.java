@@ -106,10 +106,41 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
                 } else {
 
-                    cost.setConsumeAmount(cost.getConsumeAmount().add(row.consume_amount()));
-                    cost.setOfficialAmount(cost.getOfficialAmount().add(row.official_amount()));
-                    cost.setDiscountAmount(cost.getDiscountAmount().add(row.discount_amount()));
-                    cost.setCouponAmount(cost.getCouponAmount().add(row.coupon_amount()));
+                    if (row.consume_amount() != null) {
+                        cost.setConsumeAmount(cost.getConsumeAmount().add(row.consume_amount()));
+                    }
+                    if (row.cash_amount() != null) {
+                        cost.setCashAmount(cost.getCashAmount().add(row.cash_amount()));
+                    }
+                    if (row.credit_amount() != null) {
+                        cost.setCreditAmount(cost.getCreditAmount().add(row.credit_amount()));
+                    }
+                    if (row.coupon_amount() != null) {
+                        cost.setCouponAmount(cost.getCouponAmount().add(row.coupon_amount()));
+                    }
+                    if (row.flexipurchase_coupon_amount() != null) {
+                        cost.setFlexipurchaseCouponAmount(
+                                cost.getFlexipurchaseCouponAmount().add(row.flexipurchase_coupon_amount())
+                        );
+                    }
+                    if (row.stored_card_amount() != null) {
+                        cost.setStoredCardAmount(cost.getStoredCardAmount().add(row.stored_card_amount()));
+                    }
+                    if (row.bonus_amount() != null) {
+                        cost.setBonusAmount(cost.getBonusAmount().add(row.bonus_amount()));
+                    }
+                    if (row.debt_amount() != null) {
+                        cost.setDebtAmount(cost.getDebtAmount().add(row.debt_amount()));
+                    }
+                    if (row.adjustment_amount() != null) {
+                        cost.setAdjustmentAmount(cost.getAdjustmentAmount().add(row.adjustment_amount()));
+                    }
+                    if (row.official_amount() != null) {
+                        cost.setOfficialAmount(cost.getOfficialAmount().add(row.official_amount()));
+                    }
+                    if (row.discount_amount() != null) {
+                        cost.setDiscountAmount(cost.getDiscountAmount().add(row.discount_amount()));
+                    }
 
                     data.put(group, cost);
                 }

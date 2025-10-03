@@ -25,7 +25,7 @@ public record HuaweiSubAccountInfoDTO(
                 0,
                 parts[0],
                 parts[1],
-                parts[3]
+                parts[2]
         );
     }
 

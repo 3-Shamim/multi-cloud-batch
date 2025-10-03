@@ -1,6 +1,5 @@
 package com.multicloud.batch.model;
 
-import com.multicloud.batch.dao.huawei.payload.HuaweiBillingExpenseResponse;
 import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
 import jakarta.persistence.*;
 import lombok.*;
@@ -121,12 +120,26 @@ public class HuaweiBillingDailyCost {
 
     @Column(name = "consume_amount", precision = 20, scale = 8)
     private BigDecimal consumeAmount;
+    @Column(name = "cash_amount", precision = 20, scale = 8)
+    private BigDecimal cashAmount;
+    @Column(name = "credit_amount", precision = 20, scale = 8)
+    private BigDecimal creditAmount;
+    @Column(name = "coupon_amount", precision = 20, scale = 8)
+    private BigDecimal couponAmount;
+    @Column(name = "flexipurchase_coupon_amount", precision = 20, scale = 8)
+    private BigDecimal flexipurchaseCouponAmount;
+    @Column(name = "stored_card_amount", precision = 20, scale = 8)
+    private BigDecimal storedCardAmount;
+    @Column(name = "bonus_amount", precision = 20, scale = 8)
+    private BigDecimal bonusAmount;
+    @Column(name = "debt_amount", precision = 20, scale = 8)
+    private BigDecimal debtAmount;
+    @Column(name = "adjustment_amount", precision = 20, scale = 8)
+    private BigDecimal adjustmentAmount;
     @Column(name = "official_amount", precision = 20, scale = 8)
     private BigDecimal officialAmount;
     @Column(name = "discount_amount", precision = 20, scale = 8)
     private BigDecimal discountAmount;
-    @Column(name = "coupon_amount", precision = 20, scale = 8)
-    private BigDecimal couponAmount;
 
     public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record) {
 
@@ -148,35 +161,16 @@ public class HuaweiBillingDailyCost {
                 .chargeMode(record.charge_mode())
                 .billType(record.bill_type())
                 .consumeAmount(record.consume_amount())
+                .cashAmount(record.cash_amount())
+                .creditAmount(record.credit_amount())
+                .couponAmount(record.coupon_amount())
+                .flexipurchaseCouponAmount(record.flexipurchase_coupon_amount())
+                .storedCardAmount(record.stored_card_amount())
+                .bonusAmount(record.bonus_amount())
+                .debtAmount(record.debt_amount())
+                .adjustmentAmount(record.adjustment_amount())
                 .officialAmount(record.official_amount())
                 .discountAmount(record.discount_amount())
-                .couponAmount(record.coupon_amount())
-                .build();
-    }
-
-
-    public static HuaweiBillingDailyCost from(HuaweiBillingExpenseResponse.FeeRecord record, String payerAccountId) {
-
-        return HuaweiBillingDailyCost.builder()
-                .billDate(LocalDate.parse(record.bill_date()))
-                .payerAccountId(payerAccountId)
-                .customerId(record.customer_id())
-                .enterpriseProjectId(record.enterprise_project_id())
-                .enterpriseProjectName(record.enterprise_project_name())
-                .cloudServiceType(record.cloud_service_type())
-                .cloudServiceTypeName(record.cloud_service_type_name())
-                .skuCode(record.sku_code() == null ? "UNKNOWN" : record.sku_code())
-                .productSpecDesc(record.product_spec_desc())
-                .resourceTypeCode(record.resource_type())
-                .resourceTypeName(record.resource_type_name())
-                .resourceName(record.resource_name())
-                .region(record.region())
-                .regionName(record.region_name())
-                .chargeMode(Integer.valueOf(record.charge_mode()))
-                .consumeAmount(record.amount())
-                .officialAmount(record.official_amount())
-                .discountAmount(record.discount_amount())
-                .couponAmount(record.coupon_amount())
                 .build();
     }
 
