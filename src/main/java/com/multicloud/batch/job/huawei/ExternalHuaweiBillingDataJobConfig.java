@@ -11,6 +11,7 @@ import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.job.DateRangePartition;
 import com.multicloud.batch.model.HuaweiDataSyncHistory;
 import com.multicloud.batch.repository.HuaweiDataSyncHistoryRepository;
+import com.multicloud.batch.service.HuaweiSubAccountInfoService;
 import com.multicloud.batch.service.SecretPayloadStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,7 @@ public class ExternalHuaweiBillingDataJobConfig {
     private final PlatformTransactionManager platformTransactionManager;
 
     private final HuaweiDataSyncHistoryRepository huaweiDataSyncHistoryRepository;
+    private final HuaweiSubAccountInfoService huaweiSubAccountInfoService;
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final SecretPayloadStoreService secretPayloadStoreService;
     private final HuaweiAuthService huaweiAuthService;
@@ -115,15 +117,9 @@ public class ExternalHuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
-            /* Todo:
-            *   Need to read account info from database
-            * */
-            List<HuaweiSubAccountInfoDTO> subAccountInfoDTOS = new ArrayList<>();
-            subAccountInfoDTOS.add(new HuaweiSubAccountInfoDTO(
-                    1, "eniro-master", "azerion-mc-billing", "eu-west-101"
-            ));
+            List<HuaweiSubAccountInfoDTO> subAccountInfoList = huaweiSubAccountInfoService.findAllSubAccountInfo();
 
-            Set<String> uniqueNames = subAccountInfoDTOS.stream()
+            Set<String> uniqueNames = subAccountInfoList.stream()
                     .map(HuaweiSubAccountInfoDTO::getUniqueName)
                     .collect(Collectors.toSet());
 
@@ -132,7 +128,7 @@ public class ExternalHuaweiBillingDataJobConfig {
 
             int i = 1;
 
-            for (HuaweiSubAccountInfoDTO dto : subAccountInfoDTOS) {
+            for (HuaweiSubAccountInfoDTO dto : subAccountInfoList) {
 
                 // Partition calculation
                 boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME, dto.getUniqueName());

@@ -9,7 +9,6 @@ import java.io.Serializable;
  */
 
 public record HuaweiSubAccountInfoDTO(
-        long organizationId,
         String domainName,
         String agencyName,
         String project
@@ -22,7 +21,6 @@ public record HuaweiSubAccountInfoDTO(
     public static HuaweiSubAccountInfoDTO build(String uniqueName) {
         String[] parts = uniqueName.split("_#_");
         return new HuaweiSubAccountInfoDTO(
-                0,
                 parts[0],
                 parts[1],
                 parts[2]
