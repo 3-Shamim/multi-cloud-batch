@@ -65,14 +65,14 @@ public class HuaweiBillingDataJobConfig {
     @Bean
     public Job huaweiBillingDataJob() {
         return new JobBuilder("huaweiBillingDataJob", jobRepository)
-                .start(huaweiLoginStep())
+                .start(huaweiLoginStepForInternal())
                 .next(huaweiBillingDataMasterStep())
                 .build();
     }
 
     @Bean
-    public Step huaweiLoginStep() {
-        return new StepBuilder("huaweiLoginStep", jobRepository)
+    public Step huaweiLoginStepForInternal() {
+        return new StepBuilder("huaweiLoginStepForInternal", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
                     SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);

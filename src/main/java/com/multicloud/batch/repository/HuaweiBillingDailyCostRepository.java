@@ -53,7 +53,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         debt_amount = VALUES(debt_amount),
                         adjustment_amount = VALUES(adjustment_amount),
                         official_amount = VALUES(official_amount),
-                        discount_amount = VALUES(discount_amount)
+                        discount_amount = VALUES(discount_amount),
                         final_amount = VALUES(final_amount)
                 """;
 
