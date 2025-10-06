@@ -4,11 +4,15 @@ import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
 import com.multicloud.batch.service.JobStepService;
+import com.multicloud.batch.service.OrganizationService;
 import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParametersInvalidException;
+import org.springframework.batch.core.JobParametersValidator;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -16,6 +20,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,10 +44,10 @@ import java.time.LocalDate;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnExpression("${batch_job.combined_billing.enabled}")
-public class CombineServiceBillingDataJobConfig {
+@ConditionalOnExpression("${batch_job.merge_billing.enabled}")
+public class MergeBillingDataJobConfig {
 
-    private static final int CHUNK = 500;
+    private static final int CHUNK = 500000;
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
@@ -50,17 +55,38 @@ public class CombineServiceBillingDataJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
 
+    private final OrganizationService organizationService;
     private final ServiceTypeService serviceTypeService;
     private final JobStepService jobStepService;
 
     @Bean
-    public Job combineServiceBillingDataJob() {
-        return new JobBuilder("combineServiceBillingDataJob", jobRepository)
+    public Job mergeBillingDataJob(Step mergeHuaweiBillingDataStep,
+                                   Step mergeGcpBillingDataStep,
+                                   Step mergeAwsBillingDataStep) {
+
+        return new JobBuilder("mergeBillingDataJob", jobRepository)
+                .validator(parametersValidator())
                 .start(fetchAndStoreServiceTypeStep())
-                .next(combineServiceHuaweiBillingDataStep())
-                .next(combineServiceGcpBillingDataStep())
-                .next(combineServiceAwsBillingDataStep())
+                .next(mergeHuaweiBillingDataStep)
+                .next(mergeGcpBillingDataStep)
+                .next(mergeAwsBillingDataStep)
                 .build();
+    }
+
+    private JobParametersValidator parametersValidator() {
+        return parameters -> {
+
+            if (parameters == null) {
+                throw new JobParametersInvalidException("Job parameters are required for mergeBillingDataJob");
+            }
+
+            Long orgId = parameters.getLong("orgId");
+
+            if (orgId == null) {
+                throw new JobParametersInvalidException("Organization ID is required for mergeBillingDataJob");
+            }
+
+        };
     }
 
     @Bean
@@ -76,10 +102,11 @@ public class CombineServiceBillingDataJobConfig {
     }
 
     @Bean
-    public Step combineServiceHuaweiBillingDataStep() {
-        return new StepBuilder("combineServiceHuaweiBillingDataStep", jobRepository)
+    public Step mergeHuaweiBillingDataStep(ItemReader<ServiceLevelBilling> huaweiDataReader) {
+
+        return new StepBuilder("mergeHuaweiBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(huaweiDataReader())
+                .reader(huaweiDataReader)
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -90,28 +117,24 @@ public class CombineServiceBillingDataJobConfig {
 
                     return item;
                 })
-                .writer(this::upsertAll)
+                .writer(chunk -> {
+                    System.out.println(chunk.size());
+                })
+//                .writer(this::upsertAll)
                 .build();
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> huaweiDataReader() {
-
-        try {
-            return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.HUAWEI_SQL, "combineServiceHuaweiBillingDataStep"
-            );
-        } catch (Exception e) {
-            throw new IllegalStateException("Spring Batch configuration problem: ", e);
-        }
-
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> huaweiDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
+        return createReader(orgId, ServiceLevelBillingSql.HUAWEI_SQL, CloudProvider.HWC);
     }
 
     @Bean
-    public Step combineServiceGcpBillingDataStep() {
-        return new StepBuilder("combineServiceGcpBillingDataStep", jobRepository)
+    public Step mergeGcpBillingDataStep(ItemReader<ServiceLevelBilling> gcpDataReader) {
+        return new StepBuilder("mergeGcpBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(gcpDataReader())
+                .reader(gcpDataReader)
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -131,28 +154,24 @@ public class CombineServiceBillingDataJobConfig {
 
                     return item;
                 })
-                .writer(this::upsertAll)
+                .writer(chunk -> {
+                    System.out.println(chunk.size());
+                })
+//                .writer(this::upsertAll)
                 .build();
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> gcpDataReader() {
-
-        try {
-            return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.GCP_SQL, "combineServiceGcpBillingDataStep"
-            );
-        } catch (Exception e) {
-            throw new IllegalStateException("Spring Batch configuration problem: ", e);
-        }
-
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> gcpDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
+        return createReader(orgId, ServiceLevelBillingSql.GCP_SQL, CloudProvider.GCP);
     }
 
     @Bean
-    public Step combineServiceAwsBillingDataStep() {
-        return new StepBuilder("combineServiceAwsBillingDataStep", jobRepository)
+    public Step mergeAwsBillingDataStep(ItemReader<ServiceLevelBilling> awsDataReader) {
+        return new StepBuilder("mergeAwsBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(awsDataReader())
+                .reader(awsDataReader)
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -172,50 +191,39 @@ public class CombineServiceBillingDataJobConfig {
 
                     return item;
                 })
-                .writer(this::upsertAll)
+                .writer(chunk -> {
+                    System.out.println(chunk.size());
+                })
+//                .writer(this::upsertAll)
                 .build();
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> awsDataReader() {
-
-        try {
-            return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.AWS_SQL, "combineServiceAwsBillingDataStep"
-            );
-        } catch (Exception e) {
-            throw new IllegalStateException("Spring Batch configuration problem: ", e);
-        }
-
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> awsDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
+        return createReader(orgId, ServiceLevelBillingSql.AWS_SQL, CloudProvider.AWS);
     }
 
-    private JdbcCursorItemReader<ServiceLevelBilling> getBillingDataCursorItemReader(String sql, String stepName) throws Exception {
+    private JdbcCursorItemReader<ServiceLevelBilling> createReader(Long orgId, String sql, CloudProvider provider) throws Exception {
 
-        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
-
-        LocalDate startDate;
         LocalDate endDate = LocalDate.now();
-
-        /* Todo:
-        *   Maybe we can run this job on full dataset
-        *   Depending on the job frequency
-        * */
-        if (stepEverCompleted) {
-            startDate = endDate.minusDays(7);
-        } else {
-            startDate = LocalDate.parse("2025-01-01");
-        }
+        LocalDate startDate = jobStepService.hasStepEverCompleted("merge" + provider.name() + "BillingDataStep")
+                ? endDate.minusDays(7)
+                : LocalDate.parse("2025-01-01");
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
-
+        reader.setName("reader-" + provider.name());
         reader.setDataSource(dataSource);
         reader.setSql(sql);
-
         reader.setFetchSize(0);
+//        reader.setSaveState(false);
+//        reader.setVerifyCursorPosition(false);
 
         reader.setPreparedStatementSetter(ps -> {
             ps.setObject(1, startDate);
             ps.setObject(2, endDate);
+            ps.setLong(3, orgId);
+            ps.setString(4, provider.name());
         });
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
@@ -230,6 +238,7 @@ public class CombineServiceBillingDataJobConfig {
                 .cost(rs.getBigDecimal("cost"))
                 .build());
 
+        // Must call this to ensure Spring can open the reader
         reader.afterPropertiesSet();
 
         return reader;

@@ -20,6 +20,10 @@ public class ServiceLevelBillingSql {
                     COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)    AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ?
+                    AND customer_id IN (
+                        SELECT DISTINCT(account_id) FROM product_accounts
+                        WHERE organization_id = ? AND cloud_provider = ?
+                    )
                 GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
@@ -35,6 +39,10 @@ public class ServiceLevelBillingSql {
                     cost
                 FROM gcp_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
+                    AND project_id IN (
+                        SELECT DISTINCT(account_id) FROM product_accounts
+                        WHERE organization_id = ? AND cloud_provider = ?
+                    )
                 GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
@@ -50,6 +58,10 @@ public class ServiceLevelBillingSql {
                     unblended_cost                           AS cost
                 FROM aws_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ?
+                    AND usage_account_id IN (
+                        SELECT DISTINCT(account_id) FROM product_accounts
+                        WHERE organization_id = ? AND cloud_provider = ?
+                    )
                 GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 

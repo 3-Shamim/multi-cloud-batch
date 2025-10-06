@@ -1,5 +1,6 @@
 package com.multicloud.batch.service;
 
+import com.multicloud.batch.dto.ServiceTypeDTO;
 import com.multicloud.batch.enums.CloudProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,11 +32,11 @@ public class ServiceTypeService {
 
         SERVICE_TYPE_MAP.clear();
 
-        findAllServiceTypes().forEach(serviceType -> SERVICE_TYPE_MAP.put(
+        findAllServiceTypes().forEach(serviceTypeDTO -> SERVICE_TYPE_MAP.put(
                 new ServiceTypeGroup(
-                        serviceType.code(), CloudProvider.valueOf(serviceType.cloudProvider())
+                        serviceTypeDTO.code(), CloudProvider.valueOf(serviceTypeDTO.cloudProvider())
                 ),
-                serviceType.parentCategory())
+                serviceTypeDTO.parentCategory())
         );
 
     }
@@ -44,11 +45,11 @@ public class ServiceTypeService {
         return SERVICE_TYPE_MAP.get(new ServiceTypeGroup(code, provider));
     }
 
-    private List<ServiceType> findAllServiceTypes() {
+    private List<ServiceTypeDTO> findAllServiceTypes() {
 
         return jdbcTemplate.query(
                 "SELECT code, cloud_provider, parent_category FROM service_types",
-                (rs, rowNum) -> new ServiceType(
+                (rs, rowNum) -> new ServiceTypeDTO(
                         rs.getString("code"),
                         rs.getString("cloud_provider"),
                         rs.getString("parent_category")
@@ -57,9 +58,6 @@ public class ServiceTypeService {
     }
 
     private record ServiceTypeGroup(String code, CloudProvider provider) {
-    }
-
-    public record ServiceType(String code, String cloudProvider, String parentCategory) {
     }
 
 }

@@ -7,11 +7,12 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-@ConditionalOnProperty(name = "batch_job.combined_billing.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "batch_job.merge_billing.enabled", havingValue = "true")
 public class CommonScheduler {
 
     private final JobLauncher jobLauncher;
@@ -30,7 +31,8 @@ public class CommonScheduler {
     private final Job combineServiceBillingDataJob;
 
     @Async
-    @Scheduled(cron = "${batch_job.combined_billing.corn}")
+//    @Scheduled(cron = "${batch_job.merge_billing.corn}")
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runCombineServiceBillingDataJob() throws Exception {
 
         if (jobService.isJobTrulyRunning(combineServiceBillingDataJob.getName())) {
@@ -38,11 +40,17 @@ public class CommonScheduler {
             return;
         }
 
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addLong("time", System.currentTimeMillis())
-                .toJobParameters();
+        for (long i = 1; i <= 2; i++) {
 
-        jobLauncher.run(combineServiceBillingDataJob, jobParameters);
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .addLong("orgId", i)
+                    .toJobParameters();
+
+            jobLauncher.run(combineServiceBillingDataJob, jobParameters);
+
+        }
+
 
     }
 
