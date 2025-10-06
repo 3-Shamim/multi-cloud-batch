@@ -79,9 +79,9 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
-    public void syncInternalProjectDailyCostUsageFromAthena(String database, String tableName,
-                                                            String accessKey, String secretKey, String region,
-                                                            LocalDate start, LocalDate end) {
+    public void syncDailyCostUsageFromAthena(String database, String tableName,
+                                             String accessKey, String secretKey, String region,
+                                             LocalDate start, LocalDate end) {
 
         StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(accessKey, secretKey)

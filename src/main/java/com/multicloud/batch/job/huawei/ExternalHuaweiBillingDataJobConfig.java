@@ -221,7 +221,7 @@ public class ExternalHuaweiBillingDataJobConfig {
 
                         // Fetch data for subaccount with assumeRoleToken
                         huaweiBillingService.fetchDailyServiceCostUsage(
-                                range, assumeRoleToken
+                                range, assumeRoleToken, false
                         );
 
                     }

@@ -195,7 +195,7 @@ public class HuaweiBillingDataJobConfig {
                         );
 
                         huaweiBillingService.fetchDailyServiceCostUsage(
-                                range, token
+                                range, token, true
                         );
 
                     }

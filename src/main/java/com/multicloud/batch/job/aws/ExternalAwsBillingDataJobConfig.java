@@ -187,7 +187,7 @@ public class ExternalAwsBillingDataJobConfig {
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
-                        awsBillingService.syncInternalProjectDailyCostUsageFromAthena(
+                        awsBillingService.syncDailyCostUsageFromAthena(
                                 DATABASE_NAME, tableName,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
                                 range.start(), range.end()

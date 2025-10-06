@@ -141,6 +141,12 @@ public class HuaweiBillingDailyCost {
     @Column(name = "discount_amount", precision = 20, scale = 8)
     private BigDecimal discountAmount;
 
+    // Custom final amount
+    // For internal this will be 'consume_amount'
+    // For external this will be 'official_amount'
+    @Column(name = "final_amount", precision = 20, scale = 8)
+    private BigDecimal finalAmount;
+
     public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record) {
 
         return HuaweiBillingDailyCost.builder()

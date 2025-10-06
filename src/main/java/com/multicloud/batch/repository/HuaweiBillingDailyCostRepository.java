@@ -18,7 +18,8 @@ import java.util.Collection;
 @Repository
 public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBillingDailyCost, Long> {
 
-    default void upsertHuaweiBillingDailyCosts(Collection<HuaweiBillingDailyCost> bills, JdbcTemplate jdbcTemplate) {
+    default void upsertHuaweiBillingDailyCosts(Collection<HuaweiBillingDailyCost> bills, JdbcTemplate jdbcTemplate,
+                                               boolean internal) {
 
         if (bills == null || bills.isEmpty()) {
             return;
@@ -26,14 +27,14 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
 
         String sql = """
                     INSERT INTO huawei_billing_daily_costs (
-                        bill_date, payer_account_id, customer_id, enterprise_project_id,
-                        enterprise_project_name, cloud_service_type, cloud_service_type_name, sku_code,
-                        product_spec_desc, resource_type_code, resource_type_name, resource_name, region,
-                        region_name, charge_mode, bill_type, usage_amount, consume_amount, cash_amount,
-                        credit_amount, coupon_amount, flexipurchase_coupon_amount, stored_card_amount,
-                        bonus_amount, debt_amount, adjustment_amount, official_amount, discount_amount
+                        bill_date, payer_account_id, customer_id, enterprise_project_id, enterprise_project_name,
+                        cloud_service_type, cloud_service_type_name, sku_code, product_spec_desc,
+                        resource_type_code, resource_type_name, resource_name, region, region_name,
+                        charge_mode, bill_type, usage_amount, consume_amount, cash_amount, credit_amount,
+                        coupon_amount, flexipurchase_coupon_amount, stored_card_amount, bonus_amount, debt_amount,
+                        adjustment_amount, official_amount, discount_amount, final_amount
                     ) VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         enterprise_project_name = VALUES(enterprise_project_name),
                         cloud_service_type_name = VALUES(cloud_service_type_name),
@@ -53,6 +54,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         adjustment_amount = VALUES(adjustment_amount),
                         official_amount = VALUES(official_amount),
                         discount_amount = VALUES(discount_amount)
+                        final_amount = VALUES(final_amount)
                 """;
 
         jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
@@ -84,6 +86,7 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
             ps.setBigDecimal(26, bill.getAdjustmentAmount());
             ps.setBigDecimal(27, bill.getOfficialAmount());
             ps.setBigDecimal(28, bill.getDiscountAmount());
+            ps.setBigDecimal(29, internal ? bill.getConsumeAmount() : bill.getOfficialAmount());
         });
     }
 

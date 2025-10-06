@@ -35,11 +35,11 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
     private final HuaweiBillingDailyCostRepository huaweiBillingDailyCostRepository;
 
     @Override
-    public void fetchDailyServiceCostUsage(CustomDateRange range, HuaweiAuthDetails authDetails) {
+    public void fetchDailyServiceCostUsage(CustomDateRange range, HuaweiAuthDetails authDetails, boolean internal) {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
         doRequest(range, authDetails, 0, data);
-        huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), jdbcTemplate);
+        huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), jdbcTemplate, internal);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
 

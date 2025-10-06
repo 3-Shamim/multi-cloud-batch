@@ -13,7 +13,7 @@ public interface AwsBillingService {
 
     Set<String> tableListByDatabase(String database, String accessKey, String secretKey, String region);
 
-    void syncInternalProjectDailyCostUsageFromAthena(
+    void syncDailyCostUsageFromAthena(
             String databaseName, String tableName, String accessKey, String secretKey, String region,
             LocalDate start, LocalDate end
     );
