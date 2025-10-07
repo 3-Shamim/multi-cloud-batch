@@ -5,35 +5,41 @@ import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
 import com.multicloud.batch.service.JobStepService;
 import com.multicloud.batch.service.OrganizationService;
+import com.multicloud.batch.service.ProductAccountService;
 import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParametersInvalidException;
-import org.springframework.batch.core.JobParametersValidator;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.Chunk;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
-import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.io.Serializable;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Created by IntelliJ IDEA.
@@ -56,174 +62,118 @@ public class MergeBillingDataJobConfig {
     private final PlatformTransactionManager platformTransactionManager;
 
     private final OrganizationService organizationService;
+    private final ProductAccountService productAccountService;
     private final ServiceTypeService serviceTypeService;
     private final JobStepService jobStepService;
 
+    private final OrganizationIdValidator organizationIdValidator;
+    private final Step cacheServiceTypeStep;
+
     @Bean
-    public Job mergeBillingDataJob(Step mergeHuaweiBillingDataStep,
-                                   Step mergeGcpBillingDataStep,
-                                   Step mergeAwsBillingDataStep) {
+    public Job mergeBillingDataJob(Step masterStep) {
 
         return new JobBuilder("mergeBillingDataJob", jobRepository)
-                .validator(parametersValidator())
-                .start(fetchAndStoreServiceTypeStep())
-                .next(mergeHuaweiBillingDataStep)
-                .next(mergeGcpBillingDataStep)
-                .next(mergeAwsBillingDataStep)
+                .validator(organizationIdValidator)
+                .start(cacheServiceTypeStep)
+                .next(masterStep)
                 .build();
     }
 
-    private JobParametersValidator parametersValidator() {
-        return parameters -> {
+    @Bean
+    public Step masterStep(Step workerStep) {
 
-            if (parameters == null) {
-                throw new JobParametersInvalidException("Job parameters are required for mergeBillingDataJob");
-            }
+        return new StepBuilder("masterStep", jobRepository)
+                .partitioner(workerStep.getName(), partitioner())
+                .step(workerStep)
+                .gridSize(1)
+                .build();
+    }
 
-            Long orgId = parameters.getLong("orgId");
+    @Bean
+    public Partitioner partitioner() {
+
+        return grid -> {
+
+            StepExecution stepExecution = requireNonNull(
+                    StepSynchronizationManager.getContext()
+            ).getStepExecution();
+
+            Long orgId = stepExecution.getJobParameters().getLong("orgId");
 
             if (orgId == null) {
-                throw new JobParametersInvalidException("Organization ID is required for mergeBillingDataJob");
+                throw new RuntimeException("Organization ID is not set for mergeBillingDataJob");
             }
 
+            Map<String, ExecutionContext> partitions = new HashMap<>();
+
+            List<String> allAccountIds = productAccountService.findAccountIds(orgId, CloudProvider.AWS);
+
+            int partitionSize = 50;
+            int partitionNumber = 0;
+
+            for (int i = 0; i < allAccountIds.size(); i += partitionSize) {
+
+                List<String> subList = allAccountIds.subList(i, Math.min(i + partitionSize, allAccountIds.size()));
+
+                ExecutionContext context = new ExecutionContext();
+                context.put("accountIds", new AccountIds(new ArrayList<>(subList)));
+
+                partitions.put("partition" + partitionNumber, context);
+
+                partitionNumber++;
+
+            }
+
+            return partitions;
         };
     }
 
     @Bean
-    public Step fetchAndStoreServiceTypeStep() {
-        return new StepBuilder("fetchAndStoreServiceTypeStep", jobRepository)
-                .tasklet((contribution, chunkContext) -> {
+    public Step workerStep(ItemReader<ServiceLevelBilling> awsReader) {
 
-                    serviceTypeService.fetchAndStoreServiceTypeMap();
-
-                    return RepeatStatus.FINISHED;
-                }, platformTransactionManager)
-                .build();
-    }
-
-    @Bean
-    public Step mergeHuaweiBillingDataStep(ItemReader<ServiceLevelBilling> huaweiDataReader) {
-
-        return new StepBuilder("mergeHuaweiBillingDataStep", jobRepository)
-                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(huaweiDataReader)
+        return new StepBuilder("workerStep", jobRepository)
+                .<ServiceLevelBilling, ServiceLevelBilling>chunk(5000, platformTransactionManager)
+                .reader(awsReader) // Step-scoped reader, accountIds injected
                 .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
 
                     return item;
                 })
                 .writer(chunk -> {
                     System.out.println(chunk.size());
                 })
-//                .writer(this::upsertAll)
                 .build();
     }
 
     @Bean
     @StepScope
-    public JdbcCursorItemReader<ServiceLevelBilling> huaweiDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
-        return createReader(orgId, ServiceLevelBillingSql.HUAWEI_SQL, CloudProvider.HWC);
-    }
+    public ItemReader<ServiceLevelBilling> awsReader() throws Exception {
 
-    @Bean
-    public Step mergeGcpBillingDataStep(ItemReader<ServiceLevelBilling> gcpDataReader) {
-        return new StepBuilder("mergeGcpBillingDataStep", jobRepository)
-                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(gcpDataReader)
-                .processor(item -> {
+        StepExecution stepExecution = requireNonNull(
+                StepSynchronizationManager.getContext()
+        ).getStepExecution();
 
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
+        AccountIds accountIds = (AccountIds) stepExecution.getExecutionContext().get("accountIds");
 
-                    if (!StringUtils.hasText(parentCategory)) {
-
-                        if (item.getBillingType().equalsIgnoreCase("regular")) {
-                            item.setServiceCode("Unknown");
-                            item.setParentCategory("Unknown");
-                        }
-
-                    } else {
-                        item.setParentCategory(parentCategory);
-                    }
-
-                    return item;
-                })
-                .writer(chunk -> {
-                    System.out.println(chunk.size());
-                })
-//                .writer(this::upsertAll)
-                .build();
-    }
-
-    @Bean
-    @StepScope
-    public JdbcCursorItemReader<ServiceLevelBilling> gcpDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
-        return createReader(orgId, ServiceLevelBillingSql.GCP_SQL, CloudProvider.GCP);
-    }
-
-    @Bean
-    public Step mergeAwsBillingDataStep(ItemReader<ServiceLevelBilling> awsDataReader) {
-        return new StepBuilder("mergeAwsBillingDataStep", jobRepository)
-                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(awsDataReader)
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    if (!StringUtils.hasText(parentCategory)) {
-
-                        if (item.getBillingType().equalsIgnoreCase("Usage")) {
-                            item.setServiceCode("Unknown");
-                            item.setParentCategory("Unknown");
-                        }
-
-                    } else {
-                        item.setParentCategory(parentCategory);
-                    }
-
-                    return item;
-                })
-                .writer(chunk -> {
-                    System.out.println(chunk.size());
-                })
-//                .writer(this::upsertAll)
-                .build();
-    }
-
-    @Bean
-    @StepScope
-    public JdbcCursorItemReader<ServiceLevelBilling> awsDataReader(@Value("#{jobParameters['orgId']}") Long orgId) throws Exception {
-        return createReader(orgId, ServiceLevelBillingSql.AWS_SQL, CloudProvider.AWS);
-    }
-
-    private JdbcCursorItemReader<ServiceLevelBilling> createReader(Long orgId, String sql, CloudProvider provider) throws Exception {
+        if (accountIds == null) {
+            throw new RuntimeException("Account IDs are not set for workerStep");
+        }
 
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = jobStepService.hasStepEverCompleted("merge" + provider.name() + "BillingDataStep")
+        LocalDate startDate = jobStepService.hasStepEverCompleted("workerStep")
                 ? endDate.minusDays(7)
                 : LocalDate.parse("2025-01-01");
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
-        reader.setName("reader-" + provider.name());
+//        reader.setName("workerStep");
         reader.setDataSource(dataSource);
-        reader.setSql(sql);
-        reader.setFetchSize(0);
-//        reader.setSaveState(false);
-//        reader.setVerifyCursorPosition(false);
+        reader.setSql(createSQL(accountIds.accountIds));
+        reader.setFetchSize(500);
+        reader.setSaveState(false);
+        reader.setVerifyCursorPosition(false);
 
         reader.setPreparedStatementSetter(ps -> {
             ps.setObject(1, startDate);
             ps.setObject(2, endDate);
-            ps.setLong(3, orgId);
-            ps.setString(4, provider.name());
         });
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
@@ -241,47 +191,21 @@ public class MergeBillingDataJobConfig {
         // Must call this to ensure Spring can open the reader
         reader.afterPropertiesSet();
 
+        reader.open(new ExecutionContext());
+
         return reader;
     }
 
-    private void upsertAll(Chunk<? extends ServiceLevelBilling> records) {
+    private String createSQL(List<String> accountIds) {
 
-        if (records == null || records.isEmpty()) {
-            return;
-        }
+        String placeholders = accountIds.stream()
+                .map(v -> String.format("'%s'", v))
+                .collect(Collectors.joining(", "));
 
-        log.info("Upserting {} records...", records.size());
+        return ServiceLevelBillingSql.AWS_SQL.formatted(placeholders);
+    }
 
-        jdbcTemplate.batchUpdate(
-                ServiceLevelBillingSql.UPSERT_SQL,
-                new BatchPreparedStatementSetter() {
-
-                    @Override
-                    public void setValues(PreparedStatement ps, int i) throws SQLException {
-
-                        ServiceLevelBilling item = records.getItems().get(i);
-
-                        ps.setDate(1, Date.valueOf(item.getUsageDate()));
-                        ps.setString(2, item.getCloudProvider().name());
-                        ps.setString(3, item.getBillingAccountId());
-                        ps.setString(4, item.getUsageAccountId());
-                        ps.setString(5, item.getUsageAccountName());
-                        ps.setString(6, item.getServiceCode());
-                        ps.setString(7, item.getServiceName());
-                        ps.setString(8, item.getBillingType());
-                        ps.setString(9, item.getParentCategory());
-                        ps.setBigDecimal(10, item.getCost());
-
-                    }
-
-                    @Override
-                    public int getBatchSize() {
-                        return records.size();
-                    }
-
-                }
-        );
-
+    record AccountIds(List<String> accountIds) implements Serializable {
     }
 
 }

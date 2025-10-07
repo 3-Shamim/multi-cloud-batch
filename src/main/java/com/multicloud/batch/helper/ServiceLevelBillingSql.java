@@ -19,11 +19,7 @@ public class ServiceLevelBillingSql {
                     bill_type                                                   AS billing_type,
                     COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)    AS cost
                 FROM huawei_billing_daily_costs
-                WHERE bill_date >= ? AND bill_date <= ?
-                    AND customer_id IN (
-                        SELECT DISTINCT(account_id) FROM product_accounts
-                        WHERE organization_id = ? AND cloud_provider = ?
-                    )
+                WHERE bill_date >= ? AND bill_date <= ? AND customer_id IN (%s)
                 GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
@@ -38,11 +34,7 @@ public class ServiceLevelBillingSql {
                     cost_type                               AS billing_type,
                     cost
                 FROM gcp_billing_daily_costs
-                WHERE usage_date >= ? AND usage_date <= ?
-                    AND project_id IN (
-                        SELECT DISTINCT(account_id) FROM product_accounts
-                        WHERE organization_id = ? AND cloud_provider = ?
-                    )
+                WHERE usage_date >= ? AND usage_date <= ? AND project_id IN (%s)
                 GROUP BY 1, 2, 3, 4, 6, 8;
             """;
 
@@ -55,14 +47,10 @@ public class ServiceLevelBillingSql {
                     service_code,
                     service_name,
                     billing_type,
-                    unblended_cost                           AS cost
+                    SUM(unblended_cost)                      AS cost
                 FROM aws_billing_daily_costs
-                WHERE usage_date >= ? AND usage_date <= ?
-                    AND usage_account_id IN (
-                        SELECT DISTINCT(account_id) FROM product_accounts
-                        WHERE organization_id = ? AND cloud_provider = ?
-                    )
-                GROUP BY 1, 2, 3, 4, 6, 8;
+                WHERE usage_date >= ? AND usage_date <= ? AND usage_account_id IN (%s)
+                GROUP BY 1, 3, 4, 6, 8;
             """;
 
     public static final String UPSERT_SQL = """

@@ -28,7 +28,7 @@ public class ServiceTypeService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public void fetchAndStoreServiceTypeMap() {
+    public void fetchAndStoreServiceTypeToMap() {
 
         SERVICE_TYPE_MAP.clear();
 

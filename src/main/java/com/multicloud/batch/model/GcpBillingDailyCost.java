@@ -34,9 +34,11 @@ import java.time.LocalDate;
                 @Index(name = "idx_project_id", columnList = "project_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
+                @Index(name = "idx_cost_type", columnList = "cost_type"),
+                @Index(name = "idx_date_account_id", columnList = "usage_date, project_id"),
                 @Index(
-                        name = "idx_project_service",
-                        columnList = "usage_date, billing_account_id, project_id, service_code"
+                        name = "idx_service_level",
+                        columnList = "usage_date, billing_account_id, project_id, service_code, cost_type"
                 )
         }
 )
