@@ -108,7 +108,7 @@ public class MergeBillingDataJobConfig {
 
             List<String> allAccountIds = productAccountService.findAccountIds(orgId, CloudProvider.AWS);
 
-            int partitionSize = 50;
+            int partitionSize = 150;
             int partitionNumber = 0;
 
             for (int i = 0; i < allAccountIds.size(); i += partitionSize) {
@@ -167,7 +167,7 @@ public class MergeBillingDataJobConfig {
 //        reader.setName("workerStep");
         reader.setDataSource(dataSource);
         reader.setSql(createSQL(accountIds.accountIds));
-        reader.setFetchSize(500);
+        reader.setFetchSize(0);
         reader.setSaveState(false);
         reader.setVerifyCursorPosition(false);
 
