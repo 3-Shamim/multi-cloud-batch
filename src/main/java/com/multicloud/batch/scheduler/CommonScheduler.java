@@ -37,8 +37,7 @@ public class CommonScheduler {
     private final Job mergeHuaweiBillingDataJob;
 
     @Async
-//    @Scheduled(cron = "${batch_job.merge_billing.corn}")
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Scheduled(cron = "${batch_job.merge_billing.corn}")
     public void runAwsMergeBillingDataJob() throws Exception {
 
         List<OrganizationDTO> organizations = organizationService.findOrganizations();
@@ -50,11 +49,11 @@ public class CommonScheduler {
                     .addLong("orgId", organization.id())
                     .toJobParameters();
 
-//            if (!organization.skipAwsJob()) {
-//                jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
-//            }
-//
-//            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
+            if (!organization.skipAwsJob()) {
+                jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
+            }
+
+            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
             jobLauncher.run(mergeHuaweiBillingDataJob, jobParameters);
 
         }
