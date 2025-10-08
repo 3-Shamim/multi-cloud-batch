@@ -232,7 +232,7 @@ public class MergeHuaweiBillingDataJobConfig {
         boolean jobEverCompleted = jobService.hasJobEverCompleted(JOB_NAME);
 
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = !jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
+        LocalDate startDate = jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
         reader.setName("huaweiDataReader");
