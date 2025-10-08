@@ -17,7 +17,7 @@ public class ServiceLevelBillingSql {
                     cloud_service_type                                          AS service_code,
                     cloud_service_type_name                                     AS service_name,
                     bill_type                                                   AS billing_type,
-                    SUM(consume_amount)                                         AS cost
+                    SUM(final_amount)                                           AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ? AND customer_id IN (%s)
                 GROUP BY 1, 3, 4, 6, 8;

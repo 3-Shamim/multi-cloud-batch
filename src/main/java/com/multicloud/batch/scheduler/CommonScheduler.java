@@ -32,9 +32,11 @@ public class CommonScheduler {
     private final JobService jobService;
     private final Job mergeAwsBillingDataJob;
     private final Job mergeGcpBillingDataJob;
+    private final Job mergeHuaweiBillingDataJob;
 
     @Async
-    @Scheduled(cron = "${batch_job.merge_billing.corn}")
+//    @Scheduled(cron = "${batch_job.merge_billing.corn}")
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     public void runAwsMergeBillingDataJob() throws Exception {
 
 
@@ -50,8 +52,9 @@ public class CommonScheduler {
                     .addLong("orgId", i)
                     .toJobParameters();
 
-            jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
-            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
+//            jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
+//            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
+            jobLauncher.run(mergeHuaweiBillingDataJob, jobParameters);
 
         }
 
