@@ -133,7 +133,7 @@ public class MergeAwsBillingDataJobConfig {
 
         return new StepBuilder("mergeAwsBillingDataWorkerStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(awsDataReader()) // Step-scoped reader, accountIds injected
+                .reader(awsDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(

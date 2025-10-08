@@ -133,7 +133,7 @@ public class MergeGcpBillingDataJobConfig {
 
         return new StepBuilder("mergeGcpBillingDataWorkerStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(gcpDataReader()) // Step-scoped reader, accountIds injected
+                .reader(gcpDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(

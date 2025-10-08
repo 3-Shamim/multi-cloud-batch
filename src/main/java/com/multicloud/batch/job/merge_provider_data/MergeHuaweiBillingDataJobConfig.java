@@ -5,6 +5,7 @@ import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
 import com.multicloud.batch.repository.ServiceLevelBillingRepository;
 import com.multicloud.batch.service.JobService;
+import com.multicloud.batch.service.OrganizationPricingService;
 import com.multicloud.batch.service.ProductAccountService;
 import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +22,16 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,6 +67,7 @@ public class MergeHuaweiBillingDataJobConfig {
     private final ProductAccountService productAccountService;
     private final ServiceTypeService serviceTypeService;
     private final JobService jobService;
+    private final OrganizationPricingService organizationPricingService;
 
     private final OrganizationIdValidator organizationIdValidator;
     private final Step cacheServiceTypeStep;
@@ -74,7 +78,36 @@ public class MergeHuaweiBillingDataJobConfig {
         return new JobBuilder(JOB_NAME, jobRepository)
                 .validator(organizationIdValidator)
                 .start(cacheServiceTypeStep)
+                .next(cachePerDayDiscountStep())
                 .next(mergeHuaweiBillingDataMasterStep())
+                .build();
+    }
+
+    @Bean
+    public Step cachePerDayDiscountStep() {
+
+        return new StepBuilder("cachePerDayDiscountStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    StepExecution stepExecution = requireNonNull(
+                            StepSynchronizationManager.getContext()
+                    ).getStepExecution();
+
+                    Long orgId = stepExecution.getJobParameters().getLong("orgId");
+
+                    if (orgId == null) {
+                        throw new RuntimeException("Organization ID is not set for " + JOB_NAME);
+                    }
+
+                    organizationPricingService.cachePerDayDiscount(
+                            orgId,
+                            CloudProvider.HWC,
+                            LocalDate.now().minusYears(1),
+                            LocalDate.now()
+                    );
+
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
                 .build();
     }
 
@@ -132,7 +165,7 @@ public class MergeHuaweiBillingDataJobConfig {
 
         return new StepBuilder("mergeHuaweiBillingDataWorkerStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(huaweiDataReader()) // Step-scoped reader, accountIds injected
+                .reader(huaweiDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -141,8 +174,20 @@ public class MergeHuaweiBillingDataJobConfig {
 
                     item.setParentCategory(parentCategory);
 
-                    // Todo: need to apply our discount
-                    item.setFinalCost(item.getCost());
+                    Double discount = organizationPricingService.getDiscountByDate(
+                            CloudProvider.HWC, item.getUsageDate()
+                    );
+
+                    BigDecimal disAmount = BigDecimal.ZERO;
+
+                    if (discount != null) {
+
+                         disAmount = item.getCost().multiply(new BigDecimal(discount))
+                                .divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
+
+                    }
+
+                    item.setFinalCost(item.getCost().subtract(disAmount));
 
                     return item;
                 })
@@ -187,7 +232,7 @@ public class MergeHuaweiBillingDataJobConfig {
         boolean jobEverCompleted = jobService.hasJobEverCompleted(JOB_NAME);
 
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
+        LocalDate startDate = !jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
         reader.setName("huaweiDataReader");
