@@ -1,4 +1,4 @@
-package com.multicloud.batch.job;
+package com.multicloud.batch.job.merge_provider_data;
 
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
@@ -48,10 +48,10 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnExpression("${batch_job.aws_merge_billing.enabled}")
-public class MergeAwsBillingDataJobConfig {
+@ConditionalOnExpression("${batch_job.merge_billing.enabled}")
+public class MergeGcpBillingDataJobConfig {
 
-    private static final String JOB_NAME = "mergeAwsBillingDataJob";
+    private static final String JOB_NAME = "mergeGcpBillingDataJob";
     private static final int CHUNK = 500;
 
     private final DataSource dataSource;
@@ -70,27 +70,27 @@ public class MergeAwsBillingDataJobConfig {
     private final Step cacheServiceTypeStep;
 
     @Bean
-    public Job mergeAwsBillingDataJob() {
+    public Job mergeGcpBillingDataJob() {
 
         return new JobBuilder(JOB_NAME, jobRepository)
                 .validator(organizationIdValidator)
                 .start(cacheServiceTypeStep)
-                .next(mergeAwsBillingDataMasterStep())
+                .next(mergeGcpBillingDataMasterStep())
                 .build();
     }
 
     @Bean
-    public Step mergeAwsBillingDataMasterStep() {
+    public Step mergeGcpBillingDataMasterStep() {
 
-        return new StepBuilder("mergeAwsBillingDataMasterStep", jobRepository)
-                .partitioner(mergeAwsBillingDataWorkerStep().getName(), mergeAwsBillingDataPartitioner())
-                .step(mergeAwsBillingDataWorkerStep())
+        return new StepBuilder("mergeGcpBillingDataMasterStep", jobRepository)
+                .partitioner(mergeGcpBillingDataWorkerStep().getName(), mergeGcpBillingDataPartitioner())
+                .step(mergeGcpBillingDataWorkerStep())
                 .gridSize(1)
                 .build();
     }
 
     @Bean
-    public Partitioner mergeAwsBillingDataPartitioner() {
+    public Partitioner mergeGcpBillingDataPartitioner() {
 
         return grid -> {
 
@@ -106,7 +106,7 @@ public class MergeAwsBillingDataJobConfig {
 
             Map<String, ExecutionContext> partitions = new HashMap<>();
 
-            List<String> allAccountIds = productAccountService.findAccountIds(orgId, CloudProvider.AWS);
+            List<String> allAccountIds = productAccountService.findAccountIds(orgId, CloudProvider.GCP);
 
             int partitionSize = 50;
             int partitionNumber = 0;
@@ -129,11 +129,11 @@ public class MergeAwsBillingDataJobConfig {
     }
 
     @Bean
-    public Step mergeAwsBillingDataWorkerStep() {
+    public Step mergeGcpBillingDataWorkerStep() {
 
-        return new StepBuilder("mergeAwsBillingDataWorkerStep", jobRepository)
+        return new StepBuilder("mergeGcpBillingDataWorkerStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(awsDataReader()) // Step-scoped reader, accountIds injected
+                .reader(gcpDataReader()) // Step-scoped reader, accountIds injected
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -142,7 +142,7 @@ public class MergeAwsBillingDataJobConfig {
 
                     if (!StringUtils.hasText(parentCategory)) {
 
-                        if (item.getBillingType().equalsIgnoreCase("Usage")) {
+                        if (item.getBillingType().equalsIgnoreCase("regular")) {
                             item.setServiceCode("Unknown");
                             item.setParentCategory("Unknown");
                         }
@@ -151,7 +151,7 @@ public class MergeAwsBillingDataJobConfig {
                         item.setParentCategory(parentCategory);
                     }
 
-                    // Discount applied in COST for AWS
+                    // Discount applied in COST for GCP
                     item.setFinalCost(item.getCost());
 
                     return item;
@@ -165,10 +165,10 @@ public class MergeAwsBillingDataJobConfig {
                     Long orgId = stepExecution.getJobParameters().getLong("orgId");
 
                     if (orgId == null) {
-                        throw new RuntimeException("Organization ID is required for mergeAwsBillingDataWorkerStep");
+                        throw new RuntimeException("Organization ID is required for mergeGcpBillingDataWorkerStep");
                     }
 
-                    log.info("Writing {} aws records to database", records.size());
+                    log.info("Writing {} gcp records to database", records.size());
 
                     serviceLevelBillingRepository.upsert(
                             records,
@@ -182,7 +182,7 @@ public class MergeAwsBillingDataJobConfig {
 
     @Bean
     @StepScope
-    public ItemReader<ServiceLevelBilling> awsDataReader() {
+    public ItemReader<ServiceLevelBilling> gcpDataReader() {
 
         StepExecution stepExecution = requireNonNull(
                 StepSynchronizationManager.getContext()
@@ -191,18 +191,18 @@ public class MergeAwsBillingDataJobConfig {
         AccountIds accountIds = (AccountIds) stepExecution.getExecutionContext().get("accountIds");
 
         if (accountIds == null) {
-            throw new RuntimeException("Account IDs are not set for awsDataReader");
+            throw new RuntimeException("Account IDs are not set for gcpDataReader");
         }
 
         boolean jobEverCompleted = jobService.hasJobEverCompleted(JOB_NAME);
 
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = !jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
+        LocalDate startDate = jobEverCompleted ? endDate.minusDays(7) : LocalDate.parse("2025-01-01");
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
-        reader.setName("awsDataReader");
+        reader.setName("gcpDataReader");
         reader.setDataSource(dataSource);
-        reader.setSql(createSQL(accountIds.accountIds));
+        reader.setSql(createSQL(accountIds.accountIds()));
         reader.setFetchSize(0);
         reader.setSaveState(false);
         reader.setVerifyCursorPosition(false);
@@ -242,10 +242,7 @@ public class MergeAwsBillingDataJobConfig {
                 .map(v -> String.format("'%s'", v))
                 .collect(Collectors.joining(", "));
 
-        return ServiceLevelBillingSql.AWS_SQL.formatted(placeholders);
-    }
-
-    record AccountIds(List<String> accountIds) implements Serializable {
+        return ServiceLevelBillingSql.GCP_SQL.formatted(placeholders);
     }
 
 }

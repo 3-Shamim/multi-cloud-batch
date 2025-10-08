@@ -1,4 +1,4 @@
-package com.multicloud.batch.job;
+package com.multicloud.batch.job.merge_provider_data;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.JobParameters;

@@ -1,4 +1,4 @@
-package com.multicloud.batch.job;
+package com.multicloud.batch.job.merge_provider_data;
 
 import com.multicloud.batch.service.ServiceTypeService;
 import lombok.RequiredArgsConstructor;

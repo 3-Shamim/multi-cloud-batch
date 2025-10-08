@@ -25,28 +25,18 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-@ConditionalOnExpression("""
-            ${batch_job.aws_merge_billing.enabled}
-        """)
+@ConditionalOnExpression("${batch_job.merge_billing.enabled}")
 public class CommonScheduler {
 
-    @Value("${batch_job.aws_merge_billing.enabled}")
-    private boolean awsMergeBillingDataJobEnable;
-
-    private final JobRegistry jobRegistry;
     private final JobLauncher jobLauncher;
     private final JobService jobService;
+    private final Job mergeAwsBillingDataJob;
+    private final Job mergeGcpBillingDataJob;
 
     @Async
-    @Scheduled(cron = "${batch_job.aws_merge_billing.corn}")
+    @Scheduled(cron = "${batch_job.merge_billing.corn}")
     public void runAwsMergeBillingDataJob() throws Exception {
 
-        if (!awsMergeBillingDataJobEnable) {
-            log.info("Skipping because the job mergeAwsBillingDataJob is disabled");
-            return;
-        }
-
-        Job mergeAwsBillingDataJob = jobRegistry.getJob("mergeAwsBillingDataJob");
 
         if (jobService.isJobTrulyRunning(mergeAwsBillingDataJob.getName())) {
             log.info("Skipping mergeAwsBillingDataJob because the job is already running");
@@ -61,6 +51,7 @@ public class CommonScheduler {
                     .toJobParameters();
 
             jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
+            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
 
         }
 

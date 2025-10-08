@@ -17,10 +17,10 @@ public class ServiceLevelBillingSql {
                     cloud_service_type                                          AS service_code,
                     cloud_service_type_name                                     AS service_name,
                     bill_type                                                   AS billing_type,
-                    COALESCE(consume_amount, 0) - COALESCE(coupon_amount, 0)    AS cost
+                    SUM(consume_amount)                                         AS cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ? AND customer_id IN (%s)
-                GROUP BY 1, 2, 3, 4, 6, 8;
+                GROUP BY 1, 3, 4, 6, 8;
             """;
 
     public static final String GCP_SQL = """
@@ -32,10 +32,10 @@ public class ServiceLevelBillingSql {
                     service_code,
                     service_name,
                     cost_type                               AS billing_type,
-                    cost
+                    SUM(cost)                               AS cost
                 FROM gcp_billing_daily_costs
                 WHERE usage_date >= ? AND usage_date <= ? AND project_id IN (%s)
-                GROUP BY 1, 2, 3, 4, 6, 8;
+                GROUP BY 1, 3, 4, 6, 8;
             """;
 
     public static final String AWS_SQL = """
