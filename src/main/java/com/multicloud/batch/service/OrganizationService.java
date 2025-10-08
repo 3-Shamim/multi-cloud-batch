@@ -24,6 +24,19 @@ public class OrganizationService {
 
     private final JdbcTemplate jdbcTemplate;
 
+    public List<OrganizationDTO> findOrganizations() {
+
+        return jdbcTemplate.query(
+                "SELECT id, name, internal, skip_aws_job FROM organizations",
+                (rs, rowNum) -> new OrganizationDTO(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getBoolean("internal"),
+                        rs.getBoolean("skip_aws_job")
+                )
+        );
+    }
+
     public OrganizationDTO findOrganizationById(long id) {
 
         List<OrganizationDTO> data = jdbcTemplate.query(
