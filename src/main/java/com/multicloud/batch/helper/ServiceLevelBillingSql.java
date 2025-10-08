@@ -55,6 +55,7 @@ public class ServiceLevelBillingSql {
 
     public static final String UPSERT_SQL = """
                 INSERT INTO service_level_billings (
+                    organization_id,
                     usage_date,
                     cloud_provider,
                     billing_account_id,
@@ -64,14 +65,16 @@ public class ServiceLevelBillingSql {
                     service_name,
                     billing_type,
                     parent_category,
-                    cost
+                    cost,
+                    final_cost
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     usage_account_name = VALUES(usage_account_name),
                     service_name = VALUES(service_name),
                     parent_category = VALUES(parent_category),
-                    cost = VALUES(cost);
+                    cost = VALUES(cost),
+                    final_cost = VALUES(final_cost);
             """;
 
 }

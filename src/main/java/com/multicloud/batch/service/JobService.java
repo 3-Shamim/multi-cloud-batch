@@ -8,6 +8,7 @@ import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,8 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class JobService {
+
+    private final JdbcTemplate jdbcTemplate;
 
     private final JobRegistry jobRegistry;
     private final JobLauncher jobLauncher;
@@ -155,6 +158,25 @@ public class JobService {
         }
 
         return false;
+    }
+
+    public boolean hasJobEverCompleted(String jobName) {
+
+        String sql = """
+                SELECT EXISTS(
+                    SELECT 1 FROM BATCH_JOB_INSTANCE i
+                        JOIN BATCH_JOB_EXECUTION e ON i.JOB_INSTANCE_ID = e.JOB_INSTANCE_ID
+                        JOIN BATCH_JOB_EXECUTION_PARAMS ep ON e.JOB_EXECUTION_ID = ep.JOB_EXECUTION_ID
+                    WHERE i.JOB_NAME = 'mergeAwsBillingDataJob'
+                        AND e.STATUS = 'COMPLETED'
+                        AND ep.PARAMETER_NAME = 'orgId'
+                        AND PARAMETER_VALUE = 1
+                );
+                """;
+
+        Boolean exists = jdbcTemplate.queryForObject(sql, Boolean.class, jobName);
+
+        return exists != null && exists;
     }
 
     private static void holdForAMoment() {
