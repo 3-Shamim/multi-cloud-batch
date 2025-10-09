@@ -2,11 +2,9 @@ package com.multicloud.batch.scheduler;
 
 import com.multicloud.batch.dao.aws.AthenaService;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
-import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -14,7 +12,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -37,7 +34,7 @@ public class AthenaQueryScheduler {
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final AthenaService athenaService;
 
-//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void storeSecrets() {
 
 //        SecretPayload aws = new SecretPayload();
@@ -128,6 +125,16 @@ public class AthenaQueryScheduler {
                     where billing_entity in ('gembly-bv', 'adinmo', 'hitta', 'woozworld')
                     group by 1, 2, 3
                 """;
+
+        query = """
+                SELECT
+                  coalesce(billing_entity, 'UNKNOWN') AS billing_entity,
+                  array_join(array_agg(account_id), ',') AS account_ids
+                FROM org_accounts
+                GROUP BY billing_entity;
+                """;
+
+        query = "select distinct billing_entity from org_accounts";
 
         Set<String> externalTables = Set.of(
                 "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",

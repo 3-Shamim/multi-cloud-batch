@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Component
 @ConditionalOnExpression("${batch_job.merge_billing.enabled}")
-public class CommonScheduler {
+public class MergeBillingDataScheduler {
 
     private final JobLauncher jobLauncher;
 
@@ -38,7 +37,7 @@ public class CommonScheduler {
 
     @Async
     @Scheduled(cron = "${batch_job.merge_billing.corn}")
-    public void runAwsMergeBillingDataJob() throws Exception {
+    public void runMergeBillingDataJob() throws Exception {
 
         List<OrganizationDTO> organizations = organizationService.findOrganizations();
 

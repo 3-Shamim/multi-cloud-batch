@@ -226,7 +226,6 @@ public class MergeAwsBillingDataJobConfig {
 
         reader.open(new ExecutionContext());
 
-        // Must call this to ensure Spring can open the reader
         try {
             reader.afterPropertiesSet();
         } catch (Exception e) {

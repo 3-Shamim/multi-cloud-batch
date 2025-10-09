@@ -75,3 +75,6 @@ batch_job:
   merge_billing:
     corn: '0 30 */2 * * *'
     enabled: true
+  monthly_invoice:
+    corn: '0 0 1 * * *'
+    enabled: true
