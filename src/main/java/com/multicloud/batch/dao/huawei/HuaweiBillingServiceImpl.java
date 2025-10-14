@@ -38,7 +38,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
     public void fetchDailyServiceCostUsage(CustomDateRange range, HuaweiAuthDetails authDetails, boolean internal) {
 
         Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data = new HashMap<>();
-        doRequest(range, authDetails, 0, data);
+        doRequest(range, authDetails, 0, data, internal);
         huaweiBillingDailyCostRepository.upsertHuaweiBillingDailyCosts(data.values(), jdbcTemplate, internal);
 
         log.info("Huawei billing data fetched and stored successfully. Total results: {}", data.size());
@@ -48,7 +48,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
     }
 
     private void doRequest(CustomDateRange range, HuaweiAuthDetails authDetails, int offset,
-                           Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data) {
+                           Map<HuaweiBillingGroup, HuaweiBillingDailyCost> data, boolean internal) {
 
         HuaweiResourceBillingRequest request = new HuaweiResourceBillingRequest(
                 String.valueOf(range.year()),
@@ -101,45 +101,35 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
                 if (cost == null) {
 
-                    HuaweiBillingDailyCost newCost = HuaweiBillingDailyCost.from(row);
+                    HuaweiBillingDailyCost newCost = HuaweiBillingDailyCost.from(row, internal);
                     data.put(group, newCost);
 
                 } else {
 
-                    if (row.consume_amount() != null) {
-                        cost.setConsumeAmount(cost.getConsumeAmount().add(row.consume_amount()));
-                    }
-                    if (row.cash_amount() != null) {
-                        cost.setCashAmount(cost.getCashAmount().add(row.cash_amount()));
-                    }
-                    if (row.credit_amount() != null) {
-                        cost.setCreditAmount(cost.getCreditAmount().add(row.credit_amount()));
-                    }
-                    if (row.coupon_amount() != null) {
-                        cost.setCouponAmount(cost.getCouponAmount().add(row.coupon_amount()));
-                    }
-                    if (row.flexipurchase_coupon_amount() != null) {
-                        cost.setFlexipurchaseCouponAmount(
-                                cost.getFlexipurchaseCouponAmount().add(row.flexipurchase_coupon_amount())
-                        );
-                    }
-                    if (row.stored_card_amount() != null) {
-                        cost.setStoredCardAmount(cost.getStoredCardAmount().add(row.stored_card_amount()));
-                    }
-                    if (row.bonus_amount() != null) {
-                        cost.setBonusAmount(cost.getBonusAmount().add(row.bonus_amount()));
-                    }
-                    if (row.debt_amount() != null) {
-                        cost.setDebtAmount(cost.getDebtAmount().add(row.debt_amount()));
-                    }
-                    if (row.adjustment_amount() != null) {
-                        cost.setAdjustmentAmount(cost.getAdjustmentAmount().add(row.adjustment_amount()));
-                    }
-                    if (row.official_amount() != null) {
-                        cost.setOfficialAmount(cost.getOfficialAmount().add(row.official_amount()));
-                    }
-                    if (row.discount_amount() != null) {
-                        cost.setDiscountAmount(cost.getDiscountAmount().add(row.discount_amount()));
+                    if (internal) {
+
+                        if (row.consume_amount() != null) {
+                            cost.setConsumeAmount(cost.getConsumeAmount().add(row.consume_amount()));
+                        }
+                        if (row.debt_amount() != null) {
+                            cost.setDebtAmount(cost.getDebtAmount().add(row.debt_amount()));
+                        }
+                        if (row.official_amount() != null) {
+                            cost.setOfficialAmount(cost.getOfficialAmount().add(row.official_amount()));
+                        }
+
+                    } else {
+
+                        if (row.consume_amount() != null) {
+                            cost.setExtConsumeAmount(cost.getExtConsumeAmount().add(row.consume_amount()));
+                        }
+                        if (row.debt_amount() != null) {
+                            cost.setExtDebtAmount(cost.getExtDebtAmount().add(row.debt_amount()));
+                        }
+                        if (row.official_amount() != null) {
+                            cost.setExtOfficialAmount(cost.getExtOfficialAmount().add(row.official_amount()));
+                        }
+
                     }
 
                     data.put(group, cost);
@@ -148,7 +138,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
             });
 
             if (!response.getBody().monthly_records().isEmpty()) {
-                doRequest(range, authDetails, offset + 1000, data);
+                doRequest(range, authDetails, offset + 1000, data, internal);
             }
 
         } else {

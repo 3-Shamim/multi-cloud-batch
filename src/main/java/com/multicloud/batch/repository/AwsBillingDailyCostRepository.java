@@ -5,8 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -69,10 +67,6 @@ public interface AwsBillingDailyCostRepository extends JpaRepository<AwsBillingD
             ps.setBigDecimal(17, bill.getExtUnblendedCost());
             ps.setBigDecimal(18, bill.getExtBlendedCost());
         });
-    }
-
-    private static BigDecimal makeRound(BigDecimal value) {
-        return value.setScale(8, RoundingMode.HALF_UP);
     }
 
 }

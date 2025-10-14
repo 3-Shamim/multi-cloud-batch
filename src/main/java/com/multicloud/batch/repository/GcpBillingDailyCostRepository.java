@@ -5,8 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -18,7 +16,7 @@ import java.util.List;
 @Repository
 public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingDailyCost, Long> {
 
-    default void upsertGcpBillingDailyCosts(List<GcpBillingDailyCost> bills, JdbcTemplate jdbcTemplate) {
+    default void upsertGcpBillingDailyCosts(List<GcpBillingDailyCost> bills, JdbcTemplate jdbcTemplate, boolean internal) {
 
         if (bills == null || bills.isEmpty()) {
             return;
@@ -28,9 +26,9 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                     INSERT INTO gcp_billing_daily_costs
                     (usage_date, billing_account_id, project_id, project_name,
                      service_code, service_name, sku_id, sku_description, region, location,
-                     currency, cost_type, usage_amount, usage_unit, cost, credits)
+                     currency, cost_type, usage_amount, usage_unit, cost, credits, ext_cost, ext_credits)
                     VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         project_name = VALUES(project_name),
                         service_name = VALUES(service_name),
@@ -39,9 +37,19 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
                         currency = VALUES(currency),
                         usage_amount = VALUES(usage_amount),
                         usage_unit = VALUES(usage_unit),
+                """;
+
+        if (internal) {
+            sql += """
                         cost = VALUES(cost),
                         credits = VALUES(credits)
-                """;
+                    """;
+        } else {
+            sql += """
+                        ext_cost = VALUES(ext_cost),
+                        ext_credits = VALUES(ext_credits)
+                    """;
+        }
 
         jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
             ps.setDate(1, java.sql.Date.valueOf(bill.getUsageDate()));
@@ -60,12 +68,10 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
             ps.setString(14, bill.getUsageUnit());
             ps.setBigDecimal(15, bill.getCost());
             ps.setBigDecimal(16, bill.getCredits());
+            ps.setBigDecimal(17, bill.getExtCost());
+            ps.setBigDecimal(18, bill.getExtCredits());
         });
 
-    }
-
-    private static BigDecimal makeRound(BigDecimal value) {
-        return value.setScale(8, RoundingMode.HALF_UP);
     }
 
 }

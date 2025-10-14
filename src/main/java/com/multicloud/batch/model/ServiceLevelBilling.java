@@ -82,8 +82,7 @@ public class ServiceLevelBilling {
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
 
-    // After discount cost
-    @Column(name = "final_cost", precision = 20, scale = 8)
-    private BigDecimal finalCost;
+    @Column(name = "ext_cost", precision = 20, scale = 8)
+    private BigDecimal extCost;
 
 }

@@ -152,7 +152,7 @@ public class MergeAwsBillingDataJobConfig {
                     }
 
                     // Discount applied in COST for AWS
-                    item.setFinalCost(item.getCost());
+//                    item.setFinalCost(item.getCost());
 
                     return item;
                 })

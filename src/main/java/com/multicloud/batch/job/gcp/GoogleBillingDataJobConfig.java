@@ -173,7 +173,7 @@ public class GoogleBillingDataJobConfig {
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                         googleBillingService.fetchDailyServiceCostUsage(
-                                secret.getJsonKey().getBytes(), range.start(), range.end()
+                                secret.getJsonKey().getBytes(), range.start(), range.end(), true
                         );
 
                     }

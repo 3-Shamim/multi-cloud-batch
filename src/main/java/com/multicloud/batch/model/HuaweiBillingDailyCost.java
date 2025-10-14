@@ -120,36 +120,23 @@ public class HuaweiBillingDailyCost {
     @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
+    // For internal use
     @Column(name = "consume_amount", precision = 20, scale = 8)
     private BigDecimal consumeAmount;
-    @Column(name = "cash_amount", precision = 20, scale = 8)
-    private BigDecimal cashAmount;
-    @Column(name = "credit_amount", precision = 20, scale = 8)
-    private BigDecimal creditAmount;
-    @Column(name = "coupon_amount", precision = 20, scale = 8)
-    private BigDecimal couponAmount;
-    @Column(name = "flexipurchase_coupon_amount", precision = 20, scale = 8)
-    private BigDecimal flexipurchaseCouponAmount;
-    @Column(name = "stored_card_amount", precision = 20, scale = 8)
-    private BigDecimal storedCardAmount;
-    @Column(name = "bonus_amount", precision = 20, scale = 8)
-    private BigDecimal bonusAmount;
     @Column(name = "debt_amount", precision = 20, scale = 8)
     private BigDecimal debtAmount;
-    @Column(name = "adjustment_amount", precision = 20, scale = 8)
-    private BigDecimal adjustmentAmount;
     @Column(name = "official_amount", precision = 20, scale = 8)
     private BigDecimal officialAmount;
-    @Column(name = "discount_amount", precision = 20, scale = 8)
-    private BigDecimal discountAmount;
 
-    // Custom final amount
-    // For internal this will be 'consume_amount'
-    // For external this will be 'official_amount'
-    @Column(name = "final_amount", precision = 20, scale = 8)
-    private BigDecimal finalAmount;
+    // For external use
+    @Column(name = "ext_consume_amount", precision = 20, scale = 8)
+    private BigDecimal extConsumeAmount;
+    @Column(name = "ext_debt_amount", precision = 20, scale = 8)
+    private BigDecimal extDebtAmount;
+    @Column(name = "ext_official_amount", precision = 20, scale = 8)
+    private BigDecimal extOfficialAmount;
 
-    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record) {
+    public static HuaweiBillingDailyCost from(HuaweiResourceBillingResponse.MonthlyRecord record, boolean internal) {
 
         return HuaweiBillingDailyCost.builder()
                 .billDate(LocalDate.parse(record.bill_date()))
@@ -168,18 +155,17 @@ public class HuaweiBillingDailyCost {
                 .regionName(record.region_name())
                 .chargeMode(record.charge_mode())
                 .billType(record.bill_type())
-                .consumeAmount(record.consume_amount())
-                .cashAmount(record.cash_amount())
-                .creditAmount(record.credit_amount())
-                .couponAmount(record.coupon_amount())
-                .flexipurchaseCouponAmount(record.flexipurchase_coupon_amount())
-                .storedCardAmount(record.stored_card_amount())
-                .bonusAmount(record.bonus_amount())
-                .debtAmount(record.debt_amount())
-                .adjustmentAmount(record.adjustment_amount())
-                .officialAmount(record.official_amount())
-                .discountAmount(record.discount_amount())
+                .consumeAmount(internal ? getNumericSafe(record.consume_amount()) : BigDecimal.ZERO)
+                .debtAmount(internal ? getNumericSafe(record.debt_amount()) : BigDecimal.ZERO)
+                .officialAmount(internal ? getNumericSafe(record.official_amount()) : BigDecimal.ZERO)
+                .extConsumeAmount(internal ? BigDecimal.ZERO : getNumericSafe(record.consume_amount()))
+                .extDebtAmount(internal ? BigDecimal.ZERO : getNumericSafe(record.debt_amount()))
+                .extOfficialAmount(internal ? BigDecimal.ZERO : getNumericSafe(record.official_amount()))
                 .build();
+    }
+
+    private static BigDecimal getNumericSafe(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
 }

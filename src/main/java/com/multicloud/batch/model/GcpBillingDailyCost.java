@@ -93,10 +93,16 @@ public class GcpBillingDailyCost {
     @Column(name = "usage_unit", length = 64)
     private String usageUnit;
 
+    // For internal use
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
-
     @Column(precision = 20, scale = 8)
     private BigDecimal credits;
+
+    // For external use
+    @Column(name = "ext_cost", precision = 20, scale = 8)
+    private BigDecimal extCost;
+    @Column(name = "ext_credits", precision = 20, scale = 8)
+    private BigDecimal extCredits;
 
 }

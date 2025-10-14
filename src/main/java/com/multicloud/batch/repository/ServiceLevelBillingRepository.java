@@ -41,7 +41,7 @@ public interface ServiceLevelBillingRepository extends JpaRepository<ServiceLeve
                         ps.setString(9, item.getBillingType());
                         ps.setString(10, item.getParentCategory());
                         ps.setBigDecimal(11, item.getCost());
-                        ps.setBigDecimal(12, item.getFinalCost());
+                        ps.setBigDecimal(12, item.getCost());
 
                     }
 

@@ -187,7 +187,7 @@ public class MergeHuaweiBillingDataJobConfig {
 
                     }
 
-                    item.setFinalCost(item.getCost().subtract(disAmount));
+//                    item.setFinalCost(item.getCost().subtract(disAmount));
 
                     return item;
                 })

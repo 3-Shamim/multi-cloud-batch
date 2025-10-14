@@ -10,6 +10,6 @@ import java.time.LocalDate;
 
 public interface GoogleBillingService {
 
-    void fetchDailyServiceCostUsage(byte[] jsonKey, LocalDate start, LocalDate end);
+    void fetchDailyServiceCostUsage(byte[] jsonKey, LocalDate start, LocalDate end, boolean internal);
 
 }

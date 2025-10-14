@@ -32,7 +32,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
     private final GcpBillingDailyCostRepository gcpBillingDailyCostRepository;
 
     @Override
-    public void fetchDailyServiceCostUsage(byte[] jsonKey, LocalDate start, LocalDate end) {
+    public void fetchDailyServiceCostUsage(byte[] jsonKey, LocalDate start, LocalDate end, boolean internal) {
 
         String query = """
                     SELECT DATE(t.usage_start_time)                                      AS usage_date,
@@ -103,7 +103,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             // Each page can contain up to 10,000 rows by default, depending on the query and row size.
             for (FieldValueList row : result.iterateAll()) {
 
-                GcpBillingDailyCost billing = bindRow(row);
+                GcpBillingDailyCost billing = bindRow(row, internal);
 
                 billings.add(billing);
                 count++;
@@ -113,7 +113,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                     // Save each batch
                     // Clean before the next
                     log.info("Upserting {} fetched GCP records into DB.", billings.size());
-                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate);
+                    gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate, internal);
                     billings.clear();
 
                 }
@@ -121,7 +121,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
             }
 
             log.info("Upserting {} fetched GCP records into DB.", billings.size());
-            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate);
+            gcpBillingDailyCostRepository.upsertGcpBillingDailyCosts(billings, jdbcTemplate, internal);
             billings.clear();
 
             log.info("GCP billing data fetched and stored successfully. Total results: {}", count);
@@ -133,7 +133,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
     }
 
-    private GcpBillingDailyCost bindRow(FieldValueList row) {
+    private GcpBillingDailyCost bindRow(FieldValueList row, boolean internal) {
 
         return GcpBillingDailyCost.builder()
                 .usageDate(parseLocalDate(row, "usage_date"))
@@ -150,8 +150,10 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 .costType(getStringSafe(row, "cost_type"))
                 .usageAmount(getNumericSafe(row, "usage_amount"))
                 .usageUnit(getStringSafe(row, "usage_unit"))
-                .cost(getNumericSafe(row, "cost"))
-                .credits(getNumericSafe(row, "credits"))
+                .cost(internal ? getNumericSafe(row, "cost") : BigDecimal.ZERO)
+                .credits(internal ? getNumericSafe(row, "credits") : BigDecimal.ZERO)
+                .extCost(internal ? BigDecimal.ZERO : getNumericSafe(row, "cost"))
+                .extCredits(internal ? BigDecimal.ZERO : getNumericSafe(row, "credits"))
                 .build();
     }
 

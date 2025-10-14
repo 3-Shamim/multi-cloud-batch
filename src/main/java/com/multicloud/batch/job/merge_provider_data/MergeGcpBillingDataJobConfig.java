@@ -152,7 +152,7 @@ public class MergeGcpBillingDataJobConfig {
                     }
 
                     // Discount applied in COST for GCP
-                    item.setFinalCost(item.getCost());
+//                    item.setFinalCost(item.getCost());
 
                     return item;
                 })

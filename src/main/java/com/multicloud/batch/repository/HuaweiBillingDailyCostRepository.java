@@ -5,8 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Collection;
 
 /**
@@ -30,11 +28,10 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         bill_date, payer_account_id, customer_id, enterprise_project_id, enterprise_project_name,
                         cloud_service_type, cloud_service_type_name, sku_code, product_spec_desc,
                         resource_type_code, resource_type_name, resource_name, region, region_name,
-                        charge_mode, bill_type, usage_amount, consume_amount, cash_amount, credit_amount,
-                        coupon_amount, flexipurchase_coupon_amount, stored_card_amount, bonus_amount, debt_amount,
-                        adjustment_amount, official_amount, discount_amount, final_amount
+                        charge_mode, bill_type, usage_amount, consume_amount, debt_amount, official_amount,
+                        ext_consume_amount, ext_debt_amount, ext_official_amount
                     ) VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         enterprise_project_name = VALUES(enterprise_project_name),
                         cloud_service_type_name = VALUES(cloud_service_type_name),
@@ -43,19 +40,21 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
                         resource_name = VALUES(resource_name),
                         region_name = VALUES(region_name),
                         usage_amount = VALUES(usage_amount),
-                        consume_amount = VALUES(consume_amount),
-                        cash_amount = VALUES(cash_amount),
-                        credit_amount = VALUES(credit_amount),
-                        coupon_amount = VALUES(coupon_amount),
-                        flexipurchase_coupon_amount = VALUES(flexipurchase_coupon_amount),
-                        stored_card_amount = VALUES(stored_card_amount),
-                        bonus_amount = VALUES(bonus_amount),
-                        debt_amount = VALUES(debt_amount),
-                        adjustment_amount = VALUES(adjustment_amount),
-                        official_amount = VALUES(official_amount),
-                        discount_amount = VALUES(discount_amount),
-                        final_amount = VALUES(final_amount)
                 """;
+
+        if (internal) {
+            sql += """
+                        consume_amount = VALUES(consume_amount),
+                        debt_amount = VALUES(debt_amount),
+                        official_amount = VALUES(official_amount)
+                    """;
+        } else {
+            sql += """
+                        ext_consume_amount = VALUES(ext_consume_amount),
+                        ext_debt_amount = VALUES(ext_debt_amount),
+                        ext_official_amount = VALUES(ext_official_amount)
+                    """;
+        }
 
         jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
             ps.setDate(1, java.sql.Date.valueOf(bill.getBillDate()));
@@ -76,22 +75,12 @@ public interface HuaweiBillingDailyCostRepository extends JpaRepository<HuaweiBi
             ps.setInt(16, bill.getBillType());
             ps.setBigDecimal(17, bill.getUsageAmount());
             ps.setBigDecimal(18, bill.getConsumeAmount());
-            ps.setBigDecimal(19, bill.getCashAmount());
-            ps.setBigDecimal(20, bill.getCreditAmount());
-            ps.setBigDecimal(21, bill.getCouponAmount());
-            ps.setBigDecimal(22, bill.getFlexipurchaseCouponAmount());
-            ps.setBigDecimal(23, bill.getStoredCardAmount());
-            ps.setBigDecimal(24, bill.getBonusAmount());
-            ps.setBigDecimal(25, bill.getDebtAmount());
-            ps.setBigDecimal(26, bill.getAdjustmentAmount());
-            ps.setBigDecimal(27, bill.getOfficialAmount());
-            ps.setBigDecimal(28, bill.getDiscountAmount());
-            ps.setBigDecimal(29, internal ? bill.getConsumeAmount() : bill.getOfficialAmount());
+            ps.setBigDecimal(19, bill.getDebtAmount());
+            ps.setBigDecimal(20, bill.getOfficialAmount());
+            ps.setBigDecimal(21, bill.getExtConsumeAmount());
+            ps.setBigDecimal(22, bill.getExtDebtAmount());
+            ps.setBigDecimal(23, bill.getExtOfficialAmount());
         });
-    }
-
-    private static BigDecimal makeRound(BigDecimal value) {
-        return value.setScale(8, RoundingMode.HALF_UP);
     }
 
 }
