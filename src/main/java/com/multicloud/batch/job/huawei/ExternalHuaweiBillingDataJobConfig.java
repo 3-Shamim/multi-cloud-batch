@@ -134,7 +134,7 @@ public class ExternalHuaweiBillingDataJobConfig {
                 boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME, dto.getUniqueName());
 
                 long days = ChronoUnit.DAYS.between(
-                        LocalDate.parse("2025-09-01"), LocalDate.now()
+                        LocalDate.parse("2025-01-01"), LocalDate.now()
                 ) + 1;
 
                 if (exist) {
