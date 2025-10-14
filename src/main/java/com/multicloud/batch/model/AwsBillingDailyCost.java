@@ -95,13 +95,16 @@ public class AwsBillingDailyCost {
     @Column(name = "usage_unit", length = 128)
     private String usageUnit;
 
+    // For internal use
     @Column(name = "unblended_cost", precision = 20, scale = 8)
     private BigDecimal unblendedCost;
-
     @Column(name = "blended_cost", precision = 20, scale = 8)
     private BigDecimal blendedCost;
 
-    @Column(name = "net_cost", precision = 20, scale = 8)
-    private BigDecimal netCost;
+    // For external use
+    @Column(name = "ext_unblended_cost", precision = 20, scale = 8)
+    private BigDecimal extUnblendedCost;
+    @Column(name = "ext_blended_cost", precision = 20, scale = 8)
+    private BigDecimal extBlendedCost;
 
 }

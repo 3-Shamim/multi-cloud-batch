@@ -81,7 +81,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     @Override
     public void syncDailyCostUsageFromAthena(String database, String tableName,
                                              String accessKey, String secretKey, String region,
-                                             LocalDate start, LocalDate end) {
+                                             LocalDate start, LocalDate end, boolean internal) {
 
         StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(accessKey, secretKey)
@@ -153,13 +153,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
         athenaService.waitForQueryToComplete(executionId, athenaClient);
 
-        long totalResults = fetchResultsToUnloadedFileFromS3(bucket, prefix, s3Client);
+        long totalResults = fetchResultsToUnloadedFileFromS3(bucket, prefix, s3Client, internal);
 
         log.info("AWS billing data fetched and stored successfully. Total results: {}", totalResults);
 
     }
 
-    private long fetchResultsToUnloadedFileFromS3(String bucket, String prefix, S3Client s3Client) {
+    private long fetchResultsToUnloadedFileFromS3(String bucket, String prefix, S3Client s3Client, boolean internal) {
 
         ListObjectsV2Request s3Request = ListObjectsV2Request.builder()
                 .bucket(bucket)
@@ -200,14 +200,14 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
                     for (CSVRecord record : records) {
 
-                        results.add(bindRecord(record));
+                        results.add(bindRecord(record, internal));
                         count++;
 
                         if (results.size() == 5000) {
                             // Save each batch
                             // Clean before the next
                             log.info("Upserting {} fetched AWS records into DB.", results.size());
-                            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate);
+                            awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate, internal);
                             results.clear();
                         }
 
@@ -223,13 +223,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         // Save the remaining records
         log.info("Upserting {} fetched AWS records into DB.", results.size());
-        awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate);
+        awsBillingDailyCostRepository.upsertAwsBillingDailyCosts(results, jdbcTemplate, internal);
         results.clear();
 
         return count;
     }
 
-    private AwsBillingDailyCost bindRecord(CSVRecord record) {
+    private AwsBillingDailyCost bindRecord(CSVRecord record, boolean internal) {
 
         return AwsBillingDailyCost.builder()
                 .usageDate(LocalDate.parse(record.get("usage_date")))
@@ -246,8 +246,10 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .usageType(record.get("usage_type"))
                 .usageAmount(parseBigDecimalSafe(record.get("usage_amount")))
                 .usageUnit(record.get("usage_unit"))
-                .unblendedCost(parseBigDecimalSafe(record.get("unblended_cost")))
-                .blendedCost(parseBigDecimalSafe(record.get("blended_cost")))
+                .unblendedCost(internal ? parseBigDecimalSafe(record.get("unblended_cost")) : BigDecimal.ZERO)
+                .blendedCost(internal ? parseBigDecimalSafe(record.get("blended_cost")) : BigDecimal.ZERO)
+                .extUnblendedCost(internal ? BigDecimal.ZERO : parseBigDecimalSafe(record.get("unblended_cost")))
+                .extBlendedCost(internal ? BigDecimal.ZERO : parseBigDecimalSafe(record.get("blended_cost")))
                 .build();
     }
 

@@ -5,6 +5,7 @@ import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -12,6 +13,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -63,7 +65,7 @@ public class AthenaQueryScheduler {
 
     }
 
-    //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+//        @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void runAthenaQuery() {
 
         StaticCredentialsProvider provider = StaticCredentialsProvider.create(
@@ -135,6 +137,56 @@ public class AthenaQueryScheduler {
                 """;
 
         query = "select distinct billing_entity from org_accounts";
+
+        query = """
+                select o.billing_entity, sum(a.line_item_unblended_cost) as total_cost
+                from athena a
+                    left join org_accounts o ON a.line_item_usage_account_id = o.account_id
+                where year = '2025'
+                    and date(line_item_usage_start_date) >=  date '2025-09-01'
+                    and date(line_item_usage_start_date) <= date '2025-09-30'
+                group by 1
+                """;
+
+        query = """
+                select sum(line_item_unblended_cost) as total_cost
+                from cur_team_acity
+                where year = '2025'
+                    and date(line_item_usage_start_date) >=  date '2025-09-01'
+                    and date(line_item_usage_start_date) <= date '2025-09-30'
+                """;
+
+        query = """
+                select distinct(line_item_usage_account_id)
+                from cur_team_acity
+                where year = '2025'
+                    and date(line_item_usage_start_date) >=  date '2025-09-01'
+                    and date(line_item_usage_start_date) <= date '2025-09-30'
+                """;
+
+        query = """
+                SELECT
+                    bill_payer_account_id,
+                    line_item_usage_account_id,
+                    SUM(line_item_unblended_cost) AS cost,
+                    SUM(line_item_blended_cost) AS cost1
+                FROM athena
+                WHERE line_item_usage_account_id = '663810658647'
+                    and year = '2025'
+                    and date(line_item_usage_start_date) >= date '2025-09-01'
+                    and date(line_item_usage_start_date) <= date '2025-09-30'
+                GROUP BY 1, 2
+                """;
+
+//        query = """
+//                SELECT date(line_item_usage_start_date) FROM athena
+//                WHERE line_item_usage_account_id = '663810658647'
+//                    and year = '2025'
+//                    and date(line_item_usage_start_date) >= date '2025-09-01'
+//                    and date(line_item_usage_start_date) <= date '2025-09-30'
+//                GROUP BY 1
+//                ORDER BY 1;
+//                """;
 
         Set<String> externalTables = Set.of(
                 "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",

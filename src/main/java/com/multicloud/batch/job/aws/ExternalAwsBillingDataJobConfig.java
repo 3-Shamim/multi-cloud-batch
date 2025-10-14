@@ -190,7 +190,7 @@ public class ExternalAwsBillingDataJobConfig {
                         awsBillingService.syncDailyCostUsageFromAthena(
                                 DATABASE_NAME, tableName,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
-                                range.start(), range.end()
+                                range.start(), range.end(), false
                         );
 
                     }

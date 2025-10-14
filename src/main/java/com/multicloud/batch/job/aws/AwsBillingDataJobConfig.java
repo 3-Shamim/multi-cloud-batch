@@ -177,7 +177,7 @@ public class AwsBillingDataJobConfig {
                         awsBillingService.syncDailyCostUsageFromAthena(
                                 DATABASE_NAME, TABLE_NAME,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
-                                range.start(), range.end()
+                                range.start(), range.end(), true
                         );
 
                     }

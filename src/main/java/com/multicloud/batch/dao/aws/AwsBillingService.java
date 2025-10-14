@@ -15,7 +15,7 @@ public interface AwsBillingService {
 
     void syncDailyCostUsageFromAthena(
             String databaseName, String tableName, String accessKey, String secretKey, String region,
-            LocalDate start, LocalDate end
+            LocalDate start, LocalDate end, boolean internal
     );
 
 }
