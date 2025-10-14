@@ -35,7 +35,6 @@ import java.time.LocalDate;
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
                 @Index(name = "idx_billing_type", columnList = "billing_type"),
-                @Index(name = "idx_date_account_id", columnList = "usage_date, usage_account_id"),
                 @Index(
                         name = "idx_service_level",
                         columnList = """
@@ -95,13 +94,13 @@ public class AwsBillingDailyCost {
     @Column(name = "usage_unit", length = 128)
     private String usageUnit;
 
-    // For internal use
+    // Represent internal cost
     @Column(name = "unblended_cost", precision = 20, scale = 8)
     private BigDecimal unblendedCost;
     @Column(name = "blended_cost", precision = 20, scale = 8)
     private BigDecimal blendedCost;
 
-    // For external use
+    // Represent external cost
     @Column(name = "ext_unblended_cost", precision = 20, scale = 8)
     private BigDecimal extUnblendedCost;
     @Column(name = "ext_blended_cost", precision = 20, scale = 8)

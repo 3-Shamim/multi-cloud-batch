@@ -1,7 +1,6 @@
 package com.multicloud.batch.scheduler;
 
-import com.multicloud.batch.dto.OrganizationDTO;
-import com.multicloud.batch.service.OrganizationService;
+import com.multicloud.batch.service.JobService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -13,7 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by IntelliJ IDEA.
@@ -27,35 +26,25 @@ import java.util.List;
 @ConditionalOnExpression("${batch_job.merge_billing.enabled}")
 public class MergeBillingDataScheduler {
 
+    private final Job mergeAllBillingDataJob;
+
     private final JobLauncher jobLauncher;
-
-    private final OrganizationService organizationService;
-
-    private final Job mergeAwsBillingDataJob;
-    private final Job mergeGcpBillingDataJob;
-    private final Job mergeHuaweiBillingDataJob;
+    private final JobService jobService;
 
     @Async
     @Scheduled(cron = "${batch_job.merge_billing.corn}")
     public void runMergeBillingDataJob() throws Exception {
 
-        List<OrganizationDTO> organizations = organizationService.findOrganizations();
-
-        for (OrganizationDTO organization : organizations) {
-
-            JobParameters jobParameters = new JobParametersBuilder()
-                    .addLong("time", System.currentTimeMillis())
-                    .addLong("orgId", organization.id())
-                    .toJobParameters();
-
-            if (!organization.skipAwsJob()) {
-                jobLauncher.run(mergeAwsBillingDataJob, jobParameters);
-            }
-
-            jobLauncher.run(mergeGcpBillingDataJob, jobParameters);
-            jobLauncher.run(mergeHuaweiBillingDataJob, jobParameters);
-
+        if (jobService.isJobTrulyRunning(mergeAllBillingDataJob.getName())) {
+            log.info("Skipping mergeAllBillingDataJob because the job is already running");
+            return;
         }
+
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis())
+                .toJobParameters();
+
+        jobLauncher.run(mergeAllBillingDataJob, jobParameters);
 
     }
 

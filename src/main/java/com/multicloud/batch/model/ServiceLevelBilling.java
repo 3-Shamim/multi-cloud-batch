@@ -25,12 +25,11 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_slb",
                 columnNames = {
-                        "organization_id", "usage_date", "cloud_provider", "billing_account_id", "usage_account_id",
+                        "usage_date", "cloud_provider", "billing_account_id", "usage_account_id",
                         "service_code", "billing_type"
                 }
         ),
         indexes = {
-                @Index(name = "idx_organization_id", columnList = "organization_id"),
                 @Index(name = "idx_usage_date", columnList = "usage_date"),
                 @Index(name = "idx_cloud_provider", columnList = "cloud_provider"),
                 @Index(name = "idx_payer_account_id", columnList = "billing_account_id"),
@@ -44,9 +43,6 @@ public class ServiceLevelBilling {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "organization_id", nullable = false)
-    private long organizationId;
 
     @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
@@ -79,9 +75,11 @@ public class ServiceLevelBilling {
     @Column(name = "parent_category", length = 200)
     private String parentCategory;
 
+    // Represent internal cost
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
 
+    // Represent external cost
     @Column(name = "ext_cost", precision = 20, scale = 8)
     private BigDecimal extCost;
 

@@ -36,7 +36,6 @@ import java.time.LocalDate;
                 @Index(name = "idx_cloud_service_type", columnList = "cloud_service_type"),
                 @Index(name = "idx_sku_code", columnList = "sku_code"),
                 @Index(name = "idx_bill_type", columnList = "bill_type"),
-                @Index(name = "idx_date_account_id", columnList = "bill_date, customer_id"),
                 @Index(
                         name = "idx_service_level",
                         columnList = "bill_date, payer_account_id, customer_id, cloud_service_type, bill_type"
@@ -120,7 +119,7 @@ public class HuaweiBillingDailyCost {
     @Column(name = "usage_amount", precision = 30, scale = 8)
     private BigDecimal usageAmount;
 
-    // For internal use
+    // Represent internal cost
     @Column(name = "consume_amount", precision = 20, scale = 8)
     private BigDecimal consumeAmount;
     @Column(name = "debt_amount", precision = 20, scale = 8)
@@ -128,7 +127,7 @@ public class HuaweiBillingDailyCost {
     @Column(name = "official_amount", precision = 20, scale = 8)
     private BigDecimal officialAmount;
 
-    // For external use
+    // Represent external cost
     @Column(name = "ext_consume_amount", precision = 20, scale = 8)
     private BigDecimal extConsumeAmount;
     @Column(name = "ext_debt_amount", precision = 20, scale = 8)

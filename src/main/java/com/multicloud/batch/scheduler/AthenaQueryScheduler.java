@@ -188,6 +188,17 @@ public class AthenaQueryScheduler {
 //                ORDER BY 1;
 //                """;
 
+
+        query = """
+                SELECT date(line_item_usage_start_date) as day,
+                    sum(line_item_unblended_cost) AS cost
+                FROM cur_team_feig
+                WHERE year = '2025'
+                    and date(line_item_usage_start_date) >= date '2025-09-01'
+                    and date(line_item_usage_start_date) <= date '2025-09-30'
+                GROUP BY 1 ORDER BY 1;
+                """;
+
         Set<String> externalTables = Set.of(
                 "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",
                 "cur_team_acity", "cur_team_apex", "cur_team_artemis", "cur_team_feig"
@@ -197,9 +208,18 @@ public class AthenaQueryScheduler {
 
         for (String table : internalTables) {
 
-//            query = String.format("select count(*) from %s where year = '2025'", table);
+//            query = String.format(
+//                    """
+//                    SELECT sum(line_item_unblended_cost) AS cost
+//                    FROM %s
+//                    WHERE year = '2025'
+//                        and date(line_item_usage_start_date) >= date '2025-09-01'
+//                        and date(line_item_usage_start_date) <= date '2025-09-30'
+//                    """,
+//                    table
+//            );
 
-            String executionId = athenaService.submitAthenaQuery(query, outputLocation, internalDB, client);
+            String executionId = athenaService.submitAthenaQuery(query, outputLocation, externalDB, client);
             athenaService.waitForQueryToComplete(executionId, client);
 
             System.out.println(table);

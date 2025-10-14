@@ -35,7 +35,6 @@ import java.time.LocalDate;
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
                 @Index(name = "idx_cost_type", columnList = "cost_type"),
-                @Index(name = "idx_date_account_id", columnList = "usage_date, project_id"),
                 @Index(
                         name = "idx_service_level",
                         columnList = "usage_date, billing_account_id, project_id, service_code, cost_type"
@@ -93,13 +92,13 @@ public class GcpBillingDailyCost {
     @Column(name = "usage_unit", length = 64)
     private String usageUnit;
 
-    // For internal use
+    // Represent internal cost
     @Column(precision = 20, scale = 8)
     private BigDecimal cost;
     @Column(precision = 20, scale = 8)
     private BigDecimal credits;
 
-    // For external use
+    // Represent external cost
     @Column(name = "ext_cost", precision = 20, scale = 8)
     private BigDecimal extCost;
     @Column(name = "ext_credits", precision = 20, scale = 8)
