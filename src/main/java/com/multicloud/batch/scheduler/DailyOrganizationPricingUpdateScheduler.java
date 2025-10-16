@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnExpression("${batch_job.daily_org_pricing_update.enabled}")
 public class DailyOrganizationPricingUpdateScheduler {
 
-    private final Job mergeAllBillingDataJob;
+    private final Job dailyOrganizationPricingUpdateJob;
 
     private final JobLauncher jobLauncher;
     private final JobService jobService;
@@ -33,8 +33,8 @@ public class DailyOrganizationPricingUpdateScheduler {
     @Scheduled(cron = "${batch_job.daily_org_pricing_update.corn}")
     public void runMergeBillingDataJob() throws Exception {
 
-        if (jobService.isJobTrulyRunning(mergeAllBillingDataJob.getName())) {
-            log.info("Skipping mergeAllBillingDataJob because the job is already running");
+        if (jobService.isJobTrulyRunning(dailyOrganizationPricingUpdateJob.getName())) {
+            log.info("Skipping dailyOrganizationPricingUpdateJob because the job is already running");
             return;
         }
 
@@ -42,7 +42,7 @@ public class DailyOrganizationPricingUpdateScheduler {
                 .addLong("time", System.currentTimeMillis())
                 .toJobParameters();
 
-        jobLauncher.run(mergeAllBillingDataJob, jobParameters);
+        jobLauncher.run(dailyOrganizationPricingUpdateJob, jobParameters);
 
     }
 

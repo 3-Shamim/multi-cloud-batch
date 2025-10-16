@@ -187,8 +187,10 @@ public class MergeAllBillingDataJobConfig {
 
         reader.setDataSource(dataSource);
         reader.setSql(sql);
+        reader.setVerifyCursorPosition(false);
+        reader.setSaveState(false);
 
-        reader.setFetchSize(0);
+        reader.setFetchSize(500);
 
         reader.setPreparedStatementSetter(ps -> {
             ps.setObject(1, startDate);

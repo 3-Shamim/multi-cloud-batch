@@ -35,7 +35,9 @@ public class InvoiceCostService {
 
         String sql = """
                     WITH discounts AS (
-                        SELECT * FROM daily_organization_pricing WHERE organization_id = ?
+                        SELECT * FROM daily_organization_pricing 
+                        WHERE organization_id = ?
+                            AND date >= ? AND date <= ?
                      ),
                      costs AS (
                         SELECT * FROM service_level_billings slb
@@ -63,7 +65,7 @@ public class InvoiceCostService {
                 );
 
         return jdbcTemplate.query(
-                sql, mapper, organizationId, productId, organizationId, startDate, endDate, internalOrg
+                sql, mapper, organizationId, startDate, endDate, productId, organizationId, startDate, endDate, internalOrg
         );
     }
 
