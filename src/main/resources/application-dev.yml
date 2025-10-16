@@ -77,4 +77,4 @@ batch_job:
     enabled: false
   monthly_invoice:
     corn: '0 0 1 * * *'
-    enabled: true
+    enabled: false

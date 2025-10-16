@@ -1,23 +1,16 @@
-# Build stage
-FROM maven:3.9.6-eclipse-temurin-21 AS maven_builder
+FROM openjdk:21-jdk-slim as builder
+LABEL creator="Md Shamim"
+LABEL email="shamim.molla@vivasoftltd.com"
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests=true
+COPY /target/multi-cloud-batch.jar application.jar
+RUN java -Djarmode=layertools -jar application.jar extract
 
-# Extract layers
-FROM eclipse-temurin:21-jre AS layertools
-WORKDIR /layers
-COPY --from=maven_builder /app/target/multi-cloud-batch.jar app.jar
-RUN java -Djarmode=layertools -jar app.jar extract
-
-# Runtime image - JRE
-FROM eclipse-temurin:21-jre
+FROM openjdk:21-jdk-slim
 WORKDIR /app
-COPY --from=layertools /layers/dependencies/ ./
-COPY --from=layertools /layers/snapshot-dependencies/ ./
-COPY --from=layertools /layers/spring-boot-loader/ ./
-COPY --from=layertools /layers/application/ ./
+COPY --from=builder /app/dependencies/ ./
+COPY --from=builder /app/spring-boot-loader/ ./
+COPY --from=builder /app/snapshot-dependencies/ ./
+COPY --from=builder /app/application/ ./
 
 EXPOSE 8080
 
