@@ -35,7 +35,15 @@ import java.time.LocalDate;
                 @Index(name = "idx_payer_account_id", columnList = "billing_account_id"),
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
-                @Index(name = "idx_billing_type", columnList = "billing_type")
+                @Index(name = "idx_billing_type", columnList = "billing_type"),
+                @Index(
+                        name = "idx_slb_account_date",
+                        columnList = "usage_account_id, usage_date"
+                ),
+                @Index(
+                        name = "idx_slb_account_date_provider",
+                        columnList = "usage_account_id, usage_date, cloud_provider"
+                )
         }
 )
 public class ServiceLevelBilling {
