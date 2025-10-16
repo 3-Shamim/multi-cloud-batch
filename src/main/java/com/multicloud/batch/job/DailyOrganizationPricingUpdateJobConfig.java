@@ -84,7 +84,7 @@ public class DailyOrganizationPricingUpdateJobConfig {
                             op.discount
                         FROM organization_pricing op
                     )
-                    SELECT dr.usage_date AS date, p.organization_id, p.cloud_provider, p.discount
+                    SELECT dr.usage_date AS pricing_date, p.organization_id, p.cloud_provider, p.discount
                     FROM date_range dr
                         JOIN pricing_with_next p ON dr.usage_date >= p.start_date AND dr.usage_date < p.next_start_date;
                 """;
@@ -99,7 +99,7 @@ public class DailyOrganizationPricingUpdateJobConfig {
         reader.setFetchSize(500);
 
         reader.setRowMapper((rs, rowNum) -> DailyOrganizationPricingDTO.builder()
-                .date(rs.getDate("date").toLocalDate())
+                .pricingDate(rs.getDate("pricing_date").toLocalDate())
                 .organizationId(rs.getLong("organization_id"))
                 .cloudProvider(CloudProvider.valueOf(rs.getString("cloud_provider")))
                 .discount(rs.getDouble("discount"))
@@ -123,7 +123,7 @@ public class DailyOrganizationPricingUpdateJobConfig {
         log.info("Upserting daily organization pricing's {} records...", records.size());
 
         String sql = """
-                    INSERT INTO daily_organization_pricing (date, organization_id, cloud_provider, discount)
+                    INSERT INTO daily_organization_pricing (pricing_date, organization_id, cloud_provider, discount)
                     VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         discount = VALUES(discount)
@@ -132,7 +132,7 @@ public class DailyOrganizationPricingUpdateJobConfig {
         jdbcTemplate.batchUpdate(sql, records.getItems(), records.size(),
                 (ps, daily) -> {
 
-                    ps.setDate(1, Date.valueOf(daily.getDate()));
+                    ps.setDate(1, Date.valueOf(daily.getPricingDate()));
                     ps.setLong(2, daily.getOrganizationId());
                     ps.setString(3, daily.getCloudProvider().name());
                     ps.setDouble(4, daily.getDiscount());
