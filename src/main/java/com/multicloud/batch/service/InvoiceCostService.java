@@ -29,7 +29,7 @@ public class InvoiceCostService {
 
     public List<CloudProviderCostDTO> findCloudProviderCosts(long productId,
                                                              long organizationId,
-                                                             boolean internalOrg,
+                                                             boolean isInternalOrg,
                                                              LocalDate startDate,
                                                              LocalDate endDate) {
 
@@ -63,7 +63,7 @@ public class InvoiceCostService {
                 );
 
         return jdbcTemplate.query(
-                sql, mapper, organizationId, startDate, endDate, productId, organizationId, startDate, endDate, internalOrg
+                sql, mapper, organizationId, startDate, endDate, productId, organizationId, startDate, endDate, isInternalOrg
         );
     }
 

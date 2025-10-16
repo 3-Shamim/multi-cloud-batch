@@ -69,7 +69,7 @@ public class GenerateMonthlyInvoiceJobConfig {
                         List<CloudProviderCostDTO> providerCosts = invoiceCostService.findCloudProviderCosts(
                                 item.productId(),
                                 item.organizationId(),
-                                item.internalOrg(),
+                                item.isInternalOrg(),
                                 lastMonth.atDay(1),
                                 lastMonth.atEndOfMonth()
                         );
