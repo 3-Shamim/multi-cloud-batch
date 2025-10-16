@@ -56,7 +56,8 @@ batch_job.external_huawei_billing_data.corn=0 32 * * * *
 batch_job.external_huawei_billing_data.enabled=false
 batch_job.merge_billing.corn=0 22 * * * *
 batch_job.merge_billing.enabled=true
-
+batch_job.monthly_invoice.corn=0 34 * * * *
+batch_job.monthly_invoice.enabled=false
 ```
 
 💡 Tip: Instead of creating this file, you can define `_env`'s variables as environment variables in IntelliJ’s Run/Debug Configuration.
