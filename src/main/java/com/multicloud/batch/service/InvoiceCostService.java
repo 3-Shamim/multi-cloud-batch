@@ -36,8 +36,7 @@ public class InvoiceCostService {
         String sql = """
                     WITH discounts AS (
                         SELECT * FROM daily_organization_pricing 
-                        WHERE organization_id = ?
-                            AND pricing_date >= ? AND pricing_date <= ?
+                        WHERE organization_id = ? AND pricing_date >= ? AND pricing_date <= ?
                      ),
                      costs AS (
                         SELECT * FROM service_level_billings slb
@@ -48,11 +47,10 @@ public class InvoiceCostService {
                      )
                     SELECT c.cloud_provider,
                             SUM(IF(
-                                    ?,
-                                    COALESCE(cost, 0) - (COALESCE(cost, 0) * COALESCE(d.discount, 0) / 100),
-                                    COALESCE(ext_cost, 0) - (COALESCE(ext_cost, 0) * COALESCE(d.discount, 0) / 100)
-                               )
-                            ) AS cost
+                                ?,
+                                COALESCE(cost, 0) - (COALESCE(cost, 0) * COALESCE(d.discount, 0) / 100),
+                                COALESCE(ext_cost, 0) - (COALESCE(ext_cost, 0) * COALESCE(d.discount, 0) / 100)
+                            )) AS cost
                     FROM costs c
                         LEFT JOIN discounts d ON d.cloud_provider = c.cloud_provider AND d.pricing_date = c.usage_date
                     GROUP BY 1;
