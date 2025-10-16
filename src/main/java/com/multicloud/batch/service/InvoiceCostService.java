@@ -29,14 +29,14 @@ public class InvoiceCostService {
 
     public List<CloudProviderCostDTO> findCloudProviderCosts(long productId,
                                                              long organizationId,
+                                                             boolean internalOrg,
                                                              LocalDate startDate,
                                                              LocalDate endDate) {
 
         String sql = """
-                    SELECT cloud_provider, SUM(final_cost) AS cost
+                    SELECT cloud_provider, SUM(IF(?, cost, ext_cost)) AS cost
                     FROM service_level_billings
-                    WHERE organization_id = ?
-                        AND usage_account_id IN (
+                    WHERE usage_account_id IN (
                             SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
                         )
                         AND usage_date >= ?
@@ -51,7 +51,7 @@ public class InvoiceCostService {
                 );
 
         return jdbcTemplate.query(
-                sql, mapper, organizationId, productId, organizationId, startDate, endDate
+                sql, mapper, internalOrg, productId, organizationId, startDate, endDate
         );
     }
 

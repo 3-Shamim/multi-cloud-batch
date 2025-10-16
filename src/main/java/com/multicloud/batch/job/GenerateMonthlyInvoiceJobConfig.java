@@ -69,6 +69,7 @@ public class GenerateMonthlyInvoiceJobConfig {
                         List<CloudProviderCostDTO> providerCosts = invoiceCostService.findCloudProviderCosts(
                                 item.productId(),
                                 item.organizationId(),
+                                item.internalOrg(),
                                 lastMonth.atDay(1),
                                 lastMonth.atEndOfMonth()
                         );
@@ -100,14 +101,19 @@ public class GenerateMonthlyInvoiceJobConfig {
 
         JdbcCursorItemReader<ProductDTO> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
-        reader.setSql("SELECT id, organization_id FROM products");
-        reader.setFetchSize(0);
+        reader.setSql("""
+                    SELECT p.id, p.organization_id, o.internal
+                    FROM products p
+                        JOIN organizations o ON p.organization_id = o.id
+                """);
+        reader.setFetchSize(500);
         reader.setSaveState(false);
         reader.setVerifyCursorPosition(false);
 
         reader.setRowMapper((rs, rowNum) -> new ProductDTO(
                 rs.getLong("id"),
-                rs.getLong("organization_id")
+                rs.getLong("organization_id"),
+                rs.getBoolean("internal")
         ));
 
         try {
