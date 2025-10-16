@@ -37,7 +37,7 @@ public class InvoiceCostService {
                     WITH discounts AS (
                         SELECT * FROM daily_organization_pricing 
                         WHERE organization_id = ?
-                            AND date >= ? AND date <= ?
+                            AND pricing_date >= ? AND pricing_date <= ?
                      ),
                      costs AS (
                         SELECT * FROM service_level_billings slb
@@ -54,7 +54,7 @@ public class InvoiceCostService {
                                )
                             ) AS cost
                     FROM costs c
-                        LEFT JOIN discounts d ON d.cloud_provider = c.cloud_provider AND d.date = c.usage_date
+                        LEFT JOIN discounts d ON d.cloud_provider = c.cloud_provider AND d.pricing_date = c.usage_date
                     GROUP BY 1;
                 """;
 
