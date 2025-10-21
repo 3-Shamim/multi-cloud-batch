@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,14 +75,21 @@ public class GenerateMonthlyInvoiceJobConfig {
                                 lastMonth.atEndOfMonth()
                         );
 
+                        long invoiceNumber = invoiceCostService.getLatestInvoiceNumber(item.productId());
+
                         for (CloudProviderCostDTO providerCost : providerCosts) {
+
+                            invoiceNumber++;
 
                             billings.add(new BillingDTO(
                                     lastMonth,
                                     item.productId(),
                                     item.organizationId(),
                                     CloudProvider.valueOf(providerCost.cloudProvider()),
-                                    providerCost.cost()
+                                    providerCost.cost(),
+                                    invoiceNumber,
+                                    LocalDate.now(),
+                                    LocalDate.now().plusMonths(1)
                             ));
 
                         }

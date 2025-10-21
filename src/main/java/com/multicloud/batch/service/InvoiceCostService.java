@@ -67,11 +67,26 @@ public class InvoiceCostService {
         );
     }
 
+    public long getLatestInvoiceNumber(long productId) {
+
+        String sql = """
+                    SELECT invoice_number FROM billings WHERE product_id = ? ORDER BY invoice_number DESC LIMIT 1;
+                """;
+
+        List<Long> invoiceNumberList = jdbcTemplate.queryForList(
+                sql, Long.class, productId
+        );
+
+        return invoiceNumberList.isEmpty() ? 0 : invoiceNumberList.getFirst();
+    }
+
     public void insert(List<BillingDTO> billings) {
 
         String query = """
-                INSERT INTO billings(month_date, product_id, organization_id, cloud_provider, cost)
-                VALUES (?, ?, ?, ?, ?);
+                INSERT INTO billings(
+                    month_date, product_id, organization_id, cloud_provider, cost, invoice_number, created_date, due_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         jdbcTemplate.batchUpdate(query, billings, 100, (ps, bill) -> {
@@ -80,6 +95,9 @@ public class InvoiceCostService {
             ps.setLong(3, bill.organizationId());
             ps.setString(4, bill.provider().name());
             ps.setBigDecimal(5, bill.cost());
+            ps.setLong(6, bill.invoiceNumber());
+            ps.setDate(7, Date.valueOf(bill.createdDate()));
+            ps.setDate(8, Date.valueOf(bill.dueDate()));
         });
 
     }

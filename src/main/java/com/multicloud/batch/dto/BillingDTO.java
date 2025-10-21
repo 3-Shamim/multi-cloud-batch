@@ -3,6 +3,7 @@ package com.multicloud.batch.dto;
 import com.multicloud.batch.enums.CloudProvider;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 /**
@@ -16,6 +17,9 @@ public record BillingDTO(
         long productId,
         long organizationId,
         CloudProvider provider,
-        BigDecimal cost
+        BigDecimal cost,
+        long invoiceNumber,
+        LocalDate createdDate,
+        LocalDate dueDate
 ) {
 }

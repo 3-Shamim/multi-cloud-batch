@@ -200,7 +200,7 @@ public class AthenaQueryScheduler {
                 """;
 
         Set<String> externalTables = Set.of(
-                "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_refine", "cur_stratego_billing_group",
+                "cur_azul", "cur_bbw", "cur_da", "cur_lidion", "cur_nimbus", "cur_pubxai", "cur_refine", "cur_stratego_billing_group",
                 "cur_team_acity", "cur_team_apex", "cur_team_artemis", "cur_team_feig"
         );
 
