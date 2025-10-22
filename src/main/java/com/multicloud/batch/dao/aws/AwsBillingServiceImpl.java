@@ -134,7 +134,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 
                 FROM %s
                 WHERE CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d
-                    AND DATE(line_item_usage_start_date) >= DATE '%s' AND date(line_item_usage_start_date) <= DATE '%s'
+                    AND DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
                 GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
                 """.formatted(tableName, year, month, start, end);
 
