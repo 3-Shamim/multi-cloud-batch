@@ -60,6 +60,10 @@ batch_job:
     corn: '0 10 */2 * * *'
     enabled: false
     secret_path: azerion_mc/billing/secrets/aws
+  exceptional_aws_billing_data:
+    corn: '0 10 */2 * * *'
+    enabled: false
+    secret_path: azerion_mc/billing/secrets/aws
   gcp_billing_data:
     corn: '0 2 */2 * * *'
     enabled: false

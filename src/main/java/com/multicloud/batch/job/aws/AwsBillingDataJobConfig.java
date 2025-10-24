@@ -174,7 +174,7 @@ public class AwsBillingDataJobConfig {
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
-                        awsBillingService.syncDailyCostUsageFromAthena(
+                        awsBillingService.syncDailyCostUsageFromAthenaTable(
                                 DATABASE_NAME, TABLE_NAME,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
                                 range.start(), range.end(), true

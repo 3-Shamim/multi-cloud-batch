@@ -71,31 +71,15 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         athenaService.fetchQueryResults(executionId, athenaClient)
                 .forEach(res -> res.resultSet().rows()
-                        .forEach(row -> {
-                            tables.add(row.data().getFirst().varCharValue());
-                        }));
+                        .forEach(row -> tables.add(row.data().getFirst().varCharValue())));
 
         return tables;
     }
 
     @Override
-    public void syncDailyCostUsageFromAthena(String database, String tableName,
-                                             String accessKey, String secretKey, String region,
-                                             LocalDate start, LocalDate end, boolean internal) {
-
-        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(accessKey, secretKey)
-        );
-
-        AthenaClient athenaClient = AthenaClient.builder()
-                .credentialsProvider(credentialsProvider)
-                .region(Region.of(region))
-                .build();
-
-        S3Client s3Client = S3Client.builder()
-                .credentialsProvider(credentialsProvider)
-                .region(Region.of(region))
-                .build();
+    public void syncDailyCostUsageFromAthenaTable(String database, String tableName,
+                                                  String accessKey, String secretKey, String region,
+                                                  LocalDate start, LocalDate end, boolean internal) {
 
         int year = start.getYear();
         int month = start.getMonthValue();
@@ -137,6 +121,44 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
                 GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
                 """.formatted(tableName, year, month, start, end);
+
+        syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
+
+    }
+
+    // Table name represents view name
+    @Override
+    public void syncDailyCostUsageFromAthenaView(String database, String tableName,
+                                                 String accessKey, String secretKey, String region,
+                                                 LocalDate start, LocalDate end) {
+
+        String query = """
+                SELECT *, cost AS unblended_cost, 0 AS blended_cost
+                FROM %s
+                WHERE usage_date >= DATE '%s' AND usage_date <= DATE '%s';
+                """.formatted(tableName, start, end);
+
+        syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, false);
+
+    }
+
+    private void syncDailyCostUsageFromAthena(String database, String query,
+                                              String accessKey, String secretKey, String region,
+                                              boolean internal) {
+
+        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKey, secretKey)
+        );
+
+        AthenaClient athenaClient = AthenaClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(Region.of(region))
+                .build();
+
+        S3Client s3Client = S3Client.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(Region.of(region))
+                .build();
 
         String bucket = "azerion-athena-results";
         String prefix = "azerion_mc";

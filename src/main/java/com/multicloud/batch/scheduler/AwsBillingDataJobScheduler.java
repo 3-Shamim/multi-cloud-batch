@@ -24,13 +24,19 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnExpression("${batch_job.aws_billing_data.enabled} OR ${batch_job.external_aws_billing_data.enabled}")
+@ConditionalOnExpression("""
+        ${batch_job.aws_billing_data.enabled}
+            OR ${batch_job.external_aws_billing_data.enabled}
+            OR ${batch_job.exceptional_aws_billing_data.enabled}
+        """)
 public class AwsBillingDataJobScheduler {
 
     @Value("${batch_job.aws_billing_data.enabled}")
     private boolean awsBillingDataJobEnabled;
     @Value("${batch_job.external_aws_billing_data.enabled}")
     private boolean externalAwsBillingDataJobEnabled;
+    @Value("${batch_job.exceptional_aws_billing_data.enabled}")
+    private boolean exceptionalAwsBillingDataJobEnabled;
 
     private final JobRegistry jobRegistry;
     private final JobLauncher jobLauncher;
@@ -81,6 +87,30 @@ public class AwsBillingDataJobScheduler {
                 .toJobParameters();
 
         jobLauncher.run(externalAwsBillingDataJob, jobParameters);
+
+    }
+
+    @Async
+    @Scheduled(cron = "${batch_job.exceptional_aws_billing_data.corn}")
+    public void runExceptionalAwsBillingDataJob() throws Exception {
+
+        if (!exceptionalAwsBillingDataJobEnabled) {
+            log.info("Skipping because the job exceptionalAwsBillingDataJob is disabled");
+            return;
+        }
+
+        Job exceptionalAwsBillingDataJob = jobRegistry.getJob("exceptionalAwsBillingDataJob");
+
+        if (jobService.isJobTrulyRunning(exceptionalAwsBillingDataJob.getName())) {
+            log.info("Skipping exceptionalAwsBillingDataJob because the job is already running");
+            return;
+        }
+
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis())
+                .toJobParameters();
+
+        jobLauncher.run(exceptionalAwsBillingDataJob, jobParameters);
 
     }
 
