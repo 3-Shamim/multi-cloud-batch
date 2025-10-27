@@ -135,7 +135,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         String query = """
                 SELECT *, cost AS unblended_cost, 0 AS blended_cost
                 FROM %s
-                WHERE usage_date >= DATE '%s' AND usage_date <= DATE '%s';
+                WHERE usage_date >= DATE '%s' AND usage_date <= DATE '%s'
                 """.formatted(tableName, start, end);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, false);

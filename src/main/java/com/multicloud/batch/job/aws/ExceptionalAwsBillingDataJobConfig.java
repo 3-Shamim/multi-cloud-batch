@@ -48,7 +48,7 @@ public class ExceptionalAwsBillingDataJobConfig {
 
     private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
     private static final String JOB_NAME = "exceptionalAwsBillingDataJob";
-    private static final String DATABASE_NAME = "athena";
+    private static final String DATABASE_NAME = "athenacurcfn_athena";
 
     @Value("${batch_job.exceptional_aws_billing_data.secret_path}")
     private String awsSecretPath;
