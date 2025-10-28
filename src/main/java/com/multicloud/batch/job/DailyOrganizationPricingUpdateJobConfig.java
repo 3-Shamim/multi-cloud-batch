@@ -84,7 +84,10 @@ public class DailyOrganizationPricingUpdateJobConfig {
                             op.discount
                         FROM organization_pricing op
                     )
-                    SELECT dr.usage_date AS pricing_date, p.organization_id, p.cloud_provider, p.discount
+                    SELECT dr.usage_date AS pricing_date,
+                        p.organization_id,
+                        p.cloud_provider,
+                        COALESCE(p.discount, 0) AS discount
                     FROM date_range dr
                         JOIN pricing_with_next p ON dr.usage_date >= p.start_date AND dr.usage_date < p.next_start_date;
                 """;
