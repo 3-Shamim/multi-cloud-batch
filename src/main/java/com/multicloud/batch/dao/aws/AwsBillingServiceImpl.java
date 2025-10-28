@@ -133,7 +133,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                                  LocalDate start, LocalDate end) {
 
         String query = """
-                SELECT *, cost AS unblended_cost, 0 AS blended_cost
+                SELECT *, CAST(cost AS DECIMAL(20, 8)) AS unblended_cost, CAST(0 AS DECIMAL(20, 8)) AS blended_cost
                 FROM %s
                 WHERE usage_date >= DATE '%s' AND usage_date <= DATE '%s'
                 """.formatted(tableName, start, end);

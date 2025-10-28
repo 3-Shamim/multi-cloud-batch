@@ -84,9 +84,10 @@ public class InvoiceCostService {
 
         String query = """
                 INSERT INTO billings(
-                    month_date, product_id, organization_id, cloud_provider, cost, invoice_number, created_date, due_date
+                    month_date, product_id, organization_id, cloud_provider,
+                    cost, handling_fee, support_fee, invoice_number, created_date, due_date
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         jdbcTemplate.batchUpdate(query, billings, 100, (ps, bill) -> {
@@ -95,9 +96,11 @@ public class InvoiceCostService {
             ps.setLong(3, bill.organizationId());
             ps.setString(4, bill.provider().name());
             ps.setBigDecimal(5, bill.cost());
-            ps.setLong(6, bill.invoiceNumber());
-            ps.setDate(7, Date.valueOf(bill.createdDate()));
-            ps.setDate(8, Date.valueOf(bill.dueDate()));
+            ps.setBigDecimal(6, bill.handlingFee());
+            ps.setBigDecimal(7, bill.supportFee());
+            ps.setLong(8, bill.invoiceNumber());
+            ps.setDate(9, Date.valueOf(bill.createdDate()));
+            ps.setDate(10, Date.valueOf(bill.dueDate()));
         });
 
     }

@@ -18,6 +18,8 @@ public record BillingDTO(
         long organizationId,
         CloudProvider provider,
         BigDecimal cost,
+        BigDecimal handlingFee,
+        BigDecimal supportFee,
         long invoiceNumber,
         LocalDate createdDate,
         LocalDate dueDate

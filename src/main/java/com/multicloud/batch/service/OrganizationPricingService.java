@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,62 +25,53 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OrganizationPricingService {
 
-    private final Map<DiscountGroup, Double> DISCOUNT_CACHE = new HashMap<>();
+    private static final Map<DiscountGroup, OrganizationPricingDTO> MAP = new HashMap<>();
 
     private final JdbcTemplate jdbcTemplate;
 
-    public void cachePerDayDiscount(Long orgId, CloudProvider provider, LocalDate startDate, LocalDate endDate) {
+    public void cacheAllActivePricing() {
 
-        DISCOUNT_CACHE.clear();
+        MAP.clear();
 
-        List<OrganizationPricingDTO> discounts = findOrganizationDiscountByProviderAndUpToDate(orgId, provider, endDate);
-
-        LocalDate current = startDate;
-
-        while (!current.isAfter(endDate)) {
-
-            final LocalDate finalCurrent = current;
-
-            Double activeDiscount = discounts.stream()
-                    .filter(d -> !d.startDate().isAfter(finalCurrent))
-                    .max(Comparator.comparing(OrganizationPricingDTO::startDate))
-                    .map(OrganizationPricingDTO::discount)
-                    .orElse(null);
-
-            DISCOUNT_CACHE.put(new DiscountGroup(provider, current), activeDiscount);
-
-            current = current.plusDays(1);
-        }
+        findAllActivePricing().forEach(dto -> MAP.put(
+                new DiscountGroup(dto.organizationId(), dto.provider()), dto
+        ));
 
     }
 
-    public Double getDiscountByDate(CloudProvider provider, LocalDate date) {
-        return DISCOUNT_CACHE.get(new DiscountGroup(provider, date));
+    public OrganizationPricingDTO getPricing(long organizationId, CloudProvider provider) {
+        return MAP.get(new DiscountGroup(organizationId, provider));
     }
 
-    private List<OrganizationPricingDTO> findOrganizationDiscountByProviderAndUpToDate(long orgId, CloudProvider provider, LocalDate endDate) {
+    private List<OrganizationPricingDTO> findAllActivePricing() {
 
         return jdbcTemplate.query(
                 """
-                        SELECT organization_id, start_date, discount, service_fee
-                        FROM organization_pricing
-                        WHERE organization_id = ?
-                            AND cloud_provider = ?
-                            AND start_date <= ?;
+                        SELECT * FROM (
+                            SELECT
+                                organization_id,
+                                cloud_provider,
+                                discount,
+                                hanlding_fee,
+                                support_fee,
+                                start_date,
+                                RANK() OVER (PARTITION BY organization_id, cloud_provider ORDER BY start_date DESC) AS rank
+                            FROM organization_pricing
+                            WHERE start_date <= CURRENT_DATE
+                        ) as t WHERE rank = 1;
                         """,
                 (rs, rowNum) -> new OrganizationPricingDTO(
                         rs.getLong("organization_id"),
-                        LocalDate.parse(rs.getString("start_date")),
+                        CloudProvider.valueOf(rs.getString("cloud_provider")),
                         rs.getDouble("discount"),
-                        rs.getDouble("service_fee")
-                ),
-                orgId,
-                provider.name(),
-                endDate
+                        rs.getDouble("hanlding_fee"),
+                        rs.getDouble("support_fee"),
+                        LocalDate.parse(rs.getString("start_date"))
+                )
         );
     }
 
-    record DiscountGroup(CloudProvider provider, LocalDate startDate) {
+    record DiscountGroup(long organizationId, CloudProvider provider) {
     }
 
 }
