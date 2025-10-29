@@ -53,12 +53,12 @@ public class AwsBillingDailyCost {
     private LocalDate usageDate;
 
     // Master/Billing Account ID
-    @Column(name = "payer_account_id", nullable = false, length = 12)
+    @Column(name = "payer_account_id", nullable = false, length = 32)
     private String payerAccountId;
 
     // Linked/Usage Account ID
     // Usage scope
-    @Column(name = "usage_account_id", nullable = false, length = 12)
+    @Column(name = "usage_account_id", nullable = false, length = 32)
     private String usageAccountId;
 
     @Column(name = "service_code", nullable = false, length = 32)
