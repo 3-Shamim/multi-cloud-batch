@@ -105,14 +105,22 @@ public class GenerateMonthlyInvoiceJobConfig {
                                     item.organizationId(), CloudProvider.valueOf(providerCost.cloudProvider())
                             );
 
+                            double handlingFee =  0;
+                            double supportFee = 0;
+
+                            if (pricing != null) {
+                                handlingFee = pricing.handlingFee();
+                                supportFee = pricing.supportFee();
+                            }
+
                             billings.add(new BillingDTO(
                                     lastMonth,
                                     item.productId(),
                                     item.organizationId(),
                                     CloudProvider.valueOf(providerCost.cloudProvider()),
                                     providerCost.cost(),
-                                    calculatePercentage(providerCost.cost(), pricing.handlingFee()),
-                                    calculatePercentage(providerCost.cost(), pricing.supportFee()),
+                                    calculatePercentage(providerCost.cost(), handlingFee),
+                                    calculatePercentage(providerCost.cost(), supportFee),
                                     invoiceNumber,
                                     LocalDate.now(),
                                     LocalDate.now().plusMonths(1)

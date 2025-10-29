@@ -52,7 +52,7 @@ public class OrganizationPricingService {
                                 organization_id,
                                 cloud_provider,
                                 discount,
-                                hanlding_fee,
+                                handling_fee,
                                 support_fee,
                                 start_date,
                                 RANK() OVER (PARTITION BY organization_id, cloud_provider ORDER BY start_date DESC) AS rank
@@ -64,7 +64,7 @@ public class OrganizationPricingService {
                         rs.getLong("organization_id"),
                         CloudProvider.valueOf(rs.getString("cloud_provider")),
                         rs.getDouble("discount"),
-                        rs.getDouble("hanlding_fee"),
+                        rs.getDouble("handling_fee"),
                         rs.getDouble("support_fee"),
                         LocalDate.parse(rs.getString("start_date"))
                 )
