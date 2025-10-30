@@ -44,20 +44,24 @@ spring.jpa.show-sql=true
 # By default, data-related jobs are disabled for dev profile.
 # To enable them, set enabled=true
 # Don't do any change in prod and dev profiles.
-batch_job.aws_billing_data.corn=0 37 * * * *
+batch_job.aws_billing_data.corn=0 28 * * * *
 batch_job.aws_billing_data.enabled=false
-batch_job.external_aws_billing_data.corn=0 35 * * * *
+batch_job.external_aws_billing_data.corn=0 56 * * * *
 batch_job.external_aws_billing_data.enabled=false
-batch_job.gcp_billing_data.corn=0 34 * * * *
+batch_job.exceptional_aws_billing_data.corn=0 25 * * * *
+batch_job.exceptional_aws_billing_data.enabled=false
+batch_job.gcp_billing_data.corn=15 28 * * * *
 batch_job.gcp_billing_data.enabled=false
-batch_job.huawei_billing_data.corn=0 33 * * * *
+batch_job.huawei_billing_data.corn=30 28 * * * *
 batch_job.huawei_billing_data.enabled=false
-batch_job.external_huawei_billing_data.corn=0 32 * * * *
+batch_job.external_huawei_billing_data.corn=15 56 * * * *
 batch_job.external_huawei_billing_data.enabled=false
-batch_job.merge_billing.corn=0 22 * * * *
-batch_job.merge_billing.enabled=true
-batch_job.monthly_invoice.corn=0 34 * * * *
+batch_job.merge_billing.corn=0 39 * * * *
+batch_job.merge_billing.enabled=false
+batch_job.monthly_invoice.corn=0 8 * * * *
 batch_job.monthly_invoice.enabled=false
+batch_job.daily_org_pricing_update.corn=0 3 * * * *
+batch_job.daily_org_pricing_update.enabled=false
 ```
 
 💡 Tip: Instead of creating this file, you can define `_env`'s variables as environment variables in IntelliJ’s Run/Debug Configuration.
