@@ -53,31 +53,31 @@ aws:
 #============ JOB Schedule ============
 batch_job:
   aws_billing_data:
-    corn: '0 30 0 * * *'
-    enabled: false
+    corn: '0 5 0 * * *'
+    enabled: true
     secret_path: azerion_mc/billing/secrets/aws
   external_aws_billing_data:
-    corn: '0 0 2 * * *'
+    corn: '0 45 1 * * *'
     enabled: false
     secret_path: azerion_mc/billing/secrets/aws
   exceptional_aws_billing_data:
-    corn: '0 0 3 * * *'
+    corn: '0 30 2 * * *'
     enabled: false
     secret_path: azerion_mc/billing/secrets/aws
   gcp_billing_data:
-    corn: '0 5 0 * * *'
-    enabled: false
+    corn: '0 10 0 * * *'
+    enabled: true
     secret_path: azerion_mc/billing/secrets/internal/gcp
   huawei_billing_data:
-    corn: '0 45 0 * * *'
-    enabled: false
+    corn: '0 15 0 * * *'
+    enabled: true
     secret_path: azerion_mc/billing/secrets/internal/huawei
   external_huawei_billing_data:
-    corn: '0 45 1 * * *'
+    corn: '0 30 1 * * *'
     enabled: false
     secret_path: azerion_mc/billing/secrets/external/huawei
   merge_billing:
-    corn: '0 0 4 * * *'
+    corn: '0 15 3 * * *'
     enabled: false
   monthly_invoice:
     corn: '0 0 1 4 * *'
