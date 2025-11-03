@@ -58,11 +58,11 @@ batch_job:
     secret_path: azerion_mc/billing/secrets/aws
   external_aws_billing_data:
     corn: '0 45 1 * * *'
-    enabled: false
+    enabled: true
     secret_path: azerion_mc/billing/secrets/aws
   exceptional_aws_billing_data:
     corn: '0 30 2 * * *'
-    enabled: false
+    enabled: true
     secret_path: azerion_mc/billing/secrets/aws
   gcp_billing_data:
     corn: '0 10 0 * * *'
@@ -74,7 +74,7 @@ batch_job:
     secret_path: azerion_mc/billing/secrets/internal/huawei
   external_huawei_billing_data:
     corn: '0 30 1 * * *'
-    enabled: false
+    enabled: true
     secret_path: azerion_mc/billing/secrets/external/huawei
   merge_billing:
     corn: '0 15 3 * * *'
