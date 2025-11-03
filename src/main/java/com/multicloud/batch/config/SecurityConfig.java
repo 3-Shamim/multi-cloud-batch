@@ -43,7 +43,7 @@ public class SecurityConfig {
     public InMemoryUserDetailsManager userDetailsManager() {
 
         UserDetails user = User.withUsername("admin")
-                .password(encryptionService.encryptPassword("aA123456"))
+                .password(encryptionService.encryptPassword("Bat2@!Ch25#"))
                 .roles("ADMIN")
                 .build();
 
