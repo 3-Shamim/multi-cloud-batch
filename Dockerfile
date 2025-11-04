@@ -1,11 +1,11 @@
-FROM openjdk:21-jdk-slim as builder
+FROM eclipse-temurin:21-jdk-jammy as builder
 LABEL creator="Md Shamim"
 LABEL email="shamim.molla@vivasoftltd.com"
 WORKDIR /app
 COPY /target/multi-cloud-batch.jar application.jar
 RUN java -Djarmode=layertools -jar application.jar extract
 
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk-jammy
 WORKDIR /app
 COPY --from=builder /app/dependencies/ ./
 COPY --from=builder /app/spring-boot-loader/ ./
