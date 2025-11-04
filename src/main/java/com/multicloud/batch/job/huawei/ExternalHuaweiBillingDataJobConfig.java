@@ -138,7 +138,7 @@ public class ExternalHuaweiBillingDataJobConfig {
                 ) + 1;
 
                 if (exist) {
-                    days = 7;
+                    days = 36;
                 }
 
                 List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);

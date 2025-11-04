@@ -178,7 +178,7 @@ public class MergeAllBillingDataJobConfig {
         LocalDate endDate = LocalDate.now();
 
         if (stepEverCompleted) {
-            startDate = endDate.minusDays(7);
+            startDate = endDate.minusDays(36);
         } else {
             startDate = LocalDate.parse("2025-01-01");
         }
