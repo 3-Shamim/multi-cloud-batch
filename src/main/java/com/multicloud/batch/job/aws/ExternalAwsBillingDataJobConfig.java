@@ -102,7 +102,7 @@ public class ExternalAwsBillingDataJobConfig {
 
             // This one will be handled in the exceptional job because we need to apply additional condition for this
             // client.
-            tables.add("cur_bbw");
+            tables.remove("cur_bbw");
 
             // Removing a test table
             tables.remove("cur_stratego_billing_group");
