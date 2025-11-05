@@ -43,7 +43,7 @@ public class ServiceLevelBillingSql {
     public static final String AWS_SQL = """
                 SELECT usage_date,
                     'AWS'                                    AS cloud_provider,
-                    payer_account_id                         AS billing_account_id,
+                    ''                                       AS billing_account_id,
                     usage_account_id,
                     null                                     AS usage_account_name,
                     service_code,

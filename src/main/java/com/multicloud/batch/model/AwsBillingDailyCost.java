@@ -24,22 +24,19 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const",
                 columnNames = {
-                        "usage_date", "payer_account_id", "usage_account_id", "service_code",
+                        "usage_date", "usage_account_id", "service_code",
                         "sku_id", "region", "billing_type", "usage_type"
                 }
         ),
         indexes = {
                 @Index(name = "idx_usage_date", columnList = "usage_date"),
-                @Index(name = "idx_payer_account_id", columnList = "payer_account_id"),
                 @Index(name = "idx_usage_account_id", columnList = "usage_account_id"),
                 @Index(name = "idx_service_code", columnList = "service_code"),
                 @Index(name = "idx_sku_id", columnList = "sku_id"),
                 @Index(name = "idx_billing_type", columnList = "billing_type"),
                 @Index(
                         name = "idx_service_level",
-                        columnList = """
-                                    usage_date, payer_account_id, usage_account_id, service_code, billing_type
-                                """
+                        columnList = "usage_date, usage_account_id, service_code, billing_type"
                 )
         }
 )
@@ -51,10 +48,6 @@ public class AwsBillingDailyCost {
 
     @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
-
-    // Master/Billing Account ID
-    @Column(name = "payer_account_id", nullable = false, length = 32)
-    private String payerAccountId;
 
     // Linked/Usage Account ID
     // Usage scope

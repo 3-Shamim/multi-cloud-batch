@@ -36,7 +36,7 @@ import java.util.zip.GZIPInputStream;
 public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final static String[] COLS = {
-            "usage_date", "payer_account_id", "usage_account_id", "service_code", "service_name",
+            "usage_date", "usage_account_id", "service_code", "service_name",
             "sku_id", "region", "location", "currency", "pricing_type", "billing_type",
             "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost"
     };
@@ -87,9 +87,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         String query = """
                 SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
                 
-                    -- Master/Billing account ID
-                    bill_payer_account_id                                                    AS payer_account_id,
-                
                     -- Linked/Usage account ID
                     line_item_usage_account_id                                               AS usage_account_id,
                 
@@ -119,7 +116,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 FROM %s
                 WHERE CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
-                GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
+                GROUP BY 1, 2, 3, 5, 6, 10, 11
                 """.formatted(tableName, year, month, start, end);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
@@ -255,7 +252,6 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         return AwsBillingDailyCost.builder()
                 .usageDate(LocalDate.parse(record.get("usage_date")))
-                .payerAccountId(record.get("payer_account_id"))
                 .usageAccountId(record.get("usage_account_id"))
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))
