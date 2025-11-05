@@ -114,7 +114,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost
                 
                 FROM %s
-                WHERE CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) >= %d
+                WHERE year = '%d' AND month >= '%02d'
                     AND DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
                 GROUP BY 1, 2, 3, 5, 6, 10, 11
                 """.formatted(tableName, year, month, start, end);
