@@ -36,7 +36,7 @@ import java.util.zip.GZIPInputStream;
 public class AwsBillingServiceImpl implements AwsBillingService {
 
     private final static String[] COLS = {
-            "usage_date", "usage_account_id", "service_code", "service_name",
+            "usage_date", "billing_month", "usage_account_id", "service_code", "service_name",
             "sku_id", "region", "location", "currency", "pricing_type", "billing_type",
             "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost"
     };
@@ -84,8 +84,12 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         int year = start.getYear();
         int month = start.getMonthValue();
 
+        LocalDate startOfNextMonth = end.plusMonths(1).withDayOfMonth(1);
+
         String query = """
                 SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
+                
+                    DATE(CONCAT(year, '-', month, '-01'))                                    AS billing_month,
                 
                     -- Linked/Usage account ID
                     line_item_usage_account_id                                               AS usage_account_id,
@@ -114,10 +118,17 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost
                 
                 FROM %s
-                WHERE year = '%d' AND month >= '%d'
-                    AND DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
-                GROUP BY 1, 2, 3, 5, 6, 10, 11
-                """.formatted(tableName, year, month, start, end);
+                WHERE CAST(year AS INTEGER) = %d
+                    AND CAST(month AS INTEGER) = %d
+                    AND (
+                        (DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s')
+                        OR (
+                            CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) = %d
+                            AND DATE(line_item_usage_start_date) >= DATE '%s'
+                        )
+                    )
+                GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
+                """.formatted(tableName, year, month, start, end, year, month, startOfNextMonth);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
 
@@ -129,11 +140,40 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                                                  String accessKey, String secretKey, String region,
                                                  LocalDate start, LocalDate end) {
 
+        int year = start.getYear();
+        int month = start.getMonthValue();
+
+        LocalDate startOfNextMonth = end.plusMonths(1).withDayOfMonth(1);
+
         String query = """
-                SELECT *, CAST(cost AS DECIMAL(20, 8)) AS unblended_cost, CAST(0 AS DECIMAL(20, 8)) AS blended_cost
+                SELECT
+                    usage_date,
+                    billing_month,
+                    usage_account_id,
+                    service_code,
+                    service_name,
+                    sku_id,
+                    region,
+                    location,
+                    currency,
+                    pricing_type,
+                    billing_type,
+                    usage_type,
+                    usage_amount,
+                    usage_unit,
+                    CAST(cost AS DECIMAL(20, 8)) AS unblended_cost,
+                    CAST(0 AS DECIMAL(20, 8)) AS blended_cost
                 FROM %s
-                WHERE usage_date >= DATE '%s' AND usage_date <= DATE '%s'
-                """.formatted(tableName, start, end);
+                WHERE CAST(year AS INTEGER) = %d
+                    AND CAST(month AS INTEGER) = %d
+                    AND (
+                        (usage_date >= DATE '%s' AND usage_date <= DATE '%s')
+                        OR (
+                            CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) = %d
+                            AND usage_date >= DATE '%s'
+                        )
+                    )
+                """.formatted(tableName, year, month, start, end, year, month, startOfNextMonth);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, false);
 
@@ -252,6 +292,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         return AwsBillingDailyCost.builder()
                 .usageDate(LocalDate.parse(record.get("usage_date")))
+                .billingMonth(LocalDate.parse(record.get("billing_month")))
                 .usageAccountId(record.get("usage_account_id"))
                 .serviceCode(record.get("service_code"))
                 .serviceName(record.get("service_name"))

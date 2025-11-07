@@ -117,7 +117,7 @@ public class ExceptionalAwsBillingDataJobConfig {
                 boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, table);
 
                 long days = ChronoUnit.DAYS.between(
-                        LocalDate.parse("2025-01-01"), LocalDate.now()
+                        LocalDate.parse("2025-08-01"), LocalDate.now()
                 ) + 1;
 
                 if (exist) {
