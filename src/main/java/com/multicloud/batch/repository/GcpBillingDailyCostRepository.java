@@ -24,12 +24,13 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
 
         String sql = """
                     INSERT INTO gcp_billing_daily_costs
-                    (usage_date, billing_account_id, project_id, project_name,
+                    (usage_date, billing_month, billing_account_id, project_id, project_name,
                      service_code, service_name, sku_id, sku_description, region, location,
                      currency, cost_type, usage_amount, usage_unit, cost, credits, ext_cost, ext_credits)
                     VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
+                        billing_month = VALUES(billing_month),
                         project_name = VALUES(project_name),
                         service_name = VALUES(service_name),
                         sku_description = VALUES(sku_description),
@@ -53,23 +54,24 @@ public interface GcpBillingDailyCostRepository extends JpaRepository<GcpBillingD
 
         jdbcTemplate.batchUpdate(sql, bills, 500, (ps, bill) -> {
             ps.setDate(1, java.sql.Date.valueOf(bill.getUsageDate()));
-            ps.setString(2, bill.getBillingAccountId());
-            ps.setString(3, bill.getProjectId());
-            ps.setString(4, bill.getProjectName());
-            ps.setString(5, bill.getServiceCode());
-            ps.setString(6, bill.getServiceName());
-            ps.setString(7, bill.getSkuId());
-            ps.setString(8, bill.getSkuDescription());
-            ps.setString(9, bill.getRegion());
-            ps.setString(10, bill.getLocation());
-            ps.setString(11, bill.getCurrency());
-            ps.setString(12, bill.getCostType());
-            ps.setBigDecimal(13, bill.getUsageAmount());
-            ps.setString(14, bill.getUsageUnit());
-            ps.setBigDecimal(15, bill.getCost());
-            ps.setBigDecimal(16, bill.getCredits());
-            ps.setBigDecimal(17, bill.getExtCost());
-            ps.setBigDecimal(18, bill.getExtCredits());
+            ps.setDate(2, java.sql.Date.valueOf(bill.getBillingMonth()));
+            ps.setString(3, bill.getBillingAccountId());
+            ps.setString(4, bill.getProjectId());
+            ps.setString(5, bill.getProjectName());
+            ps.setString(6, bill.getServiceCode());
+            ps.setString(7, bill.getServiceName());
+            ps.setString(8, bill.getSkuId());
+            ps.setString(9, bill.getSkuDescription());
+            ps.setString(10, bill.getRegion());
+            ps.setString(11, bill.getLocation());
+            ps.setString(12, bill.getCurrency());
+            ps.setString(13, bill.getCostType());
+            ps.setBigDecimal(14, bill.getUsageAmount());
+            ps.setString(15, bill.getUsageUnit());
+            ps.setBigDecimal(16, bill.getCost());
+            ps.setBigDecimal(17, bill.getCredits());
+            ps.setBigDecimal(18, bill.getExtCost());
+            ps.setBigDecimal(19, bill.getExtCredits());
         });
 
     }

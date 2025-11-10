@@ -37,6 +37,8 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
         String query = """
                     SELECT DATE(t.usage_start_time)                                      AS usage_date,
                 
+                        MAX(PARSE_DATE('%Y%m', invoice.month))                           AS billing_month,
+                
                         -- Billing account ID
                         t.billing_account_id                                             AS billing_account_id,
                 
@@ -73,7 +75,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 
                     FROM `azerion-billing.azerion_billing_eu.gcp_billing_export_v1_*` AS t
                     WHERE _PARTITIONDATE BETWEEN ':start_date' AND ':end_date'
-                    GROUP BY 1, 2, 3, 5, 7, 9, 12
+                    GROUP BY 1, 3, 4, 6, 8, 10, 13
                 """;
 
         query = query
@@ -137,6 +139,7 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
 
         return GcpBillingDailyCost.builder()
                 .usageDate(parseLocalDate(row, "usage_date"))
+                .billingMonth(parseLocalDate(row, "billing_month"))
                 .billingAccountId(getStringSafe(row, "billing_account_id"))
                 .projectId(getStringSafe(row, "project_id"))
                 .projectName(getStringSafe(row, "project_name"))
