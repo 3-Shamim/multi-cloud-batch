@@ -26,7 +26,7 @@ import java.time.LocalDate;
                 name = "idx_uq_const_slb",
                 columnNames = {
                         "usage_date", "cloud_provider", "billing_account_id", "usage_account_id",
-                        "service_code", "billing_type"
+                        "service_code", "billing_type", "is_li_outside_of_month"
                 }
         ),
         indexes = {
@@ -79,6 +79,9 @@ public class ServiceLevelBilling {
 
     @Column(name = "billing_type", nullable = false, length = 32)
     private String billingType;
+
+    @Column(name = "is_li_outside_of_month", nullable = false, columnDefinition = "boolean default false")
+    private boolean isLiOutsideOfMonth;
 
     @Column(name = "parent_category", length = 200)
     private String parentCategory;

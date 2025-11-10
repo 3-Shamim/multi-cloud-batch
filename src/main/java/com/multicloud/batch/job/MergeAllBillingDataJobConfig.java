@@ -14,7 +14,9 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.support.CompositeItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +30,8 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -98,7 +102,7 @@ public class MergeAllBillingDataJobConfig {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.HUAWEI_SQL, "mergeHuaweiBillingDataStep"
+                    ServiceLevelBillingSql.HUAWEI_SQL, "mergeHuaweiBillingDataStep", false
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
@@ -110,7 +114,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeGcpBillingDataStep() {
         return new StepBuilder("mergeGcpBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(gcpDataReader())
+                .reader(compositeGcpReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -126,11 +130,33 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> gcpDataReader() {
+    public ItemStreamReader<ServiceLevelBilling> compositeGcpReader() {
+
+        ItemStreamReader<ServiceLevelBilling> gcpDataReader = gcpDataReader();
+        ItemStreamReader<ServiceLevelBilling> gcpExtraDataReader = gcpExtraDataReader();
+
+        return new CompositeItemReader<>(List.of(gcpDataReader, gcpExtraDataReader));
+    }
+
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> gcpDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.GCP_SQL, "mergeGcpBillingDataStep"
+                    ServiceLevelBillingSql.GCP_SQL, "mergeGcpBillingDataStep", false
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException("Spring Batch configuration problem: ", e);
+        }
+
+    }
+
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> gcpExtraDataReader() {
+
+        try {
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.GCP_EXTRA_LI_SQL, "mergeGcpBillingDataStep", true
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
@@ -142,7 +168,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeAwsBillingDataStep() {
         return new StepBuilder("mergeAwsBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(awsDataReader())
+                .reader(compositeAwsReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -158,11 +184,20 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> awsDataReader() {
+    public ItemStreamReader<ServiceLevelBilling> compositeAwsReader() {
+
+        ItemStreamReader<ServiceLevelBilling> awsDataReader = awsDataReader();
+        ItemStreamReader<ServiceLevelBilling> awsExtraDataReader = awsExtraDataReader();
+
+        return new CompositeItemReader<>(List.of(awsDataReader, awsExtraDataReader));
+    }
+
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> awsDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.AWS_SQL, "mergeAwsBillingDataStep"
+                    ServiceLevelBillingSql.AWS_SQL, "mergeAwsBillingDataStep", false
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
@@ -170,7 +205,22 @@ public class MergeAllBillingDataJobConfig {
 
     }
 
-    private JdbcCursorItemReader<ServiceLevelBilling> getBillingDataCursorItemReader(String sql, String stepName) throws Exception {
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> awsExtraDataReader() {
+
+        try {
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.AWS_EXTRA_LI_SQL, "mergeAwsBillingDataStep", true
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException("Spring Batch configuration problem: ", e);
+        }
+
+    }
+
+    private JdbcCursorItemReader<ServiceLevelBilling> getBillingDataCursorItemReader(String sql,
+                                                                                     String stepName,
+                                                                                     boolean isExtraDataReader) throws Exception {
 
         boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
 
@@ -178,7 +228,13 @@ public class MergeAllBillingDataJobConfig {
         LocalDate endDate = LocalDate.now();
 
         if (stepEverCompleted) {
-            startDate = endDate.minusDays(36);
+
+            if (isExtraDataReader) {
+                startDate = endDate.minusMonths(1).withDayOfMonth(1);
+            } else {
+                startDate = endDate.minusDays(36);
+            }
+
         } else {
             startDate = LocalDate.parse("2025-01-01");
         }
@@ -194,7 +250,11 @@ public class MergeAllBillingDataJobConfig {
 
         reader.setPreparedStatementSetter(ps -> {
             ps.setObject(1, startDate);
-            ps.setObject(2, endDate);
+
+            if (!isExtraDataReader) {
+                ps.setObject(2, endDate);
+            }
+
         });
 
         reader.setRowMapper((rs, rowNum) -> ServiceLevelBilling.builder()
@@ -206,6 +266,7 @@ public class MergeAllBillingDataJobConfig {
                 .serviceCode(rs.getString("service_code"))
                 .serviceName(rs.getString("service_name"))
                 .billingType(rs.getString("billing_type"))
+                .isLiOutsideOfMonth(rs.getBoolean("is_li_outside_of_month"))
                 .cost(rs.getBigDecimal("cost"))
                 .extCost(rs.getBigDecimal("ext_cost"))
                 .build());
@@ -240,9 +301,10 @@ public class MergeAllBillingDataJobConfig {
                         ps.setString(6, item.getServiceCode());
                         ps.setString(7, item.getServiceName());
                         ps.setString(8, item.getBillingType());
-                        ps.setString(9, item.getParentCategory());
-                        ps.setBigDecimal(10, item.getCost());
-                        ps.setBigDecimal(11, item.getExtCost());
+                        ps.setBoolean(9, item.isLiOutsideOfMonth());
+                        ps.setString(10, item.getParentCategory());
+                        ps.setBigDecimal(11, item.getCost());
+                        ps.setBigDecimal(12, item.getExtCost());
 
                     }
 
