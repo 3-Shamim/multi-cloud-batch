@@ -1,6 +1,7 @@
 package com.multicloud.batch.model;
 
 import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
+import com.multicloud.batch.util.Util;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -139,19 +140,19 @@ public class HuaweiBillingDailyCost {
 
         return HuaweiBillingDailyCost.builder()
                 .billDate(LocalDate.parse(record.bill_date()))
-                .payerAccountId(record.payer_account_id())
-                .customerId(record.customer_id())
-                .enterpriseProjectId(record.enterprise_project_id())
-                .enterpriseProjectName(record.enterprise_project_name())
-                .cloudServiceType(record.cloud_service_type())
-                .cloudServiceTypeName(record.cloud_service_type_name())
-                .skuCode(record.sku_code() == null ? "UNKNOWN" : record.sku_code())
-                .productSpecDesc(record.product_spec_desc())
-                .resourceTypeCode(record.resource_Type_code())
-                .resourceTypeName(record.resource_type_name())
-                .resourceName(record.resource_name())
-                .region(record.region())
-                .regionName(record.region_name())
+                .payerAccountId(Util.nullToEmpty(record.payer_account_id()))
+                .customerId(Util.nullToEmpty(record.customer_id()))
+                .enterpriseProjectId(Util.nullToEmpty(record.enterprise_project_id()))
+                .enterpriseProjectName(Util.nullToEmpty(record.enterprise_project_name()))
+                .cloudServiceType(Util.nullToEmpty(record.cloud_service_type()))
+                .cloudServiceTypeName(Util.nullToEmpty(record.cloud_service_type_name()))
+                .skuCode(Util.nullToEmpty(record.sku_code()))
+                .productSpecDesc(Util.nullToEmpty(record.product_spec_desc()))
+                .resourceTypeCode(Util.nullToEmpty(record.resource_Type_code()))
+                .resourceTypeName(Util.nullToEmpty(record.resource_type_name()))
+                .resourceName(Util.nullToEmpty(record.resource_name()))
+                .region(Util.nullToEmpty(record.region()))
+                .regionName(Util.nullToEmpty(record.region_name()))
                 .chargeMode(record.charge_mode())
                 .billType(record.bill_type())
                 .consumeAmount(internal ? getNumericSafe(record.consume_amount()) : BigDecimal.ZERO)

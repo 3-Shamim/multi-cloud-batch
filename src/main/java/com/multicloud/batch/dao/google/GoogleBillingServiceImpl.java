@@ -44,32 +44,35 @@ public class GoogleBillingServiceImpl implements GoogleBillingService {
                 
                         -- Project Info
                         -- Usage Scop
-                        COALESCE(t.project.id, 'UNKNOWN')                                AS project_id,
-                        COALESCE(MAX(t.project.name), 'UNKNOWN')                         AS project_name,
+                        COALESCE(t.project.id, '')                                       AS project_id,
+                        COALESCE(MAX(t.project.name), '')                                AS project_name,
                 
                         -- Service
-                        COALESCE(t.service.id, 'UNKNOWN')                                AS service_code,
-                        COALESCE(MAX(t.service.description), 'UNKNOWN')                  AS service_name,
+                        COALESCE(t.service.id, '')                                       AS service_code,
+                        COALESCE(MAX(t.service.description), '')                         AS service_name,
                 
                         -- SKU
-                        COALESCE(t.sku.id, 'UNKNOWN')                                    AS sku_id,
-                        COALESCE(MAX(t.sku.description), 'UNKNOWN')                      AS sku_description,
+                        COALESCE(t.sku.id, '')                                           AS sku_id,
+                        COALESCE(MAX(t.sku.description), '')                             AS sku_description,
                 
                         -- Region & Location
-                        COALESCE(t.location.region, 'UNKNOWN')                           AS region,
-                        COALESCE(MAX(t.location.location), 'UNKNOWN')                    AS location,
+                        COALESCE(t.location.region, '')                                  AS region,
+                        COALESCE(MAX(t.location.location), '')                           AS location,
                 
                         -- Currency & Usage & Cost
-                        COALESCE(MAX(t.currency), 'UNKNOWN')                             AS currency,
+                        COALESCE(MAX(t.currency), '')                                    AS currency,
                 
-                        COALESCE(t.cost_type, 'UNKNOWN')                                 AS cost_type,
+                        COALESCE(t.cost_type, '')                                        AS cost_type,
                 
                         ROUND(COALESCE(SUM(t.usage.amount), 0), 8)                       AS usage_amount,
-                        COALESCE(MAX(t.usage.unit), 'UNKNOWN')                           AS usage_unit,
+                        COALESCE(MAX(t.usage.unit), '')                                  AS usage_unit,
                 
                         ROUND(COALESCE(SUM(t.cost), 0), 8)                               AS cost,
                         ROUND(
-                            SUM((SELECT COALESCE(SUM(c.amount), 0) FROM UNNEST(t.credits) AS c)),
+                            SUM((
+                                SELECT COALESCE(SUM(c.amount), 0)
+                                FROM UNNEST(t.credits) AS c
+                            )),
                             8
                         )                                                                AS credits
                 

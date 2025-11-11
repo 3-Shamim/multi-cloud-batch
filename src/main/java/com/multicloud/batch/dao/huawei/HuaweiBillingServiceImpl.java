@@ -7,6 +7,7 @@ import com.multicloud.batch.dao.huawei.payload.HuaweiResourceBillingResponse;
 import com.multicloud.batch.job.CustomDateRange;
 import com.multicloud.batch.model.HuaweiBillingDailyCost;
 import com.multicloud.batch.repository.HuaweiBillingDailyCostRepository;
+import com.multicloud.batch.util.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -86,13 +87,13 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
                 HuaweiBillingGroup group = new HuaweiBillingGroup(
                         LocalDate.parse(row.bill_date()),
-                        row.payer_account_id(),
-                        row.customer_id(),
-                        row.enterprise_project_id(),
-                        row.cloud_service_type(),
-                        row.sku_code(),
-                        row.resource_Type_code(),
-                        row.region(),
+                        Util.nullToEmpty(row.payer_account_id()),
+                        Util.nullToEmpty(row.customer_id()),
+                        Util.nullToEmpty(row.enterprise_project_id()),
+                        Util.nullToEmpty(row.cloud_service_type()),
+                        Util.nullToEmpty(row.sku_code()),
+                        Util.nullToEmpty(row.resource_Type_code()),
+                        Util.nullToEmpty(row.region()),
                         row.charge_mode(),
                         row.bill_type()
                 );

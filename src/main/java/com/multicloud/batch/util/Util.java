@@ -1,6 +1,5 @@
 package com.multicloud.batch.util;
 
-import com.multicloud.batch.enums.CloudProvider;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
@@ -57,13 +56,8 @@ public class Util {
 
     }
 
-    public static String getProviderStoreKey(long orgId, CloudProvider provider) {
-
-        if (provider == null) {
-            throw new IllegalArgumentException("Cloud provider cannot be null");
-        }
-
-        return "ORG_" + orgId + "_" + provider.name();
+    public static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
 }

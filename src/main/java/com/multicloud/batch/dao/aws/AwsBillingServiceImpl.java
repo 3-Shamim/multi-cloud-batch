@@ -95,21 +95,21 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     line_item_usage_account_id                                               AS usage_account_id,
                 
                     -- Service
-                    COALESCE(product_servicecode, 'UNKNOWN')                                 AS service_code,
-                    CONCAT('"', COALESCE(MAX(product_servicename), 'UNKNOWN'), '"')          AS service_name,
+                    COALESCE(product_servicecode, '')                                        AS service_code,
+                    CONCAT('"', COALESCE(MAX(product_servicename), ''), '"')                 AS service_name,
                 
                     -- SKU
-                    COALESCE(product_sku, 'UNKNOWN')                                         AS sku_id,
+                    COALESCE(product_sku, '')                                                AS sku_id,
                 
                     -- Region & Location
-                    COALESCE(product_region, 'UNKNOWN')                                      AS region,
-                    CONCAT('"', COALESCE(MAX(product_location), 'UNKNOWN'), '"')             AS location,
+                    COALESCE(product_region, '')                                             AS region,
+                    CONCAT('"', COALESCE(MAX(product_location), ''), '"')                    AS location,
                 
                     -- Currency & Usage & Cost
-                    COALESCE(MAX(line_item_currency_code), 'UNKNOWN')                        AS currency,
+                    COALESCE(MAX(line_item_currency_code), '')                               AS currency,
                     COALESCE(MAX(pricing_term), 'OnDemand')                                  AS pricing_type,
-                    COALESCE(line_item_line_item_type, 'UNKNOWN')                            AS billing_type,
-                    COALESCE(line_item_usage_type, 'UNKNOWN')                                AS usage_type,
+                    COALESCE(line_item_line_item_type, '')                                   AS billing_type,
+                    COALESCE(line_item_usage_type, '')                                       AS usage_type,
                 
                     CAST(COALESCE(SUM(line_item_usage_amount), 0) AS DECIMAL(20, 8))         AS usage_amount,
                     MAX(pricing_unit)                                                        AS usage_unit,
