@@ -221,16 +221,14 @@ public class MergeAllBillingDataJobConfig {
                                                                                      String stepName,
                                                                                      boolean isExtraDataReader) throws Exception {
 
-        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
-
-        LocalDate startDate;
+        LocalDate startDate = LocalDate.parse("2025-01-01");
         LocalDate endDate = LocalDate.now();
 
-        if (stepEverCompleted) {
-            startDate = endDate.minusMonths(1).withDayOfMonth(1);
-        } else {
-            startDate = LocalDate.parse("2025-01-01");
-        }
+        // For now, we are going to update the full data set
+//        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
+//        if (stepEverCompleted) {
+//            startDate = endDate.minusMonths(1).withDayOfMonth(1);
+//        }
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
 

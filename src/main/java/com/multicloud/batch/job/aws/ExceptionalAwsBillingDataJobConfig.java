@@ -102,8 +102,12 @@ public class ExceptionalAwsBillingDataJobConfig {
             // We are considering view as a table
             // These all are actually view in Athena
             Set<String> tables = Set.of(
-                    "mc_amortized_cost_view", "mc_adinmo_amortized_cost_view", "mc_bbw_amortized_cost_view",
-                    "mc_whow_games_amortized_cost_view", "mc_hkts_amortized_cost_view"
+                    "mc_adinmo_amortized_cost_view",
+                    "mc_amortized_cost_view",
+                    "mc_bbw_amortized_cost_view",
+                    "mc_hkts_amortized_cost_view"
+//                    ,
+//                    "mc_whow_games_amortized_cost_view"
             );
 
             Set<AwsUniqueStep> unique = new HashSet<>();
