@@ -105,9 +105,8 @@ public class ExceptionalAwsBillingDataJobConfig {
                     "mc_adinmo_amortized_cost_view",
                     "mc_amortized_cost_view",
                     "mc_bbw_amortized_cost_view",
-                    "mc_hkts_amortized_cost_view"
-//                    ,
-//                    "mc_whow_games_amortized_cost_view"
+                    "mc_hkts_amortized_cost_view",
+                    "mc_whow_games_amortized_cost_view"
             );
 
             Set<AwsUniqueStep> unique = new HashSet<>();
