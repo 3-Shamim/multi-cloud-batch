@@ -22,6 +22,25 @@ public class ServiceLevelBillingSql {
                     SUM(ext_official_amount)                                    AS ext_cost
                 FROM huawei_billing_daily_costs
                 WHERE bill_date >= ? AND bill_date <= ?
+                    AND DATE_FORMAT(billing_month, '%Y-%m') = DATE_FORMAT(bill_date, '%Y-%m')
+                GROUP BY 1, 3, 4, 6, 8;
+            """;
+
+    public static final String HUAWEI_EXTRA_LI_SQL = """
+                SELECT LAST_DAY(billing_month)                                  AS usage_date,
+                    'HWC'                                                       AS cloud_provider,
+                    payer_account_id                                            AS billing_account_id,
+                    customer_id                                                 AS usage_account_id,
+                    null                                                        AS usage_account_name,
+                    cloud_service_type                                          AS service_code,
+                    cloud_service_type_name                                     AS service_name,
+                    bill_type                                                   AS billing_type,
+                    true                                                        AS is_li_outside_of_month,
+                    SUM(consume_amount)                                         AS cost,
+                    SUM(ext_official_amount)                                    AS ext_cost
+                FROM huawei_billing_daily_costs
+                WHERE billing_month >= ?
+                    AND DATE_FORMAT(billing_month, '%Y-%m') <> DATE_FORMAT(bill_date, '%Y-%m')
                 GROUP BY 1, 3, 4, 6, 8;
             """;
 

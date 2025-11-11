@@ -81,7 +81,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeHuaweiBillingDataStep() {
         return new StepBuilder("mergeHuaweiBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(huaweiDataReader())
+                .reader(compositeHuaweiReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -97,11 +97,34 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemReader<ServiceLevelBilling> huaweiDataReader() {
+    public ItemStreamReader<ServiceLevelBilling> compositeHuaweiReader() {
+
+        ItemStreamReader<ServiceLevelBilling> huaweiDataReader = huaweiDataReader();
+        ItemStreamReader<ServiceLevelBilling> huaweiExtraDataReader = huaweiExtraDataReader();
+
+        return new CompositeItemReader<>(List.of(huaweiDataReader, huaweiExtraDataReader));
+    }
+
+
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> huaweiDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
                     ServiceLevelBillingSql.HUAWEI_SQL, "mergeHuaweiBillingDataStep", false
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException("Spring Batch configuration problem: ", e);
+        }
+
+    }
+
+    @Bean
+    public ItemStreamReader<ServiceLevelBilling> huaweiExtraDataReader() {
+
+        try {
+            return getBillingDataCursorItemReader(
+                    ServiceLevelBillingSql.HUAWEI_EXTRA_LI_SQL, "mergeHuaweiBillingDataStep", true
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
