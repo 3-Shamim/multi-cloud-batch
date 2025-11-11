@@ -100,12 +100,24 @@ public class GoogleBillingDataJobConfig {
             // Partition calculation
             boolean exist = gcpDataSyncHistoryRepository.existsAny(JOB_NAME);
 
+            LocalDate now = LocalDate.now();
+
             long days = ChronoUnit.DAYS.between(
-                    LocalDate.parse("2025-01-01"), LocalDate.now()
+                    LocalDate.parse("2025-01-01"), now
             ) + 1;
 
             if (exist) {
-                days = 36;
+
+                if (Set.of(3, 4).contains(now.getDayOfMonth())) {
+
+                    days = ChronoUnit.DAYS.between(
+                            now.minusMonths(1).withDayOfMonth(1), now
+                    ) + 1;
+
+                } else {
+                    days = 10;
+                }
+
             }
 
             List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);

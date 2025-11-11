@@ -30,7 +30,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -228,13 +227,7 @@ public class MergeAllBillingDataJobConfig {
         LocalDate endDate = LocalDate.now();
 
         if (stepEverCompleted) {
-
-            if (isExtraDataReader) {
-                startDate = endDate.minusMonths(1).withDayOfMonth(1);
-            } else {
-                startDate = endDate.minusDays(36);
-            }
-
+            startDate = endDate.minusMonths(1).withDayOfMonth(1);
         } else {
             startDate = LocalDate.parse("2025-01-01");
         }
