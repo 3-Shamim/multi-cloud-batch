@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -87,6 +88,7 @@ public class HuaweiBillingServiceImpl implements HuaweiBillingService {
 
                 HuaweiBillingGroup group = new HuaweiBillingGroup(
                         LocalDate.parse(row.bill_date()),
+                        YearMonth.parse(row.cycle()).atDay(1),
                         Util.nullToEmpty(row.payer_account_id()),
                         Util.nullToEmpty(row.customer_id()),
                         Util.nullToEmpty(row.enterprise_project_id()),

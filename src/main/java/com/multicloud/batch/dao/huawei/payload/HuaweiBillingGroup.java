@@ -11,6 +11,7 @@ import java.util.Comparator;
 
 public record HuaweiBillingGroup(
         LocalDate billDate,
+        LocalDate billingMonth,
         String payerAccountId,
         String customerId,
         String enterpriseProjectId,
@@ -24,8 +25,10 @@ public record HuaweiBillingGroup(
 
     @Override
     public int compareTo(HuaweiBillingGroup o) {
+
         return Comparator
                 .comparing(HuaweiBillingGroup::billDate)
+                .thenComparing(HuaweiBillingGroup::billingMonth, Comparator.nullsFirst(LocalDate::compareTo))
                 .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::customerId, Comparator.nullsFirst(String::compareTo))
                 .thenComparing(HuaweiBillingGroup::enterpriseProjectId, Comparator.nullsFirst(String::compareTo))

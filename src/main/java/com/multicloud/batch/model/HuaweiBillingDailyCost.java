@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,8 +27,8 @@ import java.time.LocalDate;
         uniqueConstraints = @UniqueConstraint(
                 name = "idx_uq_const_huawei",
                 columnNames = {
-                        "bill_date", "payer_account_id", "customer_id", "enterprise_project_id", "cloud_service_type",
-                        "sku_code", "resource_type_code", "region", "charge_mode", "bill_type"
+                        "bill_date", "billing_month", "payer_account_id", "customer_id", "enterprise_project_id",
+                        "cloud_service_type", "sku_code", "resource_type_code", "region", "charge_mode", "bill_type"
                 }
         ),
         indexes = {
@@ -51,6 +52,9 @@ public class HuaweiBillingDailyCost {
 
     @Column(name = "bill_date", nullable = false)
     private LocalDate billDate;
+
+    @Column(name = "billing_month", nullable = false)
+    private LocalDate billingMonth;
 
     // Master/Billing Account ID
     @Column(name = "payer_account_id", nullable = false, length = 64)
@@ -140,6 +144,7 @@ public class HuaweiBillingDailyCost {
 
         return HuaweiBillingDailyCost.builder()
                 .billDate(LocalDate.parse(record.bill_date()))
+                .billingMonth(YearMonth.parse(record.cycle()).atDay(1))
                 .payerAccountId(Util.nullToEmpty(record.payer_account_id()))
                 .customerId(Util.nullToEmpty(record.customer_id()))
                 .enterpriseProjectId(Util.nullToEmpty(record.enterprise_project_id()))
