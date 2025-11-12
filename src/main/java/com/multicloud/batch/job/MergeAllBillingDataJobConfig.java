@@ -190,7 +190,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeAwsBillingDataStep() {
         return new StepBuilder("mergeAwsBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(compositeAwsReader())
+                .reader(awsDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -205,14 +205,14 @@ public class MergeAllBillingDataJobConfig {
                 .build();
     }
 
-    @Bean
-    public ItemStreamReader<ServiceLevelBilling> compositeAwsReader() {
-
-        ItemStreamReader<ServiceLevelBilling> awsDataReader = awsDataReader();
-        ItemStreamReader<ServiceLevelBilling> awsExtraDataReader = awsExtraDataReader();
-
-        return new CompositeItemReader<>(List.of(awsDataReader, awsExtraDataReader));
-    }
+//    @Bean
+//    public ItemStreamReader<ServiceLevelBilling> compositeAwsReader() {
+//
+//        ItemStreamReader<ServiceLevelBilling> awsDataReader = awsDataReader();
+//        ItemStreamReader<ServiceLevelBilling> awsExtraDataReader = awsExtraDataReader();
+//
+//        return new CompositeItemReader<>(List.of(awsDataReader, awsExtraDataReader));
+//    }
 
     @Bean
     public ItemStreamReader<ServiceLevelBilling> awsDataReader() {
@@ -246,12 +246,6 @@ public class MergeAllBillingDataJobConfig {
 
         LocalDate startDate = LocalDate.parse("2025-01-01");
         LocalDate endDate = LocalDate.now();
-
-        // For now, we are going to update the full data set
-//        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
-//        if (stepEverCompleted) {
-//            startDate = endDate.minusMonths(1).withDayOfMonth(1);
-//        }
 
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
 
