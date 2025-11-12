@@ -13,10 +13,8 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.Chunk;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
-import org.springframework.batch.item.support.CompositeItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -30,7 +28,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -60,8 +57,11 @@ public class MergeAllBillingDataJobConfig {
         return new JobBuilder("mergeAllBillingDataJob", jobRepository)
                 .start(fetchAndStoreServiceTypeStep())
                 .next(mergeHuaweiBillingDataStep())
+                .next(mergeHuaweiExtraBillingDataStep())
                 .next(mergeGcpBillingDataStep())
+                .next(mergeGcpExtraBillingDataStep())
                 .next(mergeAwsBillingDataStep())
+                .next(mergeAwsExtraBillingDataStep())
                 .build();
     }
 
@@ -81,7 +81,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeHuaweiBillingDataStep() {
         return new StepBuilder("mergeHuaweiBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(compositeHuaweiReader())
+                .reader(huaweiDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -97,14 +97,23 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> compositeHuaweiReader() {
+    public Step mergeHuaweiExtraBillingDataStep() {
+        return new StepBuilder("mergeHuaweiExtraBillingDataStep", jobRepository)
+                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
+                .reader(huaweiExtraDataReader())
+                .processor(item -> {
 
-        ItemStreamReader<ServiceLevelBilling> huaweiDataReader = huaweiDataReader();
-        ItemStreamReader<ServiceLevelBilling> huaweiExtraDataReader = huaweiExtraDataReader();
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
 
-        return new CompositeItemReader<>(List.of(huaweiDataReader, huaweiExtraDataReader));
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
+                .writer(this::upsertAll)
+                .build();
     }
-
 
     @Bean
     public ItemStreamReader<ServiceLevelBilling> huaweiDataReader() {
@@ -124,7 +133,9 @@ public class MergeAllBillingDataJobConfig {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.HUAWEI_EXTRA_LI_SQL, "mergeHuaweiBillingDataStep", true
+                    ServiceLevelBillingSql.HUAWEI_EXTRA_LI_SQL,
+                    "mergeHuaweiExtraBillingDataStep",
+                    true
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
@@ -136,7 +147,7 @@ public class MergeAllBillingDataJobConfig {
     public Step mergeGcpBillingDataStep() {
         return new StepBuilder("mergeGcpBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
-                .reader(compositeGcpReader())
+                .reader(gcpDataReader())
                 .processor(item -> {
 
                     String parentCategory = serviceTypeService.getParentCategory(
@@ -152,12 +163,22 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> compositeGcpReader() {
+    public Step mergeGcpExtraBillingDataStep() {
+        return new StepBuilder("mergeGcpExtraBillingDataStep", jobRepository)
+                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
+                .reader(gcpExtraDataReader())
+                .processor(item -> {
 
-        ItemStreamReader<ServiceLevelBilling> gcpDataReader = gcpDataReader();
-        ItemStreamReader<ServiceLevelBilling> gcpExtraDataReader = gcpExtraDataReader();
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
 
-        return new CompositeItemReader<>(List.of(gcpDataReader, gcpExtraDataReader));
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
+                .writer(this::upsertAll)
+                .build();
     }
 
     @Bean
@@ -178,7 +199,9 @@ public class MergeAllBillingDataJobConfig {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.GCP_EXTRA_LI_SQL, "mergeGcpBillingDataStep", true
+                    ServiceLevelBillingSql.GCP_EXTRA_LI_SQL,
+                    "mergeGcpExtraBillingDataStep",
+                    true
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);
@@ -205,14 +228,24 @@ public class MergeAllBillingDataJobConfig {
                 .build();
     }
 
-//    @Bean
-//    public ItemStreamReader<ServiceLevelBilling> compositeAwsReader() {
-//
-//        ItemStreamReader<ServiceLevelBilling> awsDataReader = awsDataReader();
-//        ItemStreamReader<ServiceLevelBilling> awsExtraDataReader = awsExtraDataReader();
-//
-//        return new CompositeItemReader<>(List.of(awsDataReader, awsExtraDataReader));
-//    }
+    @Bean
+    public Step mergeAwsExtraBillingDataStep() {
+        return new StepBuilder("mergeAwsExtraBillingDataStep", jobRepository)
+                .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
+                .reader(awsExtraDataReader())
+                .processor(item -> {
+
+                    String parentCategory = serviceTypeService.getParentCategory(
+                            item.getServiceCode(), item.getCloudProvider()
+                    );
+
+                    item.setParentCategory(parentCategory);
+
+                    return item;
+                })
+                .writer(this::upsertAll)
+                .build();
+    }
 
     @Bean
     public ItemStreamReader<ServiceLevelBilling> awsDataReader() {
@@ -232,7 +265,9 @@ public class MergeAllBillingDataJobConfig {
 
         try {
             return getBillingDataCursorItemReader(
-                    ServiceLevelBillingSql.AWS_EXTRA_LI_SQL, "mergeAwsBillingDataStep", true
+                    ServiceLevelBillingSql.AWS_EXTRA_LI_SQL,
+                    "mergeAwsExtraBillingDataStep",
+                    true
             );
         } catch (Exception e) {
             throw new IllegalStateException("Spring Batch configuration problem: ", e);

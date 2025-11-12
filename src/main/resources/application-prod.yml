@@ -14,11 +14,6 @@ spring:
       test-while-idle: true
       validation-interval: 30000
     driver-class-name: org.mariadb.jdbc.Driver
-#    hikari:
-#      keepalive-time: 60000
-#      max-lifetime: 1800000
-#      connection-timeout: 60000
-#      idle-timeout: 600000
   data:
     jdbc:
       dialect: maria
