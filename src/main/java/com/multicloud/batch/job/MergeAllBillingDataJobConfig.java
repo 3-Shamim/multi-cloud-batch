@@ -282,6 +282,12 @@ public class MergeAllBillingDataJobConfig {
         LocalDate startDate = LocalDate.parse("2025-01-01");
         LocalDate endDate = LocalDate.now();
 
+        // For now, we are going to update the full data set
+//        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
+//        if (stepEverCompleted) {
+//            startDate = endDate.minusMonths(1).withDayOfMonth(1);
+//        }
+
         JdbcCursorItemReader<ServiceLevelBilling> reader = new JdbcCursorItemReader<>();
 
         reader.setDataSource(dataSource);
