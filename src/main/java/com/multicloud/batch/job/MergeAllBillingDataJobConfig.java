@@ -1,5 +1,6 @@
 package com.multicloud.batch.job;
 
+import com.multicloud.batch.constant.BillingTypeConstant;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.helper.ServiceLevelBillingSql;
 import com.multicloud.batch.model.ServiceLevelBilling;
@@ -278,6 +279,22 @@ public class MergeAllBillingDataJobConfig {
             String parentCategory = serviceTypeService.getParentCategory(
                     item.getServiceCode(), item.getCloudProvider()
             );
+
+            if (parentCategory != null && parentCategory.isEmpty()) {
+
+                if (BillingTypeConstant.REGULAR.contains(item.getBillingType())) {
+                    parentCategory = "Regular";
+                } else if (BillingTypeConstant.FEE.contains(item.getBillingType())) {
+                    parentCategory = "Fee";
+                } else if (BillingTypeConstant.DISCOUNT.contains(item.getBillingType())) {
+                    parentCategory = "Discount";
+                } else if (BillingTypeConstant.TAX.contains(item.getBillingType())) {
+                    parentCategory = "Tax";
+                } else {
+                    parentCategory = "Other";
+                }
+
+            }
 
             item.setParentCategory(parentCategory);
 
