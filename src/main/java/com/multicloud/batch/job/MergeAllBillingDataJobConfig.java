@@ -13,6 +13,7 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.Chunk;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -82,16 +83,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeHuaweiBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(huaweiDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -101,16 +93,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeHuaweiExtraBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(huaweiExtraDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -148,16 +131,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeGcpBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(gcpDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -167,16 +141,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeGcpExtraBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(gcpExtraDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -214,16 +179,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeAwsBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(awsDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -233,16 +189,7 @@ public class MergeAllBillingDataJobConfig {
         return new StepBuilder("mergeAwsExtraBillingDataStep", jobRepository)
                 .<ServiceLevelBilling, ServiceLevelBilling>chunk(CHUNK, platformTransactionManager)
                 .reader(awsExtraDataReader())
-                .processor(item -> {
-
-                    String parentCategory = serviceTypeService.getParentCategory(
-                            item.getServiceCode(), item.getCloudProvider()
-                    );
-
-                    item.setParentCategory(parentCategory);
-
-                    return item;
-                })
+                .processor(processBillingData())
                 .writer(this::upsertAll)
                 .build();
     }
@@ -325,6 +272,19 @@ public class MergeAllBillingDataJobConfig {
         return reader;
     }
 
+    private ItemProcessor<ServiceLevelBilling, ServiceLevelBilling> processBillingData() {
+        return item -> {
+
+            String parentCategory = serviceTypeService.getParentCategory(
+                    item.getServiceCode(), item.getCloudProvider()
+            );
+
+            item.setParentCategory(parentCategory);
+
+            return item;
+        };
+    }
+
     private void upsertAll(Chunk<? extends ServiceLevelBilling> records) {
 
         if (records == null || records.isEmpty()) {
@@ -366,6 +326,5 @@ public class MergeAllBillingDataJobConfig {
         );
 
     }
-
 
 }

@@ -42,7 +42,12 @@ public class ServiceTypeService {
     }
 
     public String getParentCategory(String code, CloudProvider provider) {
-        return SERVICE_TYPE_MAP.get(new ServiceTypeGroup(code, provider));
+
+        if (code != null && code.isEmpty()) {
+            return "";
+        }
+
+        return SERVICE_TYPE_MAP.getOrDefault(new ServiceTypeGroup(code, provider), "UNKNOWN");
     }
 
     private List<ServiceTypeDTO> findAllServiceTypes() {
