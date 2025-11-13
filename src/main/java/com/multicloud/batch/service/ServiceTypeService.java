@@ -47,7 +47,7 @@ public class ServiceTypeService {
             return "";
         }
 
-        return SERVICE_TYPE_MAP.getOrDefault(new ServiceTypeGroup(code, provider), "UNKNOWN");
+        return SERVICE_TYPE_MAP.getOrDefault(new ServiceTypeGroup(code, provider), "Unknown");
     }
 
     private List<ServiceTypeDTO> findAllServiceTypes() {
