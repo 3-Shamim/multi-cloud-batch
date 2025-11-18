@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -65,7 +66,7 @@ public class JobService {
         return new JobDTO(jobName, "NEVER_EXECUTED", false);
     }
 
-    public void startJobAsync(String jobName) throws Exception {
+    public void startJobAsync(String jobName, LocalDate startDate) throws Exception {
 
         Job job = jobRegistry.getJob(jobName);
 
@@ -78,19 +79,28 @@ public class JobService {
             );
         }
 
-        CompletableFuture.runAsync(() -> startJob(job));
+        CompletableFuture.runAsync(() -> startJob(job, startDate));
 
         holdForAMoment();
 
     }
 
-    private void startJob(Job job) {
+    private void startJob(Job job, LocalDate startDate) {
 
         try {
 
-            JobParameters params = new JobParametersBuilder()
-                    .addLong("time", System.currentTimeMillis())
-                    .toJobParameters();
+            JobParameters params;
+
+            if (startDate != null) {
+                params = new JobParametersBuilder()
+                        .addLong("time", System.currentTimeMillis())
+                        .addLocalDate("startDate", startDate)
+                        .toJobParameters();
+            } else {
+                params = new JobParametersBuilder()
+                        .addLong("time", System.currentTimeMillis())
+                        .toJobParameters();
+            }
 
             jobLauncher.run(job, params);
 

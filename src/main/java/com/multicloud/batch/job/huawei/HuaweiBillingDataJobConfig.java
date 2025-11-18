@@ -115,6 +115,11 @@ public class HuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
+            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+
+            JobParameters jobParameters = stepExecution.getJobParameters();
+            LocalDate startDate = jobParameters.getLocalDate("startDate");
+
             // Partition calculation
             boolean exist = huaweiDataSyncHistoryRepository.existsAny(JOB_NAME, PROJECT);
 
@@ -136,6 +141,12 @@ public class HuaweiBillingDataJobConfig {
                     days = 10;
                 }
 
+            }
+
+            if (startDate != null ) {
+                days = ChronoUnit.DAYS.between(
+                        startDate, now
+                ) + 1;
             }
 
             List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);

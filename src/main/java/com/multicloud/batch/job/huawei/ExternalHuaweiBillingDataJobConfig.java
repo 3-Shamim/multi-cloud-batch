@@ -117,6 +117,11 @@ public class ExternalHuaweiBillingDataJobConfig {
 
         return gridSize -> {
 
+            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+
+            JobParameters jobParameters = stepExecution.getJobParameters();
+            LocalDate startDate = jobParameters.getLocalDate("startDate");
+
             List<HuaweiSubAccountInfoDTO> subAccountInfoList = huaweiSubAccountInfoService.findAllSubAccountInfo();
 
             Set<String> uniqueNames = subAccountInfoList.stream()
@@ -151,6 +156,12 @@ public class ExternalHuaweiBillingDataJobConfig {
                         days = 10;
                     }
 
+                }
+
+                if (startDate != null ) {
+                    days = ChronoUnit.DAYS.between(
+                            startDate, now
+                    ) + 1;
                 }
 
                 List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);

@@ -15,6 +15,18 @@
         <span th:text="${msg}"/>
     </div>
 
+    <div class="date-picker-container" style="margin-bottom: 20px;">
+        <label for="startDate" style="margin-right: 10px;">Select Start Date For Job:</label>
+        <input type="date"
+               id="startDate"
+               name="startDate"
+               style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;"
+        />
+        <button onclick="clearDate()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">
+            Clear
+        </button>
+    </div>
+
     <div class="table-container">
         <table>
             <thead>
@@ -29,12 +41,16 @@
                 <td th:text="${job.name()}"></td>
                 <td th:text="${job.status()}"></td>
                 <td>
-                    <a th:href="@{'/jobs/start/' + ${job.name()}}"
-                       class="btn btn-start"
-                       th:classappend="${job.isRunning()} ? ' disabled' : ''"
+                    <span
+                            id="startButton"
+                            class="btn btn-start"
+                            th:attr="data-job-name=${job.name()}"
+                            th:classappend="${job.isRunning()} ? ' disabled' : ''"
+                            onclick="handleStartClick(this)"
+                            style="cursor: pointer;"
                     >
                         Start
-                    </a> |
+                    </span> |
                     <a th:href="@{'/jobs/stop/' + ${job.name()}}"
                        class="btn btn-stop"
                        th:classappend="${job.isRunning()} ? '' : ' disabled'"
@@ -56,6 +72,39 @@
             </tbody>
         </table>
     </div>
+
+    <script th:inline="javascript">
+
+        function handleStartClick(element) {
+
+            if (element.classList.contains('disabled')) {
+                return false;
+            }
+
+            // Get the selected date
+            const selectedDate = document.getElementById('startDate').value;
+
+            // Get a job name
+            const jobName = element.getAttribute('data-job-name');
+
+            // Build URL
+            let url = '/jobs/start/' + jobName;
+
+            // Add query parameter only if the date is selected
+            if (selectedDate) {
+                url += '?startDate=' + selectedDate;
+            }
+
+            // Navigate to URL
+            window.location.href = url;
+
+        }
+
+        function clearDate() {
+            document.getElementById('startDate').value = '';
+        }
+
+    </script>
 
 </main>
 

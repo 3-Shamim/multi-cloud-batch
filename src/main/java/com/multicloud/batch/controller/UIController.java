@@ -68,10 +68,13 @@ public class UIController {
     }
 
     @GetMapping("/jobs/start/{jobName}")
-    public String startJob(@PathVariable String jobName) {
+    public String startJob(@PathVariable String jobName,
+                           @RequestParam(value = "startDate", required = false)
+                           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                           LocalDate startDate) {
 
         try {
-            jobService.startJobAsync(jobName);
+            jobService.startJobAsync(jobName, startDate);
             String msg = "successfully started";
             String encodedMsg = URLEncoder.encode(msg, StandardCharsets.UTF_8);
             return "redirect:/?jobName=%s&msg=%s".formatted(jobName, encodedMsg);

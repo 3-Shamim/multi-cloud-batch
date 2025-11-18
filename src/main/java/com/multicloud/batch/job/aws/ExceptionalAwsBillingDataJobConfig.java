@@ -84,6 +84,11 @@ public class ExceptionalAwsBillingDataJobConfig {
 
         return gridSize -> {
 
+            StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
+
+            JobParameters jobParameters = stepExecution.getJobParameters();
+            LocalDate startDate = jobParameters.getLocalDate("startDate");
+
             SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
             if (secret == null) {
@@ -137,6 +142,12 @@ public class ExceptionalAwsBillingDataJobConfig {
                         days = 10;
                     }
 
+                }
+
+                if (startDate != null ) {
+                    days = ChronoUnit.DAYS.between(
+                            startDate, now
+                    ) + 1;
                 }
 
                 List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 11);
