@@ -10,21 +10,26 @@
 
     <h2 class="section-title">List of Jobs</h2>
 
-    <div th:if="${jobName}" class="alert alert-info">
-        <b th:text="${jobName}"/>:
-        <span th:text="${msg}"/>
-    </div>
+    <div
+            style="display: flex; justify-content: space-between; align-items: center;"
+    >
+        <div class="date-picker-container">
+            <label for="startDate" style="margin-right: 10px;">Select Start Date For Job:</label>
+            <input type="date"
+                   id="startDate"
+                   name="startDate"
+                   style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;"
+            />
+            <button onclick="clearDate()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">
+                Clear
+            </button>
+        </div>
 
-    <div class="date-picker-container" style="margin-bottom: 20px;">
-        <label for="startDate" style="margin-right: 10px;">Select Start Date For Job:</label>
-        <input type="date"
-               id="startDate"
-               name="startDate"
-               style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;"
-        />
-        <button onclick="clearDate()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">
-            Clear
-        </button>
+        <div th:if="${jobName}" class="alert alert-info">
+            <b th:text="${jobName}"/>:
+            <span th:text="${msg}"/>
+        </div>
+
     </div>
 
     <div class="table-container">
