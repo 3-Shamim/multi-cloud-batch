@@ -56,6 +56,8 @@
 
     <dependencies>
 
+        <!-- Spring -->
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-batch</artifactId>
@@ -86,17 +88,23 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- MariaDB -->
+
         <dependency>
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Lombok -->
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!-- Common -->
 
         <dependency>
             <groupId>org.apache.commons</groupId>
