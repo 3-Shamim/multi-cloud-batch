@@ -80,8 +80,8 @@ batch_job:
     corn: '0 15 3 * * *'
     enabled: true
   monthly_invoice:
-    corn: '0 0 1 4 * *'
-    enabled: false
+    corn: '0 0 4 4 * *'
+    enabled: true
   daily_org_pricing_update:
-    corn: '0 10 0 * * *'
+    corn: '0 2 0 * * *'
     enabled: true
