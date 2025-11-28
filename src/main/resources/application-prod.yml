@@ -14,6 +14,8 @@ spring:
       test-while-idle: true
       validation-interval: 30000
     driver-class-name: org.mariadb.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
   data:
     jdbc:
       dialect: maria
@@ -39,6 +41,13 @@ spring:
   sql:
     init:
       mode: never
+
+secondary:
+  datasource:
+    url: jdbc:mariadb://${DB_HOST}:3306/${SECONDARY_DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useUnicode=yes&characterEncoding=UTF-8&serverTimezone=UTC
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.mariadb.jdbc.Driver
 
 #============ AWS Credentials ============
 aws:
