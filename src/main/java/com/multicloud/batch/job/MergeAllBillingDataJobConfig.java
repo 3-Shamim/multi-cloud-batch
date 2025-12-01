@@ -228,7 +228,9 @@ public class MergeAllBillingDataJobConfig {
                                                                                      boolean isExtraDataReader) throws Exception {
 
         LocalDate startDate = LocalDate.parse("2025-01-01");
-        LocalDate endDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now().minusMonths(1);
+
+        log.info("Fetching billing data in step: [{}] from {} to {}", stepName, startDate, endDate);
 
         // For now, we are going to update the full data set
 //        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
