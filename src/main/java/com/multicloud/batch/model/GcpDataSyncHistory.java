@@ -37,7 +37,7 @@ public class GcpDataSyncHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private long id;
 
     @Column(name = "job_name", nullable = false, length = 150)
     private String jobName;

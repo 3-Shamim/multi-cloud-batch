@@ -38,7 +38,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     private final static String[] COLS = {
             "usage_date", "billing_month", "usage_account_id", "service_code", "service_name",
             "sku_id", "region", "location", "currency", "pricing_type", "billing_type",
-            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost"
+            "usage_type", "usage_amount", "usage_unit", "unblended_cost", "blended_cost", "net_unblended_cost"
     };
 
     private final JdbcTemplate jdbcTemplate;
@@ -86,6 +86,14 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         LocalDate startOfNextMonth = end.plusMonths(1).withDayOfMonth(1);
 
+        String netUnblendedCol = "CAST(0 AS DECIMAL(20, 8)) AS net_unblended_cost";
+
+        if (internal) {
+            netUnblendedCol = """
+                        CAST(COALESCE(SUM(line_item_net_unblended_cost), 0) AS DECIMAL(20, 8))   AS net_unblended_cost
+                    """;
+        }
+
         String query = """
                 SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
                 
@@ -115,7 +123,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     MAX(pricing_unit)                                                        AS usage_unit,
                 
                     CAST(COALESCE(SUM(line_item_unblended_cost), 0) AS DECIMAL(20, 8))       AS unblended_cost,
-                    CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost
+                    CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
+                    %s
                 
                 FROM %s
                 WHERE CAST(year AS INTEGER) = %d
@@ -128,7 +137,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         )
                     )
                 GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
-                """.formatted(tableName, year, month, start, end, year, month, startOfNextMonth);
+                """.formatted(netUnblendedCol, tableName, year, month, start, end, year, month, startOfNextMonth);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
 
@@ -162,7 +171,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     usage_amount,
                     usage_unit,
                     CAST(cost AS DECIMAL(20, 8)) AS unblended_cost,
-                    CAST(0 AS DECIMAL(20, 8)) AS blended_cost
+                    CAST(0 AS DECIMAL(20, 8))    AS blended_cost,
+                    CAST(0 AS DECIMAL(20, 8))    AS net_unblended_cost
                 FROM %s
                 WHERE CAST(year AS INTEGER) = %d
                     AND CAST(month AS INTEGER) = %d
@@ -307,8 +317,10 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .usageUnit(record.get("usage_unit"))
                 .unblendedCost(internal ? parseBigDecimalSafe(record.get("unblended_cost")) : BigDecimal.ZERO)
                 .blendedCost(internal ? parseBigDecimalSafe(record.get("blended_cost")) : BigDecimal.ZERO)
+                .netUnblendedCost(internal ? parseBigDecimalSafe(record.get("net_unblended_cost")) : BigDecimal.ZERO)
                 .extUnblendedCost(internal ? BigDecimal.ZERO : parseBigDecimalSafe(record.get("unblended_cost")))
                 .extBlendedCost(internal ? BigDecimal.ZERO : parseBigDecimalSafe(record.get("blended_cost")))
+                .extNetUnblendedCost(internal ? BigDecimal.ZERO : parseBigDecimalSafe(record.get("net_unblended_cost")))
                 .build();
     }
 

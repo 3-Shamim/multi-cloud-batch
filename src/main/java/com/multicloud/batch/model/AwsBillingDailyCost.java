@@ -45,7 +45,7 @@ public class AwsBillingDailyCost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private long id;
 
     @Column(name = "usage_date", nullable = false)
     private LocalDate usageDate;
@@ -96,11 +96,15 @@ public class AwsBillingDailyCost {
     private BigDecimal unblendedCost;
     @Column(name = "blended_cost", precision = 20, scale = 8)
     private BigDecimal blendedCost;
+    @Column(name = "net_unblended_cost", precision = 20, scale = 8)
+    private BigDecimal netUnblendedCost;
 
     // Represent external cost
     @Column(name = "ext_unblended_cost", precision = 20, scale = 8)
     private BigDecimal extUnblendedCost;
     @Column(name = "ext_blended_cost", precision = 20, scale = 8)
     private BigDecimal extBlendedCost;
+    @Column(name = "ext_net_unblended_cost", precision = 20, scale = 8)
+    private BigDecimal extNetUnblendedCost;
 
 }
