@@ -228,7 +228,7 @@ public class MergeAllBillingDataJobConfig {
                                                                                      boolean isExtraDataReader) throws Exception {
 
         LocalDate startDate = LocalDate.parse("2025-10-01");
-        LocalDate endDate = LocalDate.now().minusMonths(1);
+        LocalDate endDate = LocalDate.now().plusMonths(1);
 
         log.info("Fetching billing data in step: [{}] from {} to {}", stepName, startDate, endDate);
 
