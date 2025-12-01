@@ -141,7 +141,7 @@ public class ExternalHuaweiBillingDataJobConfig {
                 LocalDate now = LocalDate.now();
 
                 long days = ChronoUnit.DAYS.between(
-                        LocalDate.parse("2025-01-01"), now
+                        now.minusMonths(6).withDayOfMonth(1), now
                 ) + 1;
 
                 if (exist) {
