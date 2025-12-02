@@ -10,12 +10,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -100,7 +100,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> huaweiDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> huaweiDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -113,7 +114,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> huaweiExtraDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> huaweiExtraDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -148,7 +150,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> gcpDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> gcpDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -161,7 +164,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> gcpExtraDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> gcpExtraDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -196,7 +200,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> awsDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> awsDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -209,7 +214,8 @@ public class MergeAllBillingDataJobConfig {
     }
 
     @Bean
-    public ItemStreamReader<ServiceLevelBilling> awsExtraDataReader() {
+    @StepScope
+    public JdbcCursorItemReader<ServiceLevelBilling> awsExtraDataReader() {
 
         try {
             return getBillingDataCursorItemReader(
@@ -227,10 +233,8 @@ public class MergeAllBillingDataJobConfig {
                                                                                      String stepName,
                                                                                      boolean isExtraDataReader) throws Exception {
 
-        LocalDate startDate = LocalDate.parse("2025-10-01");
-        LocalDate endDate = LocalDate.now().plusMonths(1);
-
-        log.info("Fetching billing data in step: [{}] from {} to {}", stepName, startDate, endDate);
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusMonths(6).withDayOfMonth(1);
 
         // For now, we are going to update the full data set
 //        boolean stepEverCompleted = jobStepService.hasStepEverCompleted(stepName);
