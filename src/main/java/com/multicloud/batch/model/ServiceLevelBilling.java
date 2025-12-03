@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -94,6 +95,7 @@ public class ServiceLevelBilling {
     @Column(name = "ext_cost", precision = 20, scale = 8)
     private BigDecimal extCost;
 
-
+    @Column(name = "last_updated_at", nullable = false)
+    private LocalDateTime lastUpdatedAt;
 
 }

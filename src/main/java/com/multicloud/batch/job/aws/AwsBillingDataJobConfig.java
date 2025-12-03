@@ -72,6 +72,8 @@ public class AwsBillingDataJobConfig {
                 .build();
     }
 
+    // This will remove all AWS data
+    // We don't need to add this step in all AWS jobs
     @Bean
     public Step lastMonthAwsDataCleanUpStep() {
 
