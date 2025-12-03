@@ -94,4 +94,6 @@ public class ServiceLevelBilling {
     @Column(name = "ext_cost", precision = 20, scale = 8)
     private BigDecimal extCost;
 
+
+
 }

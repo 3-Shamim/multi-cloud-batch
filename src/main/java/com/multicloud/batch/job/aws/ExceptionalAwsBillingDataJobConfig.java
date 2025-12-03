@@ -132,7 +132,7 @@ public class ExceptionalAwsBillingDataJobConfig {
 
                 if (exist) {
 
-                    if (Set.of(3, 4).contains(now.getDayOfMonth())) {
+                    if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
 
                         days = ChronoUnit.DAYS.between(
                                 now.minusMonths(1).withDayOfMonth(1), now
