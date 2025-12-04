@@ -67,17 +67,17 @@ public class AwsBillingDataJobConfig {
     @Bean
     public Job awsBillingDataJob() {
         return new JobBuilder(JOB_NAME, jobRepository)
-                .start(lastMonthAwsDataCleanUpStep())
+                .start(lastMonthAwsDataCleanupStep())
                 .next(awsBillingDataMasterStep())
                 .build();
     }
 
-    // This will remove all AWS data
+    // This will remove all AWS data based on date filter
     // We don't need to add this step in all AWS jobs
     @Bean
-    public Step lastMonthAwsDataCleanUpStep() {
+    public Step lastMonthAwsDataCleanupStep() {
 
-        return new StepBuilder("lastMonthAwsDataCleanUpStep", jobRepository)
+        return new StepBuilder("lastMonthAwsDataCleanupStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
                     LocalDate now = LocalDate.now();
@@ -148,7 +148,7 @@ public class AwsBillingDataJobConfig {
                     ) + 1;
 
                 } else {
-                    days = 10;
+                    days = Math.min(now.getDayOfMonth(), 10);
                 }
 
             }

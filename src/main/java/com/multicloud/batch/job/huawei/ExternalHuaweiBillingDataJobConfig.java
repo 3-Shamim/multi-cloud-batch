@@ -153,7 +153,7 @@ public class ExternalHuaweiBillingDataJobConfig {
                         ) + 1;
 
                     } else {
-                        days = 10;
+                        days = Math.min(now.getDayOfMonth(), 10);
                     }
 
                 }
