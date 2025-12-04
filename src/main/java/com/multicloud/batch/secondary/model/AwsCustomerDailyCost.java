@@ -20,12 +20,12 @@ import java.time.LocalDate;
 @ToString
 @Entity
 @Table(
-        name = "aws_customer_daily_margin",
+        name = "aws_customer_daily_cost",
         uniqueConstraints = {
                 @UniqueConstraint(name = "idx_uq_const", columnNames = {"day", "customer_name"})
         }
 )
-public class AwsCustomerDailyMargin {
+public class AwsCustomerDailyCost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
