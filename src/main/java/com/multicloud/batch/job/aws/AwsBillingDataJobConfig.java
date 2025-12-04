@@ -17,7 +17,6 @@ import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
@@ -84,9 +83,11 @@ public class AwsBillingDataJobConfig {
 
                     if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
 
-                        String query = "delete from aws_billing_daily_costs where usage_date >= ?";
+                        String query = "delete from aws_billing_daily_costs where usage_date >= ? and billing_month >= ?";
 
-                        jdbcTemplate.update(query, now.minusMonths(1).withDayOfMonth(1));
+                        LocalDate firstDayOfLastMonth = now.minusMonths(1).withDayOfMonth(1);
+
+                        jdbcTemplate.update(query, firstDayOfLastMonth, firstDayOfLastMonth);
 
                     }
 
