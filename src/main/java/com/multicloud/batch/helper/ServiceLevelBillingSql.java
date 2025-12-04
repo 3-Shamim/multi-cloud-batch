@@ -130,15 +130,17 @@ public class ServiceLevelBillingSql {
                     is_li_outside_of_month,
                     parent_category,
                     cost,
-                    ext_cost
+                    ext_cost,
+                    last_updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     usage_account_name = VALUES(usage_account_name),
                     service_name = VALUES(service_name),
                     parent_category = VALUES(parent_category),
                     cost = VALUES(cost),
-                    ext_cost = VALUES(ext_cost);
+                    ext_cost = VALUES(ext_cost),
+                    last_updated_at = VALUES(last_updated_at);
             """;
 
 }

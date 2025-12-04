@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDate;
@@ -60,11 +61,38 @@ public class AwsBillingDataJobConfig {
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final AwsBillingService awsBillingService;
 
+    private final JdbcTemplate jdbcTemplate;
+
     @Bean
     public Job awsBillingDataJob() {
         return new JobBuilder(JOB_NAME, jobRepository)
-                .start(awsBillingDataMasterStep())
+                .start(lastMonthAwsDataCleanupStep())
+                .next(awsBillingDataMasterStep())
                 .build();
+    }
+
+    // This will remove all AWS data based on date filter
+    // We don't need to add this step in all AWS jobs
+    @Bean
+    public Step lastMonthAwsDataCleanupStep() {
+
+        return new StepBuilder("lastMonthAwsDataCleanupStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    LocalDate now = LocalDate.now();
+
+                    if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
+
+                        String query = "delete from aws_billing_daily_costs where usage_date >= ? and billing_month >= ?";
+
+                        LocalDate firstDayOfLastMonth = now.minusMonths(1).withDayOfMonth(1);
+
+                        jdbcTemplate.update(query, firstDayOfLastMonth, firstDayOfLastMonth);
+
+                    }
+
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager).build();
     }
 
     // Using a single thread and fetched 3-day of data at once.
@@ -114,19 +142,19 @@ public class AwsBillingDataJobConfig {
 
             if (exist) {
 
-                if (Set.of(3, 4).contains(now.getDayOfMonth())) {
+                if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
 
                     days = ChronoUnit.DAYS.between(
                             now.minusMonths(1).withDayOfMonth(1), now
                     ) + 1;
 
                 } else {
-                    days = 10;
+                    days = Math.min(now.getDayOfMonth(), 10);
                 }
 
             }
 
-            if (startDate != null ) {
+            if (startDate != null) {
                 days = ChronoUnit.DAYS.between(
                         startDate, now
                 ) + 1;

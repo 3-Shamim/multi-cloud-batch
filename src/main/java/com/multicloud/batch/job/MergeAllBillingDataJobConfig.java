@@ -29,7 +29,9 @@ import javax.sql.DataSource;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -64,6 +66,7 @@ public class MergeAllBillingDataJobConfig {
                 .next(mergeGcpExtraBillingDataStep())
                 .next(mergeAwsBillingDataStep())
                 .next(mergeAwsExtraBillingDataStep())
+                .next(cleanupUnknownDataStep())
                 .build();
     }
 
@@ -77,6 +80,22 @@ public class MergeAllBillingDataJobConfig {
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
+    }
+
+    @Bean
+    public Step cleanupUnknownDataStep() {
+
+        return new StepBuilder("cleanupUnknownDataStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    LocalDate now = LocalDate.now();
+
+                    String query = "delete from service_level_billings where usage_date >= ? and last_updated_at < ?";
+
+                    jdbcTemplate.update(query, now.minusMonths(6).withDayOfMonth(1), now);
+
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager).build();
     }
 
     @Bean
@@ -272,6 +291,7 @@ public class MergeAllBillingDataJobConfig {
                 .isLiOutsideOfMonth(rs.getBoolean("is_li_outside_of_month"))
                 .cost(rs.getBigDecimal("cost"))
                 .extCost(rs.getBigDecimal("ext_cost"))
+                .lastUpdatedAt(LocalDateTime.now())
                 .build());
 
         reader.afterPropertiesSet();
@@ -337,6 +357,7 @@ public class MergeAllBillingDataJobConfig {
                         ps.setString(10, item.getParentCategory());
                         ps.setBigDecimal(11, item.getCost());
                         ps.setBigDecimal(12, item.getExtCost());
+                        ps.setTimestamp(13, Timestamp.valueOf(item.getLastUpdatedAt()));
 
                     }
 
