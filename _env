@@ -2,6 +2,7 @@ PROFILES=dev
 SERVER_PORT=8080
 DB_HOST=localhost
 DB_NAME=multi_cloud
+SECONDARY_DB_NAME=mc_billing
 DB_USERNAME=root
 DB_PASSWORD=root
 AWS_ACCESS_KEY=
