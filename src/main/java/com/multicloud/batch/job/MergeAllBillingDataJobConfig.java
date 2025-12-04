@@ -66,7 +66,7 @@ public class MergeAllBillingDataJobConfig {
                 .next(mergeGcpExtraBillingDataStep())
                 .next(mergeAwsBillingDataStep())
                 .next(mergeAwsExtraBillingDataStep())
-                .next(cleanupUnknownDataStep())
+//                .next(cleanupUnknownDataStep())
                 .build();
     }
 
