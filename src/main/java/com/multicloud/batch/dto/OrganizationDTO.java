@@ -6,5 +6,5 @@ package com.multicloud.batch.dto;
  * Email: shamim.molla@vivasoftltd.com
  */
 
-public record OrganizationDTO(long id, String name, boolean internal, boolean skipAwsJob) {
+public record OrganizationDTO(long id, String name, boolean internal, boolean exceptional) {
 }

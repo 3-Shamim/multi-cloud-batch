@@ -27,5 +27,7 @@ public class DailyOrganizationPricingDTO {
     private String organizationName;
     private CloudProvider cloudProvider;
     private double discount;
+    private double handlingFee;
+    private double supportFee;
 
 }

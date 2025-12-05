@@ -62,6 +62,8 @@ batch_job.monthly_invoice.corn=0 8 * * * *
 batch_job.monthly_invoice.enabled=false
 batch_job.daily_org_pricing_update.corn=0 3 * * * *
 batch_job.daily_org_pricing_update.enabled=false
+batch_job.aws_customer_cost.corn=0 0 0 1 * *
+batch_job.aws_customer_cost.enabled=true
 ```
 
 💡 Tip: Instead of creating this file, you can define `_env`'s variables as environment variables in IntelliJ’s Run/Debug Configuration.

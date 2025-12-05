@@ -89,3 +89,6 @@ batch_job:
   daily_org_pricing_update:
     corn: '0 2 0 * * *'
     enabled: true
+  aws_customer_cost:
+    corn: '0 0 4 4 * *'
+    enabled: true

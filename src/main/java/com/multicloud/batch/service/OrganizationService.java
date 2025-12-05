@@ -24,15 +24,28 @@ public class OrganizationService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public List<OrganizationDTO> findOrganizations() {
+    public List<OrganizationDTO> findAllOrganizations() {
 
         return jdbcTemplate.query(
-                "SELECT id, name, internal, skip_aws_job FROM organizations",
+                "SELECT id, name, internal, exceptional FROM organizations",
                 (rs, rowNum) -> new OrganizationDTO(
                         rs.getLong("id"),
                         rs.getString("name"),
                         rs.getBoolean("internal"),
-                        rs.getBoolean("skip_aws_job")
+                        rs.getBoolean("exceptional")
+                )
+        );
+    }
+
+    public List<OrganizationDTO> findAllExternalOrganizations() {
+
+        return jdbcTemplate.query(
+                "SELECT id, name, internal, exceptional FROM organizations WHERE internal = false",
+                (rs, rowNum) -> new OrganizationDTO(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getBoolean("internal"),
+                        rs.getBoolean("exceptional")
                 )
         );
     }
@@ -40,12 +53,12 @@ public class OrganizationService {
     public OrganizationDTO findOrganizationById(long id) {
 
         List<OrganizationDTO> data = jdbcTemplate.query(
-                "SELECT id, name, internal, skip_aws_job FROM organizations WHERE id = ?",
+                "SELECT id, name, internal, exceptional FROM organizations WHERE id = ?",
                 (rs, rowNum) -> new OrganizationDTO(
                         rs.getLong("id"),
                         rs.getString("name"),
                         rs.getBoolean("internal"),
-                        rs.getBoolean("skip_aws_job")
+                        rs.getBoolean("exceptional")
                 ),
                 id
         );

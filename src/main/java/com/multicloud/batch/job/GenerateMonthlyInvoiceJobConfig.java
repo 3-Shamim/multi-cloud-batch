@@ -77,7 +77,7 @@ public class GenerateMonthlyInvoiceJobConfig {
 
         return new StepBuilder("generateMonthlyInvoiceStep", jobRepository)
                 .<ProductDTO, ProductDTO>chunk(1, platformTransactionManager)
-                .reader(productReader())
+                .reader(monthlyInvoiceProductReader())
                 .processor(item -> item)
                 .writer(chunk -> {
 
@@ -122,8 +122,8 @@ public class GenerateMonthlyInvoiceJobConfig {
                                     calculatePercentage(providerCost.cost(), handlingFee),
                                     calculatePercentage(providerCost.cost(), supportFee),
                                     invoiceNumber,
-                                    LocalDate.now(),
-                                    LocalDate.now().plusMonths(1)
+                                    lastMonth.atDay(4),
+                                    lastMonth.atDay(4).plusMonths(1)
                             ));
 
                         }
@@ -139,12 +139,12 @@ public class GenerateMonthlyInvoiceJobConfig {
     }
 
     @Bean
-    public ItemReader<ProductDTO> productReader() {
+    public ItemReader<ProductDTO> monthlyInvoiceProductReader() {
 
         JdbcCursorItemReader<ProductDTO> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
         reader.setSql("""
-                    SELECT p.id, p.organization_id, o.internal
+                    SELECT p.id, p.organization_id, o.internal, o.exceptional
                     FROM products p
                         JOIN organizations o ON p.organization_id = o.id
                 """);
@@ -155,7 +155,8 @@ public class GenerateMonthlyInvoiceJobConfig {
         reader.setRowMapper((rs, rowNum) -> new ProductDTO(
                 rs.getLong("id"),
                 rs.getLong("organization_id"),
-                rs.getBoolean("internal")
+                rs.getBoolean("internal"),
+                rs.getBoolean("exceptional")
         ));
 
         try {

@@ -81,13 +81,17 @@ public class DailyOrganizationPricingUpdateJobConfig {
                                 ),
                                 GREATEST(MAX(op.start_date) OVER (), CURDATE()) + INTERVAL 1 DAY
                             ) AS next_start_date,
-                            op.discount
+                            op.discount,
+                            op.handling_fee,
+                            op.support_fee
                         FROM organization_pricing op
                     )
                     SELECT dr.usage_date AS pricing_date,
                         p.organization_id,
                         p.cloud_provider,
-                        COALESCE(p.discount, 0) AS discount
+                        COALESCE(p.discount, 0) AS discount,
+                        COALESCE(p.handling_fee, 0) AS handling_fee,
+                        COALESCE(p.support_fee, 0) AS support_fee
                     FROM date_range dr
                         JOIN pricing_with_next p ON dr.usage_date >= p.start_date AND dr.usage_date < p.next_start_date;
                 """;
@@ -106,6 +110,8 @@ public class DailyOrganizationPricingUpdateJobConfig {
                 .organizationId(rs.getLong("organization_id"))
                 .cloudProvider(CloudProvider.valueOf(rs.getString("cloud_provider")))
                 .discount(rs.getDouble("discount"))
+                .handlingFee(rs.getDouble("handling_fee"))
+                .supportFee(rs.getDouble("support_fee"))
                 .build());
 
         try {
@@ -126,10 +132,14 @@ public class DailyOrganizationPricingUpdateJobConfig {
         log.info("Upserting daily organization pricing's {} records...", records.size());
 
         String sql = """
-                    INSERT INTO daily_organization_pricing (pricing_date, organization_id, cloud_provider, discount)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO daily_organization_pricing (
+                        pricing_date, organization_id, cloud_provider, discount, handling_fee, support_fee
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
-                        discount = VALUES(discount)
+                        discount = VALUES(discount),
+                        handling_fee = VALUES(handling_fee),
+                        support_fee = VALUES(support_fee)
                 """;
 
         jdbcTemplate.batchUpdate(sql, records.getItems(), records.size(),
@@ -139,6 +149,8 @@ public class DailyOrganizationPricingUpdateJobConfig {
                     ps.setLong(2, daily.getOrganizationId());
                     ps.setString(3, daily.getCloudProvider().name());
                     ps.setDouble(4, daily.getDiscount());
+                    ps.setDouble(5, daily.getHandlingFee());
+                    ps.setDouble(6, daily.getSupportFee());
 
                 });
 
