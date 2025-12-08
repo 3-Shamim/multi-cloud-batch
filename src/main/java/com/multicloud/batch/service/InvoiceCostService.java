@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class InvoiceCostService {
 
     private final JdbcTemplate jdbcTemplate;
@@ -48,8 +48,8 @@ public class InvoiceCostService {
                     SELECT c.cloud_provider,
                             SUM(IF(
                                 ?,
-                                COALESCE(cost, 0) - (COALESCE(cost, 0) * COALESCE(d.discount, 0) / 100),
-                                COALESCE(ext_cost, 0) - (COALESCE(ext_cost, 0) * COALESCE(d.discount, 0) / 100)
+                                COALESCE(c.cost, 0) - (COALESCE(c.cost, 0) * COALESCE(d.discount, 0) / 100),
+                                COALESCE(c.ext_cost, 0) - (COALESCE(c.ext_cost, 0) * COALESCE(d.discount, 0) / 100)
                             )) AS cost
                     FROM costs c
                         LEFT JOIN discounts d ON d.cloud_provider = c.cloud_provider AND d.pricing_date = c.usage_date
@@ -78,31 +78,6 @@ public class InvoiceCostService {
         );
 
         return invoiceNumberList.isEmpty() ? 0 : invoiceNumberList.getFirst();
-    }
-
-    public void insert(List<BillingDTO> billings) {
-
-        String query = """
-                INSERT INTO billings(
-                    month_date, product_id, organization_id, cloud_provider,
-                    cost, handling_fee, support_fee, invoice_number, created_date, due_date
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """;
-
-        jdbcTemplate.batchUpdate(query, billings, 100, (ps, bill) -> {
-            ps.setDate(1, Date.valueOf(bill.month().atDay(1)));
-            ps.setLong(2, bill.productId());
-            ps.setLong(3, bill.organizationId());
-            ps.setString(4, bill.provider().name());
-            ps.setBigDecimal(5, bill.cost());
-            ps.setBigDecimal(6, bill.handlingFee());
-            ps.setBigDecimal(7, bill.supportFee());
-            ps.setLong(8, bill.invoiceNumber());
-            ps.setDate(9, Date.valueOf(bill.createdDate()));
-            ps.setDate(10, Date.valueOf(bill.dueDate()));
-        });
-
     }
 
 }

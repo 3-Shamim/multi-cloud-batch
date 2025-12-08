@@ -8,7 +8,9 @@ package com.multicloud.batch.dto;
 
 public record ProductDTO(
         long productId,
+        String productName,
         long organizationId,
+        String organizationName,
         boolean isInternalOrg,
         boolean isExceptionalOrg
 ) {

@@ -132,14 +132,14 @@ public class DailyOrganizationPricingUpdateJobConfig {
         log.info("Upserting daily organization pricing's {} records...", records.size());
 
         String sql = """
-                    INSERT INTO daily_organization_pricing (
-                        pricing_date, organization_id, cloud_provider, discount, handling_fee, support_fee
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        discount = VALUES(discount),
-                        handling_fee = VALUES(handling_fee),
-                        support_fee = VALUES(support_fee)
+                INSERT INTO daily_organization_pricing (
+                    pricing_date, organization_id, cloud_provider, discount, handling_fee, support_fee
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    discount = VALUES(discount),
+                    handling_fee = VALUES(handling_fee),
+                    support_fee = VALUES(support_fee)
                 """;
 
         jdbcTemplate.batchUpdate(sql, records.getItems(), records.size(),

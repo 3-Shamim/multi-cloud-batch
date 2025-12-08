@@ -20,12 +20,13 @@ import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
+import java.sql.Date;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,7 @@ import java.util.List;
 public class GenerateMonthlyInvoiceJobConfig {
 
     private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
@@ -132,7 +134,7 @@ public class GenerateMonthlyInvoiceJobConfig {
 
                     log.info("Writing {} billings to database", billings.size());
 
-                    invoiceCostService.insert(billings);
+                    insertBillings(billings);
 
                 })
                 .build();
@@ -144,7 +146,7 @@ public class GenerateMonthlyInvoiceJobConfig {
         JdbcCursorItemReader<ProductDTO> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
         reader.setSql("""
-                    SELECT p.id, p.organization_id, o.internal, o.exceptional
+                    SELECT p.id, p.name, o.id AS org_id, o.name AS org_name, o.internal, o.exceptional
                     FROM products p
                         JOIN organizations o ON p.organization_id = o.id
                 """);
@@ -154,7 +156,9 @@ public class GenerateMonthlyInvoiceJobConfig {
 
         reader.setRowMapper((rs, rowNum) -> new ProductDTO(
                 rs.getLong("id"),
-                rs.getLong("organization_id"),
+                rs.getString("name"),
+                rs.getLong("org_id"),
+                rs.getString("org_name"),
                 rs.getBoolean("internal"),
                 rs.getBoolean("exceptional")
         ));
@@ -166,6 +170,31 @@ public class GenerateMonthlyInvoiceJobConfig {
         }
 
         return reader;
+    }
+
+    private void insertBillings(List<BillingDTO> billings) {
+
+        String query = """
+                INSERT INTO billings(
+                    month_date, product_id, organization_id, cloud_provider,
+                    cost, handling_fee, support_fee, invoice_number, created_date, due_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """;
+
+        jdbcTemplate.batchUpdate(query, billings, 100, (ps, bill) -> {
+            ps.setDate(1, Date.valueOf(bill.month().atDay(1)));
+            ps.setLong(2, bill.productId());
+            ps.setLong(3, bill.organizationId());
+            ps.setString(4, bill.provider().name());
+            ps.setBigDecimal(5, bill.cost());
+            ps.setBigDecimal(6, bill.handlingFee());
+            ps.setBigDecimal(7, bill.supportFee());
+            ps.setLong(8, bill.invoiceNumber());
+            ps.setDate(9, Date.valueOf(bill.createdDate()));
+            ps.setDate(10, Date.valueOf(bill.dueDate()));
+        });
+
     }
 
     private BigDecimal calculatePercentage(BigDecimal cost, double percentage) {

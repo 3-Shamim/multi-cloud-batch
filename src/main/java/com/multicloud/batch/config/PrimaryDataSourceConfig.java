@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -35,25 +36,30 @@ public class PrimaryDataSourceConfig {
     @Bean(name = "primaryDataSourceProperties")
     @ConfigurationProperties(prefix = "spring.datasource")
     public DataSourceProperties primaryDataSourceProperties() {
+
         return new DataSourceProperties();
     }
 
     @Primary
     @Bean(name = "primaryDataSource")
     @ConfigurationProperties(prefix = "spring.datasource.hikari")
-    public DataSource primaryDataSource() {
-        return primaryDataSourceProperties().initializeDataSourceBuilder().build();
+    public DataSource primaryDataSource(@Qualifier("primaryDataSourceProperties")
+                                        DataSourceProperties properties) {
+
+        return properties.initializeDataSourceBuilder().build();
     }
 
     @Primary
     @Bean(name = "primaryEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean primaryEntityManagerFactory(EntityManagerFactoryBuilder builder,
-                                                                              JpaProperties jpaProperties) {
+                                                                              JpaProperties jpaProperties,
+                                                                              @Qualifier("primaryDataSource")
+                                                                              DataSource dataSource) {
 
         Map<String, String> jpaProps = jpaProperties.getProperties();
 
         return builder
-                .dataSource(primaryDataSource())
+                .dataSource(dataSource)
                 .packages("com.multicloud.batch.model")
                 .properties(jpaProps)
                 .persistenceUnit("primaryPU")
@@ -66,6 +72,13 @@ public class PrimaryDataSourceConfig {
                                                                 EntityManagerFactory emf) {
 
         return new JpaTransactionManager(emf);
+    }
+
+    @Primary
+    @Bean(name = "primaryJdbcTemplate")
+    public JdbcTemplate primaryJdbcTemplate(@Qualifier("primaryDataSource") DataSource dataSource) {
+
+        return new JdbcTemplate(dataSource);
     }
 
 }

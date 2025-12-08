@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class JobService {
 
     private final JdbcTemplate jdbcTemplate;
