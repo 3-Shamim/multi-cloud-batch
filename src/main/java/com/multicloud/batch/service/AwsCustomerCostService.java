@@ -38,6 +38,7 @@ public class AwsCustomerCostService {
                         SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
                     )
                     AND usage_date >= ? AND usage_date <= ?
+                    AND DATE_FORMAT(usage_date, '%Y-%m') = DATE_FORMAT(billing_month, '%Y-%m')
                     AND (billing_type IN ('Usage', 'SavingsPlanCoveredUsage', 'DiscountedUsage', 'RIFee', 'Fee'))
                 GROUP BY 1;
                 """;
@@ -50,10 +51,35 @@ public class AwsCustomerCostService {
                         BigDecimal.ZERO
                 );
 
-        return jdbcTemplate.query(
-                sql, mapper, productId, organizationId, startDate, endDate
-        );
+        return jdbcTemplate.query(sql, mapper, productId, organizationId, startDate, endDate);
+    }
 
+    public List<PerDayCostDTO> findOutsideOfMonthAzerionCost(long productId,
+                                                             long organizationId,
+                                                             LocalDate startDate) {
+
+        String sql = """
+                SELECT LAST_DAY(billing_month)  AS usage_date,
+                    SUM(net_unblended_cost)     AS cost
+                FROM aws_billing_daily_costs
+                WHERE usage_account_id IN (
+                        SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
+                    )
+                    AND DATE_FORMAT(usage_date, '%Y-%m') <> DATE_FORMAT(billing_month, '%Y-%m')
+                    AND (billing_type IN ('Usage', 'SavingsPlanCoveredUsage', 'DiscountedUsage', 'RIFee', 'Fee'))
+                    AND billing_month >= ?
+                GROUP BY 1;
+                """;
+
+        RowMapper<PerDayCostDTO> mapper = (rs, rowNum) ->
+                new PerDayCostDTO(
+                        LocalDate.parse(rs.getString("usage_date")),
+                        rs.getBigDecimal("cost"),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                );
+
+        return jdbcTemplate.query(sql, mapper, productId, organizationId, startDate);
     }
 
     public List<PerDayCostDTO> findPerDayCustomerCost(long productId,

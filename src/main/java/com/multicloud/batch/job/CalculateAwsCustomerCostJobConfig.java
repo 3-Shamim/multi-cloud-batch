@@ -84,6 +84,14 @@ public class CalculateAwsCustomerCostJobConfig {
 
                     for (ProductDTO productDTO : chunk.getItems()) {
 
+                        log.info(
+                                "Calculating AWS customer cost for product: {}, organization: {}, external: {} exceptional: {}",
+                                productDTO.productName(),
+                                productDTO.organizationName(),
+                                productDTO.isInternalOrg(),
+                                productDTO.isExceptionalOrg()
+                        );
+
                         List<PerDayCostDTO> customerCostList = awsCustomerCostService.findPerDayCustomerCost(
                                 productDTO.productId(),
                                 productDTO.organizationId(),
@@ -117,6 +125,7 @@ public class CalculateAwsCustomerCostJobConfig {
                         } else {
 
                             Map<LocalDate, BigDecimal> perDayMap = new HashMap<>();
+                            Map<LocalDate, BigDecimal> outsideMap = new HashMap<>();
 
                             List<PerDayCostDTO> perDayAzerionCost = awsCustomerCostService.findPerDayAzerionCost(
                                     productDTO.productId(),
@@ -129,7 +138,27 @@ public class CalculateAwsCustomerCostJobConfig {
                                     perDay.usageDate(), perDay.cost()
                             ));
 
+                            List<PerDayCostDTO> azerionOutsideCost = awsCustomerCostService.findOutsideOfMonthAzerionCost(
+                                    productDTO.productId(),
+                                    productDTO.organizationId(),
+                                    start
+                            );
+
+                            azerionOutsideCost.forEach(perDay -> outsideMap.put(
+                                    perDay.usageDate(), perDay.cost()
+                            ));
+
                             for (PerDayCostDTO dto : customerCostList) {
+
+                                BigDecimal azerionCost = BigDecimal.ZERO;
+
+                                if (perDayMap.containsKey(dto.usageDate())) {
+                                    azerionCost = azerionCost.add(perDayMap.get(dto.usageDate()));
+                                }
+
+                                if (outsideMap.containsKey(dto.usageDate())) {
+                                    azerionCost = azerionCost.add(outsideMap.get(dto.usageDate()));
+                                }
 
                                 customerDailyCostList.add(
                                         AwsCustomerDailyCost.builder()
@@ -137,7 +166,7 @@ public class CalculateAwsCustomerCostJobConfig {
                                                 .mcOrgId(productDTO.organizationId())
                                                 .mcOrgName(productDTO.organizationName())
                                                 .customerName(productDTO.productName())
-                                                .azerionCost(perDayMap.get(dto.usageDate()))
+                                                .azerionCost(azerionCost)
                                                 .customerCost(
                                                         dto.cost().add(dto.handlingFee()).add(dto.supportFee())
                                                 )
