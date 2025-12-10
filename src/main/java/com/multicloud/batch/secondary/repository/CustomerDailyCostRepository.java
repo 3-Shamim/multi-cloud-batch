@@ -1,6 +1,6 @@
 package com.multicloud.batch.secondary.repository;
 
-import com.multicloud.batch.secondary.model.AwsCustomerDailyCost;
+import com.multicloud.batch.secondary.model.CustomerDailyCost;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
  */
 
 @Repository
-public interface AwsCustomerDailyCostRepository extends JpaRepository<AwsCustomerDailyCost, Long> {
+public interface CustomerDailyCostRepository extends JpaRepository<CustomerDailyCost, Long> {
 
 
 }

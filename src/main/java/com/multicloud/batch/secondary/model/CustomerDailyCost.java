@@ -1,5 +1,6 @@
 package com.multicloud.batch.secondary.model;
 
+import com.multicloud.batch.enums.CloudProvider;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,12 +21,14 @@ import java.time.LocalDate;
 @ToString
 @Entity
 @Table(
-        name = "aws_customer_daily_cost",
+        name = "customer_daily_cost",
         uniqueConstraints = {
-                @UniqueConstraint(name = "idx_uq_const", columnNames = {"day", "mc_org_id", "customer_name"})
+                @UniqueConstraint(
+                        name = "idx_uq_const", columnNames = {"day", "mc_org_id", "customer_name", "cloud_provider"}
+                )
         }
 )
-public class AwsCustomerDailyCost {
+public class CustomerDailyCost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,6 +45,10 @@ public class AwsCustomerDailyCost {
 
     @Column(name = "customer_name", nullable = false, length = 100)
     private String customerName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cloud_provider", nullable = false, length = 100)
+    private CloudProvider cloudProvider;
 
     @Column(name = "azerion_cost", precision = 20, scale = 8)
     private BigDecimal azerionCost;

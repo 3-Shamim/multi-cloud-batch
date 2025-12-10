@@ -21,20 +21,20 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-@ConditionalOnExpression("${batch_job.aws_customer_cost.enabled}")
-public class CalculateAwsCustomerCostScheduler {
+@ConditionalOnExpression("${batch_job.customer_cost.enabled}")
+public class CalculateCustomerCostScheduler {
 
-    private final Job calculateAwsCustomerCostJob;
+    private final Job calculateCustomerCostJob;
 
     private final JobLauncher jobLauncher;
     private final JobService jobService;
 
     @Async
-    @Scheduled(cron = "${batch_job.aws_customer_cost.corn}")
+    @Scheduled(cron = "${batch_job.customer_cost.corn}")
     public void runMonthlyInvoiceJob() throws Exception {
 
-        if (jobService.isJobTrulyRunning(calculateAwsCustomerCostJob.getName())) {
-            log.info("Skipping calculateAwsCustomerCostJob because the job is already running");
+        if (jobService.isJobTrulyRunning(calculateCustomerCostJob.getName())) {
+            log.info("Skipping calculateCustomerCostJob because the job is already running");
             return;
         }
 
@@ -42,7 +42,7 @@ public class CalculateAwsCustomerCostScheduler {
                 .addLong("time", System.currentTimeMillis())
                 .toJobParameters();
 
-        jobLauncher.run(calculateAwsCustomerCostJob, jobParameters);
+        jobLauncher.run(calculateCustomerCostJob, jobParameters);
 
     }
 

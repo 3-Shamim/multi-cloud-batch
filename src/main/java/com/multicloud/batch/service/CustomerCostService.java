@@ -1,6 +1,7 @@
 package com.multicloud.batch.service;
 
 import com.multicloud.batch.dto.PerDayCostDTO;
+import com.multicloud.batch.enums.CloudProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,7 +23,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class AwsCustomerCostService {
+public class CustomerCostService {
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -46,6 +47,7 @@ public class AwsCustomerCostService {
         RowMapper<PerDayCostDTO> mapper = (rs, rowNum) ->
                 new PerDayCostDTO(
                         LocalDate.parse(rs.getString("usage_date")),
+                        CloudProvider.AWS,
                         rs.getBigDecimal("cost"),
                         BigDecimal.ZERO,
                         BigDecimal.ZERO
@@ -74,6 +76,7 @@ public class AwsCustomerCostService {
         RowMapper<PerDayCostDTO> mapper = (rs, rowNum) ->
                 new PerDayCostDTO(
                         LocalDate.parse(rs.getString("usage_date")),
+                        CloudProvider.AWS,
                         rs.getBigDecimal("cost"),
                         BigDecimal.ZERO,
                         BigDecimal.ZERO
@@ -91,17 +94,17 @@ public class AwsCustomerCostService {
         String sql = """
                 WITH discounts AS (
                     SELECT * FROM daily_organization_pricing
-                    WHERE organization_id = ? AND cloud_provider = 'AWS'
-                        AND pricing_date >= ? AND pricing_date <= ?
+                    WHERE organization_id = ? AND pricing_date >= ? AND pricing_date <= ?
                  ),
                  costs AS (
                     SELECT * FROM service_level_billings slb
                     WHERE usage_account_id IN (
                             SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
                         )
-                        AND cloud_provider = 'AWS' AND usage_date >= ? AND usage_date <= ?
+                        AND usage_date >= ? AND usage_date <= ?
                  )
                 SELECT c.usage_date,
+                       c.cloud_provider,
                     SUM(IF(
                         ?,
                         (COALESCE(c.cost, 0) - (COALESCE(c.cost, 0) * COALESCE(d.discount, 0) / 100)),
@@ -119,12 +122,13 @@ public class AwsCustomerCostService {
                     )) AS support_fee
                 FROM costs c
                     LEFT JOIN discounts d ON d.cloud_provider = c.cloud_provider AND d.pricing_date = c.usage_date
-                GROUP BY 1;
+                GROUP BY 1, 2;
                 """;
 
         RowMapper<PerDayCostDTO> mapper = (rs, rowNum) ->
                 new PerDayCostDTO(
                         LocalDate.parse(rs.getString("usage_date")),
+                        CloudProvider.valueOf(rs.getString("cloud_provider")),
                         rs.getBigDecimal("cost"),
                         rs.getBigDecimal("handling_fee"),
                         rs.getBigDecimal("support_fee")

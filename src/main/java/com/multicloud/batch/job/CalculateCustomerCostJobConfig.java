@@ -2,8 +2,9 @@ package com.multicloud.batch.job;
 
 import com.multicloud.batch.dto.PerDayCostDTO;
 import com.multicloud.batch.dto.ProductDTO;
-import com.multicloud.batch.secondary.model.AwsCustomerDailyCost;
-import com.multicloud.batch.service.AwsCustomerCostService;
+import com.multicloud.batch.enums.CloudProvider;
+import com.multicloud.batch.secondary.model.CustomerDailyCost;
+import com.multicloud.batch.service.CustomerCostService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -36,8 +37,8 @@ import java.util.Map;
 
 @Slf4j
 @Configuration
-@ConditionalOnExpression("${batch_job.aws_customer_cost.enabled}")
-public class CalculateAwsCustomerCostJobConfig {
+@ConditionalOnExpression("${batch_job.customer_cost.enabled}")
+public class CalculateCustomerCostJobConfig {
 
     private final DataSource dataSource;
 
@@ -46,37 +47,37 @@ public class CalculateAwsCustomerCostJobConfig {
     private final JdbcTemplate secondaryJdbcTemplate;
     private final PlatformTransactionManager secondaryTransactionManager;
 
-    private final AwsCustomerCostService awsCustomerCostService;
+    private final CustomerCostService customerCostService;
 
-    public CalculateAwsCustomerCostJobConfig(DataSource dataSource,
-                                             @Qualifier(value = "secondaryJdbcTemplate")
-                                             JdbcTemplate secondaryJdbcTemplate,
-                                             @Qualifier(value = "secondaryTransactionManager")
-                                             PlatformTransactionManager secondaryTransactionManager,
-                                             JobRepository jobRepository,
-                                             AwsCustomerCostService awsCustomerCostService) {
+    public CalculateCustomerCostJobConfig(DataSource dataSource,
+                                          @Qualifier(value = "secondaryJdbcTemplate")
+                                          JdbcTemplate secondaryJdbcTemplate,
+                                          @Qualifier(value = "secondaryTransactionManager")
+                                          PlatformTransactionManager secondaryTransactionManager,
+                                          JobRepository jobRepository,
+                                          CustomerCostService customerCostService) {
 
         this.dataSource = dataSource;
         this.secondaryJdbcTemplate = secondaryJdbcTemplate;
         this.jobRepository = jobRepository;
         this.secondaryTransactionManager = secondaryTransactionManager;
-        this.awsCustomerCostService = awsCustomerCostService;
+        this.customerCostService = customerCostService;
     }
 
     @Bean
-    public Job calculateAwsCustomerCostJob() {
+    public Job calculateCustomerCostJob() {
 
-        return new JobBuilder("calculateAwsCustomerCostJob", jobRepository)
-                .start(calculateAwsCustomerCostStep())
+        return new JobBuilder("calculateCustomerCostJob", jobRepository)
+                .start(calculateCustomerCostStep())
                 .build();
     }
 
     @Bean
-    public Step calculateAwsCustomerCostStep() {
+    public Step calculateCustomerCostStep() {
 
-        return new StepBuilder("calculateAwsCustomerCostStep", jobRepository)
+        return new StepBuilder("calculateCustomerCostStep", jobRepository)
                 .<ProductDTO, ProductDTO>chunk(1, secondaryTransactionManager)
-                .reader(awsCustomerCostProductReader())
+                .reader(customerCostProductReader())
                 .writer(chunk -> {
 
                     LocalDate end = LocalDate.now();
@@ -85,14 +86,14 @@ public class CalculateAwsCustomerCostJobConfig {
                     for (ProductDTO productDTO : chunk.getItems()) {
 
                         log.info(
-                                "Calculating AWS customer cost for product: {}, organization: {}, external: {} exceptional: {}",
+                                "Calculating customer cost for product: {}, organization: {}, external: {} exceptional: {}",
                                 productDTO.productName(),
                                 productDTO.organizationName(),
                                 productDTO.isInternalOrg(),
                                 productDTO.isExceptionalOrg()
                         );
 
-                        List<PerDayCostDTO> customerCostList = awsCustomerCostService.findPerDayCustomerCost(
+                        List<PerDayCostDTO> customerCostList = customerCostService.findPerDayCustomerCost(
                                 productDTO.productId(),
                                 productDTO.organizationId(),
                                 productDTO.isInternalOrg(),
@@ -100,19 +101,28 @@ public class CalculateAwsCustomerCostJobConfig {
                                 end
                         );
 
-                        List<AwsCustomerDailyCost> customerDailyCostList = new ArrayList<>();
+                        List<CustomerDailyCost> customerDailyCostList = new ArrayList<>();
 
+                        // We check exceptional for AWS only
                         if (productDTO.isExceptionalOrg()) {
 
                             for (PerDayCostDTO dto : customerCostList) {
 
+                                BigDecimal azerionCost = dto.cost();
+
+                                // Azerion get a 55% discount from Huawei
+                                if (dto.cloudProvider().equals(CloudProvider.HWC)) {
+                                    azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
+                                }
+
                                 customerDailyCostList.add(
-                                        AwsCustomerDailyCost.builder()
+                                        CustomerDailyCost.builder()
                                                 .day(dto.usageDate())
                                                 .mcOrgId(productDTO.organizationId())
                                                 .mcOrgName(productDTO.organizationName())
                                                 .customerName(productDTO.productName())
-                                                .azerionCost(dto.cost())
+                                                .cloudProvider(dto.cloudProvider())
+                                                .azerionCost(azerionCost)
                                                 .customerCost(
                                                         dto.cost().add(dto.handlingFee()).add(dto.supportFee())
                                                 )
@@ -124,48 +134,58 @@ public class CalculateAwsCustomerCostJobConfig {
 
                         } else {
 
-                            Map<LocalDate, BigDecimal> perDayMap = new HashMap<>();
-                            Map<LocalDate, BigDecimal> outsideMap = new HashMap<>();
+                            Map<LocalDate, BigDecimal> perDayAwsMap = new HashMap<>();
+                            Map<LocalDate, BigDecimal> outsideAwsMap = new HashMap<>();
 
-                            List<PerDayCostDTO> perDayAzerionCost = awsCustomerCostService.findPerDayAzerionCost(
+                            List<PerDayCostDTO> perDayAzerionCost = customerCostService.findPerDayAzerionCost(
                                     productDTO.productId(),
                                     productDTO.organizationId(),
                                     start,
                                     end
                             );
 
-                            perDayAzerionCost.forEach(perDay -> perDayMap.put(
+                            perDayAzerionCost.forEach(perDay -> perDayAwsMap.put(
                                     perDay.usageDate(), perDay.cost()
                             ));
 
-                            List<PerDayCostDTO> azerionOutsideCost = awsCustomerCostService.findOutsideOfMonthAzerionCost(
+                            List<PerDayCostDTO> azerionOutsideCost = customerCostService.findOutsideOfMonthAzerionCost(
                                     productDTO.productId(),
                                     productDTO.organizationId(),
                                     start
                             );
 
-                            azerionOutsideCost.forEach(perDay -> outsideMap.put(
+                            azerionOutsideCost.forEach(perDay -> outsideAwsMap.put(
                                     perDay.usageDate(), perDay.cost()
                             ));
 
                             for (PerDayCostDTO dto : customerCostList) {
 
-                                BigDecimal azerionCost = BigDecimal.ZERO;
+                                BigDecimal azerionCost = dto.cost();
 
-                                if (perDayMap.containsKey(dto.usageDate())) {
-                                    azerionCost = azerionCost.add(perDayMap.get(dto.usageDate()));
+                                // Azerion get a 55% discount from Huawei
+                                if (dto.cloudProvider().equals(CloudProvider.HWC)) {
+                                    azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
                                 }
 
-                                if (outsideMap.containsKey(dto.usageDate())) {
-                                    azerionCost = azerionCost.add(outsideMap.get(dto.usageDate()));
+                                if (dto.cloudProvider().equals(CloudProvider.AWS)) {
+
+                                    if (perDayAwsMap.containsKey(dto.usageDate())) {
+                                        azerionCost = azerionCost.add(perDayAwsMap.get(dto.usageDate()));
+                                    }
+
+                                    if (outsideAwsMap.containsKey(dto.usageDate())) {
+                                        azerionCost = azerionCost.add(outsideAwsMap.get(dto.usageDate()));
+                                    }
+
                                 }
 
                                 customerDailyCostList.add(
-                                        AwsCustomerDailyCost.builder()
+                                        CustomerDailyCost.builder()
                                                 .day(dto.usageDate())
                                                 .mcOrgId(productDTO.organizationId())
                                                 .mcOrgName(productDTO.organizationName())
                                                 .customerName(productDTO.productName())
+                                                .cloudProvider(dto.cloudProvider())
                                                 .azerionCost(azerionCost)
                                                 .customerCost(
                                                         dto.cost().add(dto.handlingFee()).add(dto.supportFee())
@@ -188,7 +208,7 @@ public class CalculateAwsCustomerCostJobConfig {
     }
 
     @Bean
-    public ItemReader<ProductDTO> awsCustomerCostProductReader() {
+    public ItemReader<ProductDTO> customerCostProductReader() {
 
         JdbcCursorItemReader<ProductDTO> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
@@ -220,13 +240,13 @@ public class CalculateAwsCustomerCostJobConfig {
         return reader;
     }
 
-    private void insertCosts(List<AwsCustomerDailyCost> costs) {
+    private void insertCosts(List<CustomerDailyCost> costs) {
 
         String query = """
-                INSERT INTO aws_customer_daily_cost(
-                    day, mc_org_id, mc_org_name, customer_name, azerion_cost, customer_cost, external
+                INSERT INTO customer_daily_cost(
+                    day, mc_org_id, mc_org_name, customer_name, cloud_provider, azerion_cost, customer_cost, external
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     azerion_cost = VALUES(azerion_cost),
                     customer_cost = VALUES(customer_cost);
@@ -237,9 +257,10 @@ public class CalculateAwsCustomerCostJobConfig {
             ps.setLong(2, cost.getMcOrgId());
             ps.setString(3, cost.getMcOrgName());
             ps.setString(4, cost.getCustomerName());
-            ps.setBigDecimal(5, cost.getAzerionCost());
-            ps.setBigDecimal(6, cost.getCustomerCost());
-            ps.setBoolean(7, cost.isExternal());
+            ps.setString(5, cost.getCloudProvider().name());
+            ps.setBigDecimal(6, cost.getAzerionCost());
+            ps.setBigDecimal(7, cost.getCustomerCost());
+            ps.setBoolean(8, cost.isExternal());
         });
 
     }
