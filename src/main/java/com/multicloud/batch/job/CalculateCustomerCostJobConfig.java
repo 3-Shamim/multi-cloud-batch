@@ -108,7 +108,8 @@ public class CalculateCustomerCostJobConfig {
 
                             for (PerDayCostDTO dto : customerCostList) {
 
-                                BigDecimal azerionCost = dto.cost();
+                                // For AWS and GCP
+                                BigDecimal azerionCost = dto.afterDiscountCost();
 
                                 // Azerion get a 55% discount from Huawei
                                 if (dto.cloudProvider().equals(CloudProvider.HWC)) {
@@ -124,7 +125,7 @@ public class CalculateCustomerCostJobConfig {
                                                 .cloudProvider(dto.cloudProvider())
                                                 .azerionCost(azerionCost)
                                                 .customerCost(
-                                                        dto.cost().add(dto.handlingFee()).add(dto.supportFee())
+                                                        dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
                                                 )
                                                 .external(!productDTO.isInternalOrg())
                                                 .build()
@@ -160,7 +161,8 @@ public class CalculateCustomerCostJobConfig {
 
                             for (PerDayCostDTO dto : customerCostList) {
 
-                                BigDecimal azerionCost = dto.cost();
+                                // For GCP
+                                BigDecimal azerionCost = dto.afterDiscountCost();
 
                                 // Azerion get a 55% discount from Huawei
                                 if (dto.cloudProvider().equals(CloudProvider.HWC)) {
@@ -188,7 +190,7 @@ public class CalculateCustomerCostJobConfig {
                                                 .cloudProvider(dto.cloudProvider())
                                                 .azerionCost(azerionCost)
                                                 .customerCost(
-                                                        dto.cost().add(dto.handlingFee()).add(dto.supportFee())
+                                                        dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
                                                 )
                                                 .external(!productDTO.isInternalOrg())
                                                 .build()

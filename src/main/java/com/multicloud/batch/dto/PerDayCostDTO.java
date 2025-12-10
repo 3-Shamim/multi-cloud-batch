@@ -15,6 +15,7 @@ public record PerDayCostDTO(
         LocalDate usageDate,
         CloudProvider cloudProvider,
         BigDecimal cost,
+        BigDecimal afterDiscountCost,
         BigDecimal handlingFee,
         BigDecimal supportFee
 ) {

@@ -50,6 +50,7 @@ public class CustomerCostService {
                         CloudProvider.AWS,
                         rs.getBigDecimal("cost"),
                         BigDecimal.ZERO,
+                        BigDecimal.ZERO,
                         BigDecimal.ZERO
                 );
 
@@ -79,6 +80,7 @@ public class CustomerCostService {
                         CloudProvider.AWS,
                         rs.getBigDecimal("cost"),
                         BigDecimal.ZERO,
+                        BigDecimal.ZERO,
                         BigDecimal.ZERO
                 );
 
@@ -104,12 +106,13 @@ public class CustomerCostService {
                         AND usage_date >= ? AND usage_date <= ?
                  )
                 SELECT c.usage_date,
-                       c.cloud_provider,
+                    c.cloud_provider,
+                    SUM(IF(?, COALESCE(c.cost, 0), COALESCE(c.ext_cost, 0))) AS cost,
                     SUM(IF(
                         ?,
                         (COALESCE(c.cost, 0) - (COALESCE(c.cost, 0) * COALESCE(d.discount, 0) / 100)),
                         (COALESCE(c.ext_cost, 0) - (COALESCE(c.ext_cost, 0) * COALESCE(d.discount, 0) / 100))
-                    )) AS cost,
+                    )) AS after_discount_cost,
                     SUM(IF(
                         ?,
                         ((COALESCE(c.cost, 0) - (COALESCE(c.cost, 0) * COALESCE(d.discount, 0) / 100)) * COALESCE(d.handling_fee, 0) / 100),
@@ -130,6 +133,7 @@ public class CustomerCostService {
                         LocalDate.parse(rs.getString("usage_date")),
                         CloudProvider.valueOf(rs.getString("cloud_provider")),
                         rs.getBigDecimal("cost"),
+                        rs.getBigDecimal("after_discount_cost"),
                         rs.getBigDecimal("handling_fee"),
                         rs.getBigDecimal("support_fee")
                 );
@@ -138,7 +142,7 @@ public class CustomerCostService {
                 sql, mapper,
                 organizationId, startDate, endDate,
                 productId, organizationId, startDate, endDate,
-                isInternalOrg, isInternalOrg, isInternalOrg
+                isInternalOrg, isInternalOrg, isInternalOrg, isInternalOrg
         );
     }
 
