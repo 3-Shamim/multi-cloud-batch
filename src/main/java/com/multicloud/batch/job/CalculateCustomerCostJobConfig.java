@@ -161,8 +161,7 @@ public class CalculateCustomerCostJobConfig {
 
                             for (PerDayCostDTO dto : customerCostList) {
 
-                                // For GCP
-                                BigDecimal azerionCost = dto.afterDiscountCost();
+                                BigDecimal azerionCost = BigDecimal.ZERO;
 
                                 // Azerion get a 55% discount from Huawei
                                 if (dto.cloudProvider().equals(CloudProvider.HWC)) {
@@ -179,6 +178,10 @@ public class CalculateCustomerCostJobConfig {
                                         azerionCost = azerionCost.add(outsideAwsMap.get(dto.usageDate()));
                                     }
 
+                                }
+
+                                if (dto.cloudProvider().equals(CloudProvider.GCP)) {
+                                    azerionCost = dto.afterDiscountCost();
                                 }
 
                                 customerDailyCostList.add(
