@@ -33,7 +33,7 @@ public class CustomerCostService {
                                                      LocalDate endDate) {
 
         String sql = """
-                SELECT usage_date, SUM(net_unblended_cost) AS cost
+                SELECT usage_date, COALESCE(SUM(net_unblended_cost), 0) AS cost
                 FROM aws_billing_daily_costs
                 WHERE usage_account_id IN (
                         SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
@@ -62,8 +62,7 @@ public class CustomerCostService {
                                                              LocalDate startDate) {
 
         String sql = """
-                SELECT LAST_DAY(billing_month)  AS usage_date,
-                    SUM(net_unblended_cost)     AS cost
+                SELECT LAST_DAY(billing_month) AS usage_date, COALESCE(SUM(net_unblended_cost), 0) AS cost
                 FROM aws_billing_daily_costs
                 WHERE usage_account_id IN (
                         SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?

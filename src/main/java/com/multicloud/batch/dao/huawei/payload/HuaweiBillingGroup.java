@@ -23,22 +23,22 @@ public record HuaweiBillingGroup(
         Integer billType
 ) implements Comparable<HuaweiBillingGroup> {
 
-    @Override
-    public int compareTo(HuaweiBillingGroup o) {
+    private static final Comparator<HuaweiBillingGroup> COMPARATOR =
+            Comparator.comparing(HuaweiBillingGroup::billDate, Comparator.nullsFirst(LocalDate::compareTo))
+                    .thenComparing(HuaweiBillingGroup::billingMonth, Comparator.nullsFirst(LocalDate::compareTo))
+                    .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::customerId, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::enterpriseProjectId, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::cloudServiceType, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::skuCode, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::resourceTypeCode, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::region, Comparator.nullsFirst(String::compareTo))
+                    .thenComparing(HuaweiBillingGroup::chargeMode, Comparator.nullsFirst(Integer::compareTo))
+                    .thenComparing(HuaweiBillingGroup::billType, Comparator.nullsFirst(Integer::compareTo));
 
-        return Comparator
-                .comparing(HuaweiBillingGroup::billDate)
-                .thenComparing(HuaweiBillingGroup::billingMonth, Comparator.nullsFirst(LocalDate::compareTo))
-                .thenComparing(HuaweiBillingGroup::payerAccountId, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::customerId, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::enterpriseProjectId, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::cloudServiceType, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::skuCode, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::resourceTypeCode, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::region, Comparator.nullsFirst(String::compareTo))
-                .thenComparing(HuaweiBillingGroup::chargeMode, Comparator.nullsFirst(Integer::compareTo))
-                .thenComparing(HuaweiBillingGroup::billType, Comparator.nullsFirst(Integer::compareTo))
-                .compare(this, o);
+    @Override
+    public int compareTo(HuaweiBillingGroup other) {
+        return COMPARATOR.compare(this, other);
     }
 
 }
