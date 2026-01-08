@@ -40,7 +40,7 @@ public class CustomerCostService {
                     )
                     AND usage_date >= ? AND usage_date <= ?
                     AND DATE_FORMAT(usage_date, '%Y-%m') = DATE_FORMAT(billing_month, '%Y-%m')
-                    AND (billing_type IN ('Usage', 'SavingsPlanCoveredUsage', 'DiscountedUsage', 'RIFee', 'Fee'))
+                    AND billing_type <> 'Tax'
                 GROUP BY 1;
                 """;
 
@@ -68,7 +68,7 @@ public class CustomerCostService {
                         SELECT account_id FROM product_accounts WHERE product_id = ? AND organization_id = ?
                     )
                     AND DATE_FORMAT(usage_date, '%Y-%m') <> DATE_FORMAT(billing_month, '%Y-%m')
-                    AND (billing_type IN ('Usage', 'SavingsPlanCoveredUsage', 'DiscountedUsage', 'RIFee', 'Fee'))
+                    AND billing_type <> 'Tax'
                     AND billing_month >= ?
                 GROUP BY 1;
                 """;
