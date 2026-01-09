@@ -126,7 +126,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
                     %s
                 
-                FROM %s
+                FROM "%s"
                 WHERE CAST(year AS INTEGER) = %d
                     AND CAST(month AS INTEGER) = %d
                     AND (

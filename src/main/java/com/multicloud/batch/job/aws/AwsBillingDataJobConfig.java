@@ -48,7 +48,6 @@ public class AwsBillingDataJobConfig {
     private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
 
     private static final String DATABASE_NAME = "athenacurcfn_athena";
-    private static final String TABLE_NAME = "athena";
 
     @Value("${batch_job.aws_billing_data.secret_path}")
     private String awsSecretPath;
@@ -131,57 +130,67 @@ public class AwsBillingDataJobConfig {
 
             }
 
-            // Partition calculation
-            boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, TABLE_NAME);
+            Set<String> tables = Set.of(
+                    "athena",
+                    "cur-fr24data",
+                    "cur-willhaben-data"
+            );
 
-            LocalDate now = LocalDate.now();
-
-            long days = ChronoUnit.DAYS.between(
-                    now.minusMonths(6).withDayOfMonth(1), now
-            ) + 1;
-
-            if (exist) {
-
-                if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
-
-                    days = ChronoUnit.DAYS.between(
-                            now.minusMonths(1).withDayOfMonth(1), now
-                    ) + 1;
-
-                } else {
-                    days = Math.min(now.getDayOfMonth(), 10);
-                }
-
-            }
-
-            if (startDate != null) {
-                days = ChronoUnit.DAYS.between(
-                        startDate, now
-                ) + 1;
-            }
-
-            List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
-
-            Set<CustomDateRange> unique = new HashSet<>();
+            Set<AwsUniqueStep> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
 
             int i = 1;
 
-            for (CustomDateRange dateRange : dateRanges) {
+            for (String table : tables) {
 
-                ExecutionContext executionContext = new ExecutionContext();
-                executionContext.put("range", dateRange);
+                boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, table);
 
-                partitions.put("partition" + i, executionContext);
+                LocalDate now = LocalDate.now();
 
-                unique.add(dateRange);
+                long days = ChronoUnit.DAYS.between(
+                        now.minusMonths(6).withDayOfMonth(1), now
+                ) + 1;
 
-                i++;
+                if (exist) {
+
+                    if (Set.of(1, 2, 3, 4).contains(now.getDayOfMonth())) {
+
+                        days = ChronoUnit.DAYS.between(
+                                now.minusMonths(1).withDayOfMonth(1), now
+                        ) + 1;
+
+                    } else {
+                        days = Math.min(now.getDayOfMonth(), 10);
+                    }
+
+                }
+
+                if (startDate != null) {
+                    days = ChronoUnit.DAYS.between(
+                            startDate, now
+                    ) + 1;
+                }
+
+                List<CustomDateRange> dateRanges = DateRangePartition.getPartitions(days, 3);
+
+                for (CustomDateRange dateRange : dateRanges) {
+
+                    ExecutionContext executionContext = new ExecutionContext();
+                    executionContext.put("range", dateRange);
+                    executionContext.put("tableName", table);
+
+                    partitions.put("partition" + i, executionContext);
+
+                    unique.add(new AwsUniqueStep(table, dateRange));
+
+                    i++;
+
+                }
 
             }
 
-            List<AwsDataSyncHistory> failList = awsDataSyncHistoryRepository.findAllByJobNameAndTableNameAndLastSyncStatusAndFailCountLessThan(
-                    JOB_NAME, TABLE_NAME, LastSyncStatus.FAIL, 3
+            List<AwsDataSyncHistory> failList = awsDataSyncHistoryRepository.findAllByJobNameAndTableNameInAndLastSyncStatusAndFailCountLessThan(
+                    JOB_NAME, tables, LastSyncStatus.FAIL, 3
             );
 
             for (AwsDataSyncHistory item : failList) {
@@ -190,14 +199,17 @@ public class AwsBillingDataJobConfig {
                         item.getStart(), item.getEnd(), item.getEnd().getYear(), item.getEnd().getMonthValue()
                 );
 
-                if (unique.contains(dateRange)) {
+                AwsUniqueStep awsUniqueStep = new AwsUniqueStep(item.getTableName(), dateRange);
+
+                if (unique.contains(awsUniqueStep)) {
                     continue;
                 }
 
-                unique.add(dateRange);
+                unique.add(awsUniqueStep);
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
+                executionContext.put("tableName", item.getTableName());
 
                 partitions.put("partition" + i, executionContext);
 
@@ -218,15 +230,16 @@ public class AwsBillingDataJobConfig {
                     ).getStepExecution();
 
                     CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                    String tableName = (String) stepExecution.getExecutionContext().get("tableName");
 
-                    if (range != null) {
+                    if (range != null && tableName != null) {
 
                         log.info("Processing partition {} for awsBillingDataJob", range);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
                         awsBillingService.syncDailyCostUsageFromAthenaTable(
-                                DATABASE_NAME, TABLE_NAME,
+                                DATABASE_NAME, tableName,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
                                 range.start(), range.end(), true
                         );
@@ -273,13 +286,14 @@ public class AwsBillingDataJobConfig {
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
+                String tableName = (String) stepExecution.getExecutionContext().get("tableName");
 
-                if (range != null) {
+                if (range != null && tableName != null) {
 
                     AwsDataSyncHistory sync = awsDataSyncHistoryRepository.findByJobNameAndTableNameAndStartAndEnd(
-                            JOB_NAME, TABLE_NAME, range.start(), range.end()
+                            JOB_NAME, tableName, range.start(), range.end()
                     ).orElse(new AwsDataSyncHistory(
-                            JOB_NAME, TABLE_NAME, range.start(), range.end()
+                            JOB_NAME, tableName, range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
