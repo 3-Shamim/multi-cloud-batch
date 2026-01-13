@@ -1,5 +1,6 @@
 package com.multicloud.batch.dao.aws;
 
+import com.multicloud.batch.helper.AwsQueryHelper;
 import com.multicloud.batch.model.AwsBillingDailyCost;
 import com.multicloud.batch.repository.AwsBillingDailyCostRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.zip.GZIPInputStream;
 
@@ -74,6 +76,50 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                         .forEach(row -> tables.add(row.data().getFirst().varCharValue())));
 
         return tables;
+    }
+
+    @Override
+    public Map<LocalDate, BigDecimal> getAzerionCostForExceptionalClients(String accessKey, String secretKey,
+                                                                          String region) {
+
+        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKey, secretKey)
+        );
+
+        AthenaClient athenaClient = AthenaClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(Region.of(region))
+                .build();
+
+
+        String database = "athenacurcfn_athena";
+        String bucket = "azerion-athena-results";
+        String prefix = "azerion_mc";
+
+        String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
+
+        YearMonth thisMonth = YearMonth.now();
+
+        for (int i = 0; i < 4; i++) {
+
+            thisMonth = thisMonth.minusMonths(i);
+
+            int year = thisMonth.getYear();
+            int month = thisMonth.getMonthValue();
+
+            String query = AwsQueryHelper.GENERAL_AMORTIZE_COST_QUERY.formatted(year, month);
+
+            String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
+            athenaService.waitForQueryToComplete(executionId, athenaClient);
+
+            athenaService.fetchQueryResults(executionId, athenaClient)
+                    .forEach(res -> res.resultSet().rows().forEach(row -> {
+                        System.out.println(row.data());
+                    }));
+
+        }
+
+        return Map.of();
     }
 
     @Override

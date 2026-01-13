@@ -103,104 +103,10 @@ public class CalculateCustomerCostJobConfig {
 
                         List<CustomerDailyCost> customerDailyCostList = new ArrayList<>();
 
-                        // We check exceptional for AWS only
                         if (productDTO.isExceptionalOrg()) {
-
-                            for (PerDayCostDTO dto : customerCostList) {
-
-                                // For AWS and GCP
-                                BigDecimal azerionCost = dto.afterDiscountCost();
-
-                                // Azerion get a 55% discount from Huawei
-                                if (dto.cloudProvider().equals(CloudProvider.HWC)) {
-                                    azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
-                                }
-
-                                customerDailyCostList.add(
-                                        CustomerDailyCost.builder()
-                                                .day(dto.usageDate())
-                                                .mcOrgId(productDTO.organizationId())
-                                                .mcOrgName(productDTO.organizationName())
-                                                .customerName(productDTO.productName())
-                                                .cloudProvider(dto.cloudProvider())
-                                                .azerionCost(azerionCost)
-                                                .customerCost(
-                                                        dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
-                                                )
-                                                .external(!productDTO.isInternalOrg())
-                                                .build()
-                                );
-
-                            }
-
+                            handleAllExceptionalCase(productDTO, customerCostList, customerDailyCostList);
                         } else {
-
-                            Map<LocalDate, BigDecimal> perDayAwsMap = new HashMap<>();
-                            Map<LocalDate, BigDecimal> outsideAwsMap = new HashMap<>();
-
-                            List<PerDayCostDTO> perDayAzerionCost = customerCostService.findPerDayAzerionCost(
-                                    productDTO.productId(),
-                                    productDTO.organizationId(),
-                                    start,
-                                    end
-                            );
-
-                            perDayAzerionCost.forEach(perDay -> perDayAwsMap.put(
-                                    perDay.usageDate(), perDay.cost()
-                            ));
-
-                            List<PerDayCostDTO> azerionOutsideCost = customerCostService.findOutsideOfMonthAzerionCost(
-                                    productDTO.productId(),
-                                    productDTO.organizationId(),
-                                    start
-                            );
-
-                            azerionOutsideCost.forEach(perDay -> outsideAwsMap.put(
-                                    perDay.usageDate(), perDay.cost()
-                            ));
-
-                            for (PerDayCostDTO dto : customerCostList) {
-
-                                BigDecimal azerionCost = BigDecimal.ZERO;
-
-                                // Azerion get a 55% discount from Huawei
-                                if (dto.cloudProvider().equals(CloudProvider.HWC)) {
-                                    azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
-                                }
-
-                                if (dto.cloudProvider().equals(CloudProvider.AWS)) {
-
-                                    if (perDayAwsMap.containsKey(dto.usageDate())) {
-                                        azerionCost = azerionCost.add(perDayAwsMap.get(dto.usageDate()));
-                                    }
-
-                                    if (outsideAwsMap.containsKey(dto.usageDate())) {
-                                        azerionCost = azerionCost.add(outsideAwsMap.get(dto.usageDate()));
-                                    }
-
-                                }
-
-                                if (dto.cloudProvider().equals(CloudProvider.GCP)) {
-                                    azerionCost = dto.afterDiscountCost();
-                                }
-
-                                customerDailyCostList.add(
-                                        CustomerDailyCost.builder()
-                                                .day(dto.usageDate())
-                                                .mcOrgId(productDTO.organizationId())
-                                                .mcOrgName(productDTO.organizationName())
-                                                .customerName(productDTO.productName())
-                                                .cloudProvider(dto.cloudProvider())
-                                                .azerionCost(azerionCost)
-                                                .customerCost(
-                                                        dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
-                                                )
-                                                .external(!productDTO.isInternalOrg())
-                                                .build()
-                                );
-
-                            }
-
+                            handleAllRegularCases(productDTO, start, end, customerCostList, customerDailyCostList);
                         }
 
                         insertCosts(customerDailyCostList);
@@ -267,6 +173,119 @@ public class CalculateCustomerCostJobConfig {
             ps.setBigDecimal(7, cost.getCustomerCost());
             ps.setBoolean(8, cost.isExternal());
         });
+
+    }
+
+    private void handleAllRegularCases(ProductDTO productDTO, LocalDate start, LocalDate end,
+                                       List<PerDayCostDTO> customerCostList,
+                                       List<CustomerDailyCost> customerDailyCostList) {
+
+        Map<LocalDate, BigDecimal> perDayAwsMap = new HashMap<>();
+        Map<LocalDate, BigDecimal> outsideAwsMap = new HashMap<>();
+
+        List<PerDayCostDTO> perDayAzerionCost = customerCostService.findPerDayAzerionCost(
+                productDTO.productId(),
+                productDTO.organizationId(),
+                start,
+                end
+        );
+
+        perDayAzerionCost.forEach(perDay -> perDayAwsMap.put(
+                perDay.usageDate(), perDay.cost()
+        ));
+
+        List<PerDayCostDTO> azerionOutsideCost = customerCostService.findOutsideOfMonthAzerionCost(
+                productDTO.productId(),
+                productDTO.organizationId(),
+                start
+        );
+
+        azerionOutsideCost.forEach(perDay -> outsideAwsMap.put(
+                perDay.usageDate(), perDay.cost()
+        ));
+
+        for (PerDayCostDTO dto : customerCostList) {
+
+            BigDecimal azerionCost = BigDecimal.ZERO;
+
+            // Azerion get a 55% discount from Huawei
+            if (dto.cloudProvider().equals(CloudProvider.HWC)) {
+                azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
+            }
+
+            if (dto.cloudProvider().equals(CloudProvider.AWS)) {
+
+                if (perDayAwsMap.containsKey(dto.usageDate())) {
+                    azerionCost = azerionCost.add(perDayAwsMap.get(dto.usageDate()));
+                }
+
+                if (outsideAwsMap.containsKey(dto.usageDate())) {
+                    azerionCost = azerionCost.add(outsideAwsMap.get(dto.usageDate()));
+                }
+
+            }
+
+            if (dto.cloudProvider().equals(CloudProvider.GCP)) {
+                azerionCost = dto.afterDiscountCost();
+            }
+
+            customerDailyCostList.add(
+                    CustomerDailyCost.builder()
+                            .day(dto.usageDate())
+                            .mcOrgId(productDTO.organizationId())
+                            .mcOrgName(productDTO.organizationName())
+                            .customerName(productDTO.productName())
+                            .cloudProvider(dto.cloudProvider())
+                            .azerionCost(azerionCost)
+                            .customerCost(
+                                    dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
+                            )
+                            .external(!productDTO.isInternalOrg())
+                            .build()
+            );
+
+        }
+
+    }
+
+    // We check exceptional for AWS only
+    private static void handleAllExceptionalCase(ProductDTO productDTO, List<PerDayCostDTO> customerCostList,
+                                                 List<CustomerDailyCost> customerDailyCostList) {
+
+        Map<Long, String> awsBillingEntityMap = new HashMap<>();
+        awsBillingEntityMap.put(18L, "hitta");
+        awsBillingEntityMap.put(19L, "woozworld");
+        awsBillingEntityMap.put(20L, "gembly-bv");
+        awsBillingEntityMap.put(21L, "hkts");
+        awsBillingEntityMap.put(33L, "whow-games-gmbh");
+        awsBillingEntityMap.put(35L, "adinmo");
+
+        for (PerDayCostDTO dto : customerCostList) {
+
+            // For AWS and GCP
+            BigDecimal azerionCost = dto.afterDiscountCost();
+
+            // Azerion get a 55% discount from Huawei
+            if (dto.cloudProvider().equals(CloudProvider.HWC)) {
+                azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
+            }
+
+            customerDailyCostList.add(
+                    CustomerDailyCost.builder()
+                            .day(dto.usageDate())
+                            .mcOrgId(productDTO.organizationId())
+                            .mcOrgName(productDTO.organizationName())
+                            .customerName(productDTO.productName())
+                            .cloudProvider(dto.cloudProvider())
+                            .azerionCost(azerionCost)
+                            .customerCost(
+                                    dto.afterDiscountCost().add(dto.handlingFee()).add(dto.supportFee())
+                            )
+                            .external(!productDTO.isInternalOrg())
+                            .build()
+            );
+
+        }
 
     }
 

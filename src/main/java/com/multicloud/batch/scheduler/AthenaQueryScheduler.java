@@ -1,6 +1,7 @@
 package com.multicloud.batch.scheduler;
 
 import com.multicloud.batch.dao.aws.AthenaService;
+import com.multicloud.batch.dao.aws.AwsBillingService;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class AthenaQueryScheduler {
 
     private final AwsSecretsManagerService awsSecretsManagerService;
     private final AthenaService athenaService;
+    private final AwsBillingService awsBillingService;
 
     //    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void storeSecrets() {
@@ -65,7 +67,17 @@ public class AthenaQueryScheduler {
 
     }
 
-//        @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+    void testAthenaQuery() {
+
+        awsBillingService.getAzerionCostForExceptionalClients(
+                accessKey, secretKey, region
+        );
+
+    }
+
+
+    //        @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void runAthenaQuery() {
 
         StaticCredentialsProvider provider = StaticCredentialsProvider.create(
