@@ -12,7 +12,6 @@ import com.multicloud.batch.service.SecretPayloadStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
-import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
@@ -40,14 +39,14 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnExpression("${batch_job.external_aws_billing_data.enabled}")
-public class ExternalAwsBillingDataJobConfig {
+@ConditionalOnExpression("${batch_job.aws_billing_data.enabled}")
+public class AwsBillingDataTwoStepConfig {
 
     private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
-    private static final String JOB_NAME = "externalAwsBillingDataJob";
-    private static final String DATABASE_NAME = "abc_cur_exports";
 
-    @Value("${batch_job.external_aws_billing_data.secret_path}")
+    private static final String DATABASE_NAME = "athenacurcfn_athena";
+
+    @Value("${batch_job.aws_billing_data.secret_path}")
     private String awsSecretPath;
 
     private final JobRepository jobRepository;
@@ -59,26 +58,16 @@ public class ExternalAwsBillingDataJobConfig {
     private final AwsBillingService awsBillingService;
 
     @Bean
-    public Job externalAwsBillingDataJob() {
-        return new JobBuilder(JOB_NAME, jobRepository)
-                .start(externalAwsBillingDataMasterStep())
-                .build();
-    }
-
-    // Using a single thread and fetched 3-day of data at once.
-    // There is a lot of data aiming to store it slowly.
-    @Bean
-    public Step externalAwsBillingDataMasterStep() {
-        return new StepBuilder("externalAwsBillingDataMasterStep", jobRepository)
-                .partitioner(externalAwsBillingDataSlaveStep().getName(), externalAwsBillingDataPartitioner())
-                .step(externalAwsBillingDataSlaveStep())
+    public Step awsBillingDataTwoMasterStep() {
+        return new StepBuilder("awsBillingDataTwoMasterStep", jobRepository)
+                .partitioner(awsBillingDataTwoSlaveStep().getName(), awsBillingDataTwoPartitioner())
+                .step(awsBillingDataTwoSlaveStep())
                 .gridSize(1)
                 .build();
     }
 
     @Bean
-    public Partitioner externalAwsBillingDataPartitioner() {
-
+    public Partitioner awsBillingDataTwoPartitioner() {
         return gridSize -> {
 
             StepExecution stepExecution = requireNonNull(StepSynchronizationManager.getContext()).getStepExecution();
@@ -93,7 +82,7 @@ public class ExternalAwsBillingDataJobConfig {
                 secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
 
                 if (secret == null) {
-                    throw new RuntimeException("Secret not found for externalAwsBillingDataJob");
+                    throw new RuntimeException("Secret not found for awsBillingDataJob");
                 }
 
                 // Store secret
@@ -101,16 +90,10 @@ public class ExternalAwsBillingDataJobConfig {
 
             }
 
-            Set<String> tables = awsBillingService.tableListByDatabase(
-                    DATABASE_NAME, secret.getAccessKey(), secret.getSecretKey(), secret.getRegion()
+            Set<String> tables = Set.of(
+                    "cur-fr24data",
+                    "cur-willhaben-data"
             );
-
-            // This one will be handled in the exceptional job because we need to apply additional condition for this
-            // client.
-            tables.remove("cur_bbw");
-
-            // Removing a test table
-            tables.remove("cur_stratego_billing_group");
 
             Set<AwsUniqueStep> unique = new HashSet<>();
             Map<String, ExecutionContext> partitions = new HashMap<>();
@@ -120,7 +103,7 @@ public class ExternalAwsBillingDataJobConfig {
             for (String table : tables) {
 
                 // Partition calculation
-                boolean exist = awsDataSyncHistoryRepository.existsAny(JOB_NAME, table);
+                boolean exist = awsDataSyncHistoryRepository.existsAny(AwsBillingDataJobConfig.JOB_NAME, table);
 
                 LocalDate now = LocalDate.now();
 
@@ -142,7 +125,7 @@ public class ExternalAwsBillingDataJobConfig {
 
                 }
 
-                if (startDate != null ) {
+                if (startDate != null) {
                     days = ChronoUnit.DAYS.between(
                             startDate, now
                     ) + 1;
@@ -161,12 +144,13 @@ public class ExternalAwsBillingDataJobConfig {
                     unique.add(new AwsUniqueStep(table, dateRange));
 
                     i++;
+
                 }
 
             }
 
             List<AwsDataSyncHistory> failList = awsDataSyncHistoryRepository.findAllByJobNameAndTableNameInAndLastSyncStatusAndFailCountLessThan(
-                    JOB_NAME, tables, LastSyncStatus.FAIL, 3
+                    AwsBillingDataJobConfig.JOB_NAME, tables, LastSyncStatus.FAIL, 3
             );
 
             for (AwsDataSyncHistory item : failList) {
@@ -181,7 +165,7 @@ public class ExternalAwsBillingDataJobConfig {
                     continue;
                 }
 
-                unique.add(awsUniqueStep);
+                unique.add(new AwsUniqueStep(item.getTableName(), dateRange));
 
                 ExecutionContext executionContext = new ExecutionContext();
                 executionContext.put("range", dateRange);
@@ -197,8 +181,8 @@ public class ExternalAwsBillingDataJobConfig {
     }
 
     @Bean
-    public Step externalAwsBillingDataSlaveStep() {
-        return new StepBuilder("externalAwsBillingDataSlaveStep", jobRepository)
+    public Step awsBillingDataTwoSlaveStep() {
+        return new StepBuilder("awsBillingDataTwoSlaveStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
                     StepExecution stepExecution = requireNonNull(
@@ -210,26 +194,26 @@ public class ExternalAwsBillingDataJobConfig {
 
                     if (range != null && tableName != null) {
 
-                        log.info("Processing externalAwsBillingDataJob's partition {} for table {}", range, tableName);
+                        log.info("Processing partition {} for awsBillingDataJob", range);
 
                         SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
 
-                        awsBillingService.syncDailyCostUsageFromAthena(
+                        awsBillingService.syncDailyCostUsageFromAthenaV2(
                                 DATABASE_NAME, tableName,
                                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion(),
-                                range.start(), range.end(), false
+                                range.start(), range.end(), true
                         );
 
                     }
 
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
-                .listener(externalAwsBillingDataStepListener())
+                .listener(awsBillingDataTwoStepListener())
                 .build();
     }
 
     @Bean
-    public StepExecutionListener externalAwsBillingDataStepListener() {
+    public StepExecutionListener awsBillingDataTwoStepListener() {
 
         return new StepExecutionListener() {
 
@@ -240,7 +224,7 @@ public class ExternalAwsBillingDataJobConfig {
 
                 if (range != null) {
                     log.info(
-                            "Starting externalAwsBillingDataJob's step: {} for partition {}",
+                            "Starting awsBillingDataJob's step: {} for partition {}",
                             stepExecution.getStepName(), range
                     );
                 }
@@ -254,9 +238,11 @@ public class ExternalAwsBillingDataJobConfig {
                 BatchStatus status = stepExecution.getStatus();
 
                 if (!stepExecution.getFailureExceptions().isEmpty()) {
+
                     for (Throwable ex : stepExecution.getFailureExceptions()) {
-                        log.error("ExternalAwsBillingDataJob exception in step {}: ", partitionName, ex);
+                        log.error("AwsBillingDataJob exception in step {}: ", partitionName, ex);
                     }
+
                 }
 
                 CustomDateRange range = (CustomDateRange) stepExecution.getExecutionContext().get("range");
@@ -265,9 +251,9 @@ public class ExternalAwsBillingDataJobConfig {
                 if (range != null && tableName != null) {
 
                     AwsDataSyncHistory sync = awsDataSyncHistoryRepository.findByJobNameAndTableNameAndStartAndEnd(
-                            JOB_NAME, tableName, range.start(), range.end()
+                            AwsBillingDataJobConfig.JOB_NAME, tableName, range.start(), range.end()
                     ).orElse(new AwsDataSyncHistory(
-                            JOB_NAME, tableName, range.start(), range.end()
+                            AwsBillingDataJobConfig.JOB_NAME, tableName, range.start(), range.end()
                     ));
 
                     if (status.equals(BatchStatus.COMPLETED)) {
@@ -282,7 +268,7 @@ public class ExternalAwsBillingDataJobConfig {
                 }
 
                 log.info(
-                        "ExternalAwsBillingDataJob's step completed: {} with status: {} for partition {}",
+                        "AwsBillingDataJob's step completed: {} with status: {} for partition {}",
                         partitionName, status, range
                 );
 

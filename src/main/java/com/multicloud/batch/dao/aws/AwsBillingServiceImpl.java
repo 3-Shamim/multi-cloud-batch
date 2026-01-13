@@ -77,9 +77,9 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
-    public void syncDailyCostUsageFromAthenaTable(String database, String tableName,
-                                                  String accessKey, String secretKey, String region,
-                                                  LocalDate start, LocalDate end, boolean internal) {
+    public void syncDailyCostUsageFromAthena(String database, String tableName,
+                                             String accessKey, String secretKey, String region,
+                                             LocalDate start, LocalDate end, boolean internal) {
 
         int year = start.getYear();
         int month = start.getMonthValue();
@@ -126,18 +126,78 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
                     %s
                 
-                FROM %s
+                FROM "%s"
                 WHERE CAST(year AS INTEGER) = %d
                     AND CAST(month AS INTEGER) = %d
                     AND (
-                        (DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s')
-                        OR (
-                            CAST(year AS INTEGER) = %d AND CAST(month AS INTEGER) = %d
-                            AND DATE(line_item_usage_start_date) >= DATE '%s'
-                        )
+                        DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
+                        OR DATE(line_item_usage_start_date) >= DATE '%s'
                     )
                 GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
-                """.formatted(netUnblendedCol, tableName, year, month, start, end, year, month, startOfNextMonth);
+                """.formatted(netUnblendedCol, tableName, year, month, start, end, startOfNextMonth);
+
+        syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
+
+    }
+
+    @Override
+    public void syncDailyCostUsageFromAthenaV2(String database, String tableName,
+                                               String accessKey, String secretKey, String region,
+                                               LocalDate start, LocalDate end, boolean internal) {
+
+        int year = start.getYear();
+        int month = start.getMonthValue();
+
+        LocalDate startOfNextMonth = end.plusMonths(1).withDayOfMonth(1);
+
+        String netUnblendedCol = "CAST(0 AS DECIMAL(20, 8)) AS net_unblended_cost";
+
+        if (internal) {
+            netUnblendedCol = """
+                        CAST(COALESCE(SUM(line_item_net_unblended_cost), 0) AS DECIMAL(20, 8))   AS net_unblended_cost
+                    """;
+        }
+
+        String query = """
+                SELECT DATE(line_item_usage_start_date)                                      AS usage_date,
+                
+                    DATE(CONCAT(billing_period, '-01'))                                      AS billing_month,
+                
+                    -- Linked/Usage account ID
+                    line_item_usage_account_id                                               AS usage_account_id,
+                
+                    -- Service
+                    COALESCE(product_servicecode, '')                                        AS service_code,
+                    CONCAT('"', COALESCE(MAX(product['servicename']), ''), '"')              AS service_name,
+                
+                    -- SKU
+                    COALESCE(product_sku, '')                                                AS sku_id,
+                
+                    -- Region & Location
+                    COALESCE(product_region_code, '')                                        AS region,
+                    CONCAT('"', COALESCE(MAX(product_location), ''), '"')                    AS location,
+                
+                    -- Currency & Usage & Cost
+                    COALESCE(MAX(line_item_currency_code), '')                               AS currency,
+                    COALESCE(MAX(pricing_term), 'OnDemand')                                  AS pricing_type,
+                    COALESCE(line_item_line_item_type, '')                                   AS billing_type,
+                    COALESCE(line_item_usage_type, '')                                       AS usage_type,
+                
+                    CAST(COALESCE(SUM(line_item_usage_amount), 0) AS DECIMAL(20, 8))         AS usage_amount,
+                    MAX(pricing_unit)                                                        AS usage_unit,
+                
+                    CAST(COALESCE(SUM(line_item_unblended_cost), 0) AS DECIMAL(20, 8))       AS unblended_cost,
+                    CAST(COALESCE(SUM(line_item_blended_cost), 0) AS DECIMAL(20, 8))         AS blended_cost,
+                    %s
+                
+                FROM "%s"
+                WHERE billing_period = '%d-%02d'
+                    AND (
+                        DATE(line_item_usage_start_date) >= DATE '%s' AND DATE(line_item_usage_start_date) <= DATE '%s'
+                        OR DATE(line_item_usage_start_date) >= DATE '%s'
+                    )
+                GROUP BY 1, 2, 3, 4, 6, 7, 11, 12
+                """.formatted(netUnblendedCol, tableName, year, month, start, end, startOfNextMonth);
 
         syncDailyCostUsageFromAthena(database, query, accessKey, secretKey, region, internal);
 
@@ -173,7 +233,7 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                     CAST(cost AS DECIMAL(20, 8)) AS unblended_cost,
                     CAST(0 AS DECIMAL(20, 8))    AS blended_cost,
                     CAST(0 AS DECIMAL(20, 8))    AS net_unblended_cost
-                FROM %s
+                FROM "%s"
                 WHERE CAST(year AS INTEGER) = %d
                     AND CAST(month AS INTEGER) = %d
                     AND (
