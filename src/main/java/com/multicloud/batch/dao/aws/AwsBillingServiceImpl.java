@@ -106,7 +106,8 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
         YearMonth thisMonth = YearMonth.now();
 
-        for (int i = 0; i < 4; i++) {
+        // Previous one month
+        for (int i = 0; i < 2; i++) {
 
             thisMonth = thisMonth.minusMonths(i);
 
