@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.data.util.Pair;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -79,8 +80,9 @@ public class AwsBillingServiceImpl implements AwsBillingService {
     }
 
     @Override
-    public Map<LocalDate, BigDecimal> getAzerionCostForExceptionalClients(String accessKey, String secretKey,
-                                                                          String region) {
+    public Map<Pair<LocalDate, String>, BigDecimal> getAzerionCostForExceptionalClients(String accessKey,
+                                                                                        String secretKey,
+                                                                                        String region) {
 
         StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(accessKey, secretKey)
@@ -91,12 +93,13 @@ public class AwsBillingServiceImpl implements AwsBillingService {
                 .region(Region.of(region))
                 .build();
 
-
         String database = "athenacurcfn_athena";
         String bucket = "azerion-athena-results";
         String prefix = "azerion_mc";
 
         String outputLocation = "s3://%s/%s/".formatted(bucket, prefix);
+
+        Map<Pair<LocalDate, String>, BigDecimal> results = new HashMap<>();
 
         YearMonth thisMonth = YearMonth.now();
 
@@ -114,12 +117,20 @@ public class AwsBillingServiceImpl implements AwsBillingService {
 
             athenaService.fetchQueryResults(executionId, athenaClient)
                     .forEach(res -> res.resultSet().rows().forEach(row -> {
-                        System.out.println(row.data());
+
+                        results.put(
+                                Pair.of(
+                                        LocalDate.parse(row.data().getFirst().varCharValue()),
+                                        row.data().get(1).varCharValue()
+                                ),
+                                new BigDecimal(row.data().get(2).varCharValue())
+                        );
+
                     }));
 
         }
 
-        return Map.of();
+        return results;
     }
 
     @Override

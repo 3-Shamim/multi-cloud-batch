@@ -1,5 +1,7 @@
 package com.multicloud.batch.dao.aws;
 
+import org.springframework.data.util.Pair;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
@@ -15,7 +17,9 @@ public interface AwsBillingService {
 
     Set<String> tableListByDatabase(String database, String accessKey, String secretKey, String region);
 
-    Map<LocalDate, BigDecimal> getAzerionCostForExceptionalClients(String accessKey, String secretKey, String region);
+    Map<Pair<LocalDate, String>, BigDecimal> getAzerionCostForExceptionalClients(
+            String accessKey, String secretKey, String region
+    );
 
     void syncDailyCostUsageFromAthena(
             String databaseName, String tableName, String accessKey, String secretKey, String region,

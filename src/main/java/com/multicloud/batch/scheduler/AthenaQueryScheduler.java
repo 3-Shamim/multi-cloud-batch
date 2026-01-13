@@ -6,6 +6,7 @@ import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.util.Pair;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -13,6 +14,9 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -70,9 +74,11 @@ public class AthenaQueryScheduler {
     @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void testAthenaQuery() {
 
-        awsBillingService.getAzerionCostForExceptionalClients(
+        Map<Pair<LocalDate, String>, BigDecimal> costs = awsBillingService.getAzerionCostForExceptionalClients(
                 accessKey, secretKey, region
         );
+
+        System.out.println(costs);
 
     }
 
