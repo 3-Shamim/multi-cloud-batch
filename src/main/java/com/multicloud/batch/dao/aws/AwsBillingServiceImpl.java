@@ -1,6 +1,5 @@
 package com.multicloud.batch.dao.aws;
 
-import com.multicloud.batch.helper.AwsQueryHelper;
 import com.multicloud.batch.model.AwsBillingDailyCost;
 import com.multicloud.batch.repository.AwsBillingDailyCostRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
+
+import static com.multicloud.batch.helper.AwsQueryHelper.GENERAL_AMORTIZE_COST_QUERY;
+import static com.multicloud.batch.helper.AwsQueryHelper.HKTS_AMORTIZE_COST_QUERY;
 
 /**
  * Created by IntelliJ IDEA.
@@ -110,23 +113,12 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             int year = thisMonth.getYear();
             int month = thisMonth.getMonthValue();
 
-            String query = AwsQueryHelper.GENERAL_AMORTIZE_COST_QUERY.formatted(year, month);
-
-            String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
-            athenaService.waitForQueryToComplete(executionId, athenaClient);
-
-            athenaService.fetchQueryResults(executionId, athenaClient)
-                    .forEach(res -> res.resultSet().rows().forEach(row -> {
-
-                        results.put(
-                                Pair.of(
-                                        LocalDate.parse(row.data().getFirst().varCharValue()),
-                                        row.data().get(1).varCharValue()
-                                ),
-                                new BigDecimal(row.data().get(2).varCharValue())
-                        );
-
-                    }));
+            executeQueryAndBindResult(
+                    GENERAL_AMORTIZE_COST_QUERY.formatted(year, month), outputLocation, database, athenaClient, results
+            );
+            executeQueryAndBindResult(
+                    HKTS_AMORTIZE_COST_QUERY.formatted(year, month), outputLocation, database, athenaClient, results
+            );
 
         }
 
@@ -448,6 +440,38 @@ public class AwsBillingServiceImpl implements AwsBillingService {
             log.error("Error parsing BigDecimal: {}", value, e);
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private void executeQueryAndBindResult(String query, String outputLocation, String database,
+                                           AthenaClient athenaClient,
+                                           Map<Pair<LocalDate, String>, BigDecimal> results) {
+
+        String executionId = athenaService.submitAthenaQuery(query, outputLocation, database, athenaClient);
+        athenaService.waitForQueryToComplete(executionId, athenaClient);
+
+        AtomicBoolean firstRow = new AtomicBoolean(true);
+
+        athenaService.fetchQueryResults(executionId, athenaClient)
+                .forEach(res -> res.resultSet().rows().forEach(row -> {
+
+                    if (firstRow.get()) {
+
+                        firstRow.set(false);
+
+                    } else {
+
+                        results.put(
+                                Pair.of(
+                                        LocalDate.parse(row.data().getFirst().varCharValue()),
+                                        row.data().get(1).varCharValue()
+                                ),
+                                new BigDecimal(row.data().get(2).varCharValue())
+                        );
+
+                    }
+
+                }));
+
     }
 
 }

@@ -1,10 +1,14 @@
 package com.multicloud.batch.job;
 
+import com.multicloud.batch.dao.aws.AwsBillingService;
+import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
+import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dto.PerDayCostDTO;
 import com.multicloud.batch.dto.ProductDTO;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.secondary.model.CustomerDailyCost;
 import com.multicloud.batch.service.CustomerCostService;
+import com.multicloud.batch.service.SecretPayloadStoreService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -14,9 +18,11 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.util.Pair;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -40,6 +46,11 @@ import java.util.Map;
 @ConditionalOnExpression("${batch_job.customer_cost.enabled}")
 public class CalculateCustomerCostJobConfig {
 
+    private static final String SECRET_STORE_KEY = "global_aws_billing_data_secret";
+
+    @Value("${batch_job.aws_billing_data.secret_path}")
+    private String awsSecretPath;
+
     private final DataSource dataSource;
 
     private final JobRepository jobRepository;
@@ -48,6 +59,9 @@ public class CalculateCustomerCostJobConfig {
     private final PlatformTransactionManager secondaryTransactionManager;
 
     private final CustomerCostService customerCostService;
+    private final SecretPayloadStoreService secretPayloadStoreService;
+    private final AwsSecretsManagerService awsSecretsManagerService;
+    private final AwsBillingService awsBillingService;
 
     public CalculateCustomerCostJobConfig(DataSource dataSource,
                                           @Qualifier(value = "secondaryJdbcTemplate")
@@ -55,13 +69,19 @@ public class CalculateCustomerCostJobConfig {
                                           @Qualifier(value = "secondaryTransactionManager")
                                           PlatformTransactionManager secondaryTransactionManager,
                                           JobRepository jobRepository,
-                                          CustomerCostService customerCostService) {
+                                          CustomerCostService customerCostService,
+                                          SecretPayloadStoreService secretPayloadStoreService,
+                                          AwsSecretsManagerService awsSecretsManagerService,
+                                          AwsBillingService awsBillingService) {
 
         this.dataSource = dataSource;
         this.secondaryJdbcTemplate = secondaryJdbcTemplate;
         this.jobRepository = jobRepository;
         this.secondaryTransactionManager = secondaryTransactionManager;
         this.customerCostService = customerCostService;
+        this.secretPayloadStoreService = secretPayloadStoreService;
+        this.awsSecretsManagerService = awsSecretsManagerService;
+        this.awsBillingService = awsBillingService;
     }
 
     @Bean
@@ -249,9 +269,30 @@ public class CalculateCustomerCostJobConfig {
     }
 
     // We check exceptional for AWS only
-    private static void handleAllExceptionalCase(ProductDTO productDTO, List<PerDayCostDTO> customerCostList,
-                                                 List<CustomerDailyCost> customerDailyCostList) {
+    private void handleAllExceptionalCase(ProductDTO productDTO, List<PerDayCostDTO> customerCostList,
+                                          List<CustomerDailyCost> customerDailyCostList) {
 
+        // Retrieve azerion cost for all exceptional clients
+        SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
+
+        if (secret == null) {
+
+            secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
+
+            if (secret == null) {
+                throw new RuntimeException("Secret not found for awsBillingDataJob");
+            }
+
+            // Store secret
+            secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
+
+        }
+
+        Map<Pair<LocalDate, String>, BigDecimal> azerionCostMap = awsBillingService.getAzerionCostForExceptionalClients(
+                secret.getAccessKey(), secret.getSecretKey(), secret.getRegion()
+        );
+
+        // <ProductID, BillingEntity>
         Map<Long, String> awsBillingEntityMap = new HashMap<>();
         awsBillingEntityMap.put(18L, "hitta");
         awsBillingEntityMap.put(19L, "woozworld");
@@ -262,12 +303,25 @@ public class CalculateCustomerCostJobConfig {
 
         for (PerDayCostDTO dto : customerCostList) {
 
-            // For AWS and GCP
+            // For GCP
             BigDecimal azerionCost = dto.afterDiscountCost();
 
             // Azerion get a 55% discount from Huawei
             if (dto.cloudProvider().equals(CloudProvider.HWC)) {
                 azerionCost = dto.cost().multiply(BigDecimal.valueOf(0.45));
+            }
+
+            // Aws
+            if (dto.cloudProvider().equals(CloudProvider.AWS)) {
+
+                String billingEntity = awsBillingEntityMap.get(productDTO.productId());
+
+                if (billingEntity == null) {
+                    azerionCost = BigDecimal.ZERO;
+                } else {
+                    azerionCost = azerionCostMap.getOrDefault(Pair.of(dto.usageDate(), billingEntity), BigDecimal.ZERO);
+                }
+
             }
 
             customerDailyCostList.add(

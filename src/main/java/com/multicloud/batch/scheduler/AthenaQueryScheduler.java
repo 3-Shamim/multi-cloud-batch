@@ -71,17 +71,16 @@ public class AthenaQueryScheduler {
 
     }
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
-    void testAthenaQuery() {
-
-        Map<Pair<LocalDate, String>, BigDecimal> costs = awsBillingService.getAzerionCostForExceptionalClients(
-                accessKey, secretKey, region
-        );
-
-        System.out.println(costs);
-
-    }
-
+//    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
+//    void testAthenaQuery() {
+//
+//        Map<Pair<LocalDate, String>, BigDecimal> costs = awsBillingService.getAzerionCostForExceptionalClients(
+//                accessKey, secretKey, region
+//        );
+//
+//        costs.forEach((k, v) -> System.out.println(k + " : " + v));
+//
+//    }
 
     //        @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.DAYS)
     void runAthenaQuery() {
