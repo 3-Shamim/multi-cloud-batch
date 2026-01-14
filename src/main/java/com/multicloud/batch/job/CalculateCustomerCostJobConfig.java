@@ -1,12 +1,12 @@
 package com.multicloud.batch.job;
 
-import com.multicloud.batch.dao.aws.AwsBillingService;
 import com.multicloud.batch.dao.aws.AwsSecretsManagerService;
 import com.multicloud.batch.dao.aws.payload.SecretPayload;
 import com.multicloud.batch.dto.PerDayCostDTO;
 import com.multicloud.batch.dto.ProductDTO;
 import com.multicloud.batch.enums.CloudProvider;
 import com.multicloud.batch.secondary.model.CustomerDailyCost;
+import com.multicloud.batch.service.AzerionCostStoreService;
 import com.multicloud.batch.service.CustomerCostService;
 import com.multicloud.batch.service.SecretPayloadStoreService;
 import lombok.extern.slf4j.Slf4j;
@@ -17,12 +17,12 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.util.Pair;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -61,7 +61,7 @@ public class CalculateCustomerCostJobConfig {
     private final CustomerCostService customerCostService;
     private final SecretPayloadStoreService secretPayloadStoreService;
     private final AwsSecretsManagerService awsSecretsManagerService;
-    private final AwsBillingService awsBillingService;
+    private final AzerionCostStoreService azerionCostStoreService;
 
     public CalculateCustomerCostJobConfig(DataSource dataSource,
                                           @Qualifier(value = "secondaryJdbcTemplate")
@@ -72,7 +72,7 @@ public class CalculateCustomerCostJobConfig {
                                           CustomerCostService customerCostService,
                                           SecretPayloadStoreService secretPayloadStoreService,
                                           AwsSecretsManagerService awsSecretsManagerService,
-                                          AwsBillingService awsBillingService) {
+                                          AzerionCostStoreService azerionCostStoreService) {
 
         this.dataSource = dataSource;
         this.secondaryJdbcTemplate = secondaryJdbcTemplate;
@@ -81,15 +81,43 @@ public class CalculateCustomerCostJobConfig {
         this.customerCostService = customerCostService;
         this.secretPayloadStoreService = secretPayloadStoreService;
         this.awsSecretsManagerService = awsSecretsManagerService;
-        this.awsBillingService = awsBillingService;
+        this.azerionCostStoreService = azerionCostStoreService;
     }
 
     @Bean
     public Job calculateCustomerCostJob() {
 
         return new JobBuilder("calculateCustomerCostJob", jobRepository)
-                .start(calculateCustomerCostStep())
+                .start(retrieveAzerionCostForAllExceptionalClientsStep())
+                .next(calculateCustomerCostStep())
                 .build();
+    }
+
+    @Bean
+    public Step retrieveAzerionCostForAllExceptionalClientsStep() {
+
+        return new StepBuilder("retrieveAzerionCostForAllExceptionalClientsStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
+
+                    if (secret == null) {
+
+                        secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
+
+                        if (secret == null) {
+                            throw new RuntimeException("Secret not found for awsBillingDataJob");
+                        }
+
+                        // Store secret
+                        secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
+
+                    }
+
+                    azerionCostStoreService.fetchAndStoreAzerionCost(secret);
+
+                    return RepeatStatus.FINISHED;
+                }, secondaryTransactionManager).build();
     }
 
     @Bean
@@ -101,7 +129,7 @@ public class CalculateCustomerCostJobConfig {
                 .writer(chunk -> {
 
                     LocalDate end = LocalDate.now();
-                    LocalDate start = end.minusMonths(1).withDayOfMonth(1);
+                    LocalDate start = end.minusMonths(4).withDayOfMonth(1);
 
                     for (ProductDTO productDTO : chunk.getItems()) {
 
@@ -124,7 +152,9 @@ public class CalculateCustomerCostJobConfig {
                         List<CustomerDailyCost> customerDailyCostList = new ArrayList<>();
 
                         if (productDTO.isExceptionalOrg()) {
-                            handleAllExceptionalCase(productDTO, customerCostList, customerDailyCostList);
+                            handleAllExceptionalCase(
+                                    productDTO, customerCostList, customerDailyCostList
+                            );
                         } else {
                             handleAllRegularCases(productDTO, start, end, customerCostList, customerDailyCostList);
                         }
@@ -147,7 +177,7 @@ public class CalculateCustomerCostJobConfig {
                     SELECT p.id, p.name, o.id AS org_id, o.name AS org_name, o.internal, o.exceptional
                     FROM products p
                         JOIN organizations o ON p.organization_id = o.id
-                    WHERE o.internal = false
+                    WHERE o.internal = false and p.id in (18, 19, 20, 21)
                 """);
         reader.setFetchSize(500);
         reader.setSaveState(false);
@@ -272,26 +302,6 @@ public class CalculateCustomerCostJobConfig {
     private void handleAllExceptionalCase(ProductDTO productDTO, List<PerDayCostDTO> customerCostList,
                                           List<CustomerDailyCost> customerDailyCostList) {
 
-        // Retrieve azerion cost for all exceptional clients
-        SecretPayload secret = secretPayloadStoreService.get(SECRET_STORE_KEY);
-
-        if (secret == null) {
-
-            secret = awsSecretsManagerService.getSecret(awsSecretPath, true);
-
-            if (secret == null) {
-                throw new RuntimeException("Secret not found for awsBillingDataJob");
-            }
-
-            // Store secret
-            secretPayloadStoreService.put(SECRET_STORE_KEY, secret);
-
-        }
-
-        Map<Pair<LocalDate, String>, BigDecimal> azerionCostMap = awsBillingService.getAzerionCostForExceptionalClients(
-                secret.getAccessKey(), secret.getSecretKey(), secret.getRegion()
-        );
-
         // <ProductID, BillingEntity>
         Map<Long, String> awsBillingEntityMap = new HashMap<>();
         awsBillingEntityMap.put(18L, "hitta");
@@ -319,7 +329,7 @@ public class CalculateCustomerCostJobConfig {
                 if (billingEntity == null) {
                     azerionCost = BigDecimal.ZERO;
                 } else {
-                    azerionCost = azerionCostMap.getOrDefault(Pair.of(dto.usageDate(), billingEntity), BigDecimal.ZERO);
+                    azerionCost = azerionCostStoreService.getAzerionCost(dto.usageDate(), billingEntity);
                 }
 
             }
