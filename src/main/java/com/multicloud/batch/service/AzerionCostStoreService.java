@@ -30,6 +30,8 @@ public class AzerionCostStoreService {
 
     public void fetchAndStoreAzerionCost(SecretPayload secret) {
 
+        AZERION_COST_MAP.clear();
+
         Map<Pair<LocalDate, String>, BigDecimal> azerionCostMap = awsBillingService.getAzerionCostForExceptionalClients(
                 secret.getAccessKey(), secret.getSecretKey(), secret.getRegion()
         );
