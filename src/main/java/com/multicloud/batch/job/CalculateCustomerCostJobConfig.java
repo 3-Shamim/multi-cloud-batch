@@ -101,7 +101,7 @@ public class CalculateCustomerCostJobConfig {
                 .writer(chunk -> {
 
                     LocalDate end = LocalDate.now();
-                    LocalDate start = end.minusMonths(4).withDayOfMonth(1);
+                    LocalDate start = end.minusMonths(1).withDayOfMonth(1);
 
                     for (ProductDTO productDTO : chunk.getItems()) {
 
