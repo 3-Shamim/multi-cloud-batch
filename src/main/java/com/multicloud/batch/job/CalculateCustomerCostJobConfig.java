@@ -177,7 +177,7 @@ public class CalculateCustomerCostJobConfig {
                     SELECT p.id, p.name, o.id AS org_id, o.name AS org_name, o.internal, o.exceptional
                     FROM products p
                         JOIN organizations o ON p.organization_id = o.id
-                    WHERE o.internal = false and p.id in (18, 19, 20, 21)
+                    WHERE o.internal = false
                 """);
         reader.setFetchSize(500);
         reader.setSaveState(false);
