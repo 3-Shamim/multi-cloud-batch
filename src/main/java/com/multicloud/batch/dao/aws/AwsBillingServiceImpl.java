@@ -107,12 +107,12 @@ public class AwsBillingServiceImpl implements AwsBillingService {
         YearMonth thisMonth = YearMonth.now();
 
         // Previous one month
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 5; i++) {
 
-            thisMonth = thisMonth.minusMonths(i);
+            YearMonth current = thisMonth.minusMonths(i);
 
-            int year = thisMonth.getYear();
-            int month = thisMonth.getMonthValue();
+            int year = current.getYear();
+            int month = current.getMonthValue();
 
             executeQueryAndBindResult(
                     GENERAL_AMORTIZE_COST_QUERY.formatted(year, month), outputLocation, database, athenaClient, results
