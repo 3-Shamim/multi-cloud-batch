@@ -3,6 +3,7 @@ package com.multicloud.batch.job.aws;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -13,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.Set;
@@ -56,9 +58,14 @@ public class AwsBillingDataJobConfig {
         return new StepBuilder("lastMonthAwsDataCleanupStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
 
+                    JobParameters jobParameters = chunkContext.getStepContext().getStepExecution().getJobParameters();
+                    String cleanUp = jobParameters.getString("cleanUp");
+
                     LocalDate now = LocalDate.now();
 
-                    if (Set.of(1, 2, 3, 4, 10, 15, 19, 24, 27).contains(now.getDayOfMonth())) {
+                    if (StringUtils.hasText(cleanUp)
+                        && cleanUp.equals("true")
+                        && Set.of(1, 2, 3, 4, 10, 15, 19, 24, 27).contains(now.getDayOfMonth())) {
 
                         String query = "delete from aws_billing_daily_costs where usage_date >= ? and billing_month >= ?";
 

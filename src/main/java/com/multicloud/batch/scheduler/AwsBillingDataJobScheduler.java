@@ -60,6 +60,7 @@ public class AwsBillingDataJobScheduler {
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
+                .addString("cleanUp", "true")
                 .toJobParameters();
 
         jobLauncher.run(awsBillingDataJob, jobParameters);
