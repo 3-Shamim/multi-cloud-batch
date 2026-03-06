@@ -102,7 +102,7 @@ public class AwsBillingDataOneStepConfig {
 
             if (exist) {
 
-                if (Set.of(1, 2, 3, 4, 10, 15, 19, 24, 27).contains(now.getDayOfMonth())) {
+                if (Set.of(1, 2, 3, 4, 5, 8, 11, 14, 17, 20, 23, 26, 29).contains(now.getDayOfMonth())) {
 
                     days = ChronoUnit.DAYS.between(
                             now.minusMonths(1).withDayOfMonth(1), now

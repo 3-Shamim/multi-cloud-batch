@@ -65,7 +65,7 @@ public class AwsBillingDataJobConfig {
 
                     if (StringUtils.hasText(cleanUp)
                         && cleanUp.equals("true")
-                        && Set.of(1, 2, 3, 4, 10, 15, 19, 24, 27).contains(now.getDayOfMonth())) {
+                        && Set.of(1, 2, 3, 4, 5, 8, 11, 14, 17, 20, 23, 26, 29).contains(now.getDayOfMonth())) {
 
                         String query = "delete from aws_billing_daily_costs where usage_date >= ? and billing_month >= ?";
 
